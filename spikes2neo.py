@@ -28,27 +28,31 @@ def load_spike_file(path):
     mat  = h5py.File(path)
     spks = mat['spikes']
 
-    labels      = np.asarray(spks['labels']).T     # ndarray shape(n x m) n: num elements, m0 = unit label, m1 = type of unit (i.e. single, multi, garbage)
-    assigns     = np.asarray(spks['assigns']).T    # ndarray shape(n) n: num of spike times for all units
-    trials      = np.asarray(spks['trials']).T     # ndarray shape(n) n: num of spike times for all units
-    spike_times = np.asarray(spks['spiketimes']).T # ndarray shape(n) n: num of spike times for all units
-    waves       = np.asarray(spks['waveforms']).T  # ndarray shape(n x m x p) n: num of spike times for all units m: num of range(m)les in waveform
-                                    # p: num of recording channels
+    labels      = np.asarray(spks['labels']).T         # ndarray shape(n x m) n: num elements, m0 = unit label, m1 = type of unit (i.e. single, multi, garbage)
+    assigns     = np.asarray(spks['assigns']).T        # ndarray shape(n) n: num of spike times for all units
+    trials      = np.asarray(spks['trials']).T         # ndarray shape(n) n: num of spike times for all units
+    spike_times = np.asarray(spks['spiketimes']).T     # ndarray shape(n) n: num of spike times for all units
+    waves       = np.asarray(spks['waveforms']).T      # ndarray shape(n x m x p) n: num of spike times for all units m: num of range(m)les in waveform
+    trial_times = np.asarray(spks['trial_times']).T    # p: num of recording channels
     nsamp       = waves.shape[1]
     nchan       = waves.shape[2]  # get number of channels used
 
-    uniqassigns = np.unique(assigns)                   # get unique unit numbers
-    unit_type   = labels[:, 1]                          # get unit type 0=noise, 1=singlunit, 3=multi-unit, 4=unsorted
+    uniqassigns = np.unique(assigns)  # get unique unit numbers
+    unit_type   = labels[:, 1]        # get unit type 0=noise, 1=multi-unit, 2=single-unit, 3=unsorted
     ids         = labels[:, 0]
     nunit       = len(ids)
 
-    return labels, assigns, trials, spike_times, waves, nsamp, nchan, ids, nunit, unit_type
+    return labels, assigns, trials, spike_times, waves, nsamp, nchan, ids, nunit, unit_type, trial_times
 
 def load_v73_mat_file(file_path, variable_name='spike_measures'):
     '''
     This will load in a vector, matrix, or simple cell array
     A simple cell array is considered a cell array that contains vectors,
     matrices, or other entries that are NOT additional cells.
+
+    WARNING:
+    Loading in MATLAB -v7.3 files is finiky. You may need to play around with
+    the h5py.File('path/to/file') function to figure out how to access the data
     '''
     print('\n----- load_v73_mat_file -----')
     print('Loading data from: ' + file_path + '\nvariable: ' + variable_name)
@@ -73,16 +77,27 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
     return data
 
 def load_mat_file(file_path, variable_name='spike_msr_mat'):
+    '''Loads in MATLAB files that are not -v7.3'''
     print('\n----- load_mat_file -----')
     print('Loading data from: ' + file_path)
     mat = sio.loadmat(file_path, struct_as_record=False, squeeze_me=True)
     return mat[variable_name]
 
 def calculate_runspeed(run_list,Fs=30000.0):
-    # original time for 350 trials: 19.8s
-    # time with parallel pool using 'apply': 13.2s
-    # time with parallel pool using 'apply_async' with 1-4 processes: 13.0s, 8.42, 6.14, 5.79s
-    # no improvement when processes exceeds number of virtual cores
+    '''
+    Calculates runspeed from a list of numpy arrays containing distance
+    traveled. Distance traveled is calculated by a MATLAB function that
+    integrates the number of encoder pulses identified. Each entry in the list
+    should be the distance traveled for the trial of the same index.
+
+    This function convolves a differentiated Gaussian which simultaneously
+    smooths and differentiates the distance traveled to velocity. It does this
+    by creating a parallel pool of workers where each worker computes the
+    convolution of a single trial.
+
+    Returns a downsampled velocity list and a trial time list containing the
+    corresponding times for each velocity entry.
+    '''
 
     print('\n----- calculate_runspeed -----')
     processes = 4
@@ -90,11 +105,11 @@ def calculate_runspeed(run_list,Fs=30000.0):
     t = time.time()
 
     ntrials = len(run_list)
-    down_samp = 5.0
+    down_samp = int(5.0)
     down_samp_fs = round(Fs/down_samp)
 
     vel_list = list(run_list)
-    gauss_window = make_gauss_window(round(down_samp_fs),255.0,down_samp_fs)
+    gauss_window = make_gauss_window(int(down_samp_fs),255.0,down_samp_fs)
     window_len = len(gauss_window)
 
     x_t = [trial[0::down_samp] for trial in run_list]
@@ -124,177 +139,6 @@ def calculate_runspeed_derivative(x_t,gauss_window,window_len,down_samp_fs,order
 	dx_dt = np.convolve(xx_t,dx_dt_gauss_window,mode='same')
 	dx_dt = dx_dt[window_len:-window_len]
         return order,dx_dt
-
-def make_neo_object(writer, data_dir, lfp_files, spikes_files,\
-                wtrack_files, vel_list, run_bool_list, stim, stim_time_list)
-    print('\n----- make_neo_block -----')
-
-    ##### REMOVE THIS AFTER DEBUGGING #####
-    block = neo.Block(name=fid, description='This is a neo block for experiment' + fid) # create block for experiment
-    ##### REMOVE THIS AFTER DEBUGGING #####
-
-    ## Make neo block and segment objects
-    #  block = neo.Block(name='test_block', description="This is a simple Neo example")
-    #  create block for experiment. make the same number of segments as number of trials
-    for trial_ind in np.arange(stim.shape[0]):
-
-        # add trial info to trial segment data
-        seg_description = 'Trial number: ' + str(trial_ind) + ' Trial type: ' + str(stim[trial_ind][0])
-        segment = neo.Segment(
-                description  = seg_description,
-                index        = trial_ind,                    # trial number
-                run_boolean  = run_bool_list[trial_ind],     # running=1, not-running=0
-                trial_number = trial_ind,                    # trial number as an annotation
-                trial_type   = stim[trial_ind][0],           # stimulus presented
-                stim_times   = stim_time_list[trial_ind])    # start/stop times of the stimulus object
-        block.segments.append(segment)
-
-        # add velocity data to trial segment
-        sig0 = neo.AnalogSignal(
-                signal=vel_list[trial_ind][:],
-                units=pq.deg/pq.S,
-                sampling_rate=6*pq.kHz,
-                name='run speed')
-        block.segments[trial_ind].analogsignals.append(sig0)
-        ##### How to access important metadata from analogsignals #####
-        #     a = block.segments[0].analogsignals[::2][0]
-        #     a.t_start, a.tstop, num_samples=len(a)
-        #     to make a time vector you could do: t = np.linspace(a.t_start,
-        #     a.t_stop, num_samples)
-
-    ## Add LFPs to trial segment
-    if lfp_files:
-        for e, lfp_path in enumerate(lfp_files):
-            lfp_fname       = os.path.split(lfp_path)[1]
-            electrode_match = re.search(r'e\d{0,2}', lfp_fname)
-            e_name          = electrode_match.group()
-            e_num           = int(e_name[1::])
-            disp('loading LFPs from: ' + lfp_fname)
-            lfp             = load_v73_mat_file(lfp_path, variable_name='lfp')
-
-            for trial_ind in np.arange(stim.shape[0]):
-                sig0 = neo.AnalogSignal(
-                        signal=lfp[trial_ind],
-                        units=pq.uV,
-                        sampling_rate=1.5*pq.kHz,
-                        name='LFPs',
-                        shank_name=e_name,
-                        shank_num=e_num)
-                block.segments[trial_ind].analogsignals.append(sig0)
-
-    if wtrack_files:
-        for e, wt_path in enumerate(wtrack_files):
-            wt_fname = os.path.split(wt_path)[1]
-            disp('loading whisker tracking data from: ' + wt_name)
-            wt       = load_v73_mat_file(lfp_path, variable_name='lfp')
-
-            for trial_ind in np.arange(stim.shape[0]):
-                sig0 = neo.AnalogSignal(
-                        signal=wt[trial_ind][:,0],
-                        units=pq.deg,
-                        sampling_rate=500*pq.Hz,
-                        name='angle')
-                sig1 = neo.AnalogSignal(
-                        signal=wt[trial_ind][:,1],
-                        units=pq.deg,
-                        sampling_rate=500*pq.Hz,
-                        name='set-point')
-                sig2 = neo.AnalogSignal(
-                        signal=wt[trial_ind][:,2],
-                        units=pq.deg,
-                        sampling_rate=500*pq.Hz,
-                        name='amplitude')
-                sig3 = neo.AnalogSignal(
-                        signal=wt[trial_ind][:,3],
-                        units=pq.deg/pq.S,
-                        sampling_rate=500*pq.Hz,
-                        name='velocity')
-                # ADD PHASE???
-                sig4 = neo.AnalogSignal(
-                        signal=wt[trial_ind][:,3],
-                        units=pq.rad,
-                        sampling_rate=500*pq.Hz,
-                        name='phase')
-                block.segments[trial_ind].analogsignals.append(sig0)
-                block.segments[trial_ind].analogsignals.append(sig1)
-                block.segments[trial_ind].analogsignals.append(sig2)
-                block.segments[trial_ind].analogsignals.append(sig3)
-                block.segments[trial_ind].analogsignals.append(sig4)
-
-    ## Load in spike measure mat file ##
-    spike_measure_path = data_dir + 'spike_measures.mat'
-    if os.path.exists(spike_measure_path):
-        spk_msrs = load_mat_file(spike_measure_path, variable_name='spike_msr_mat')
-
-    if spk_files:
-        for e, spk_path in enumerate(spk_files):
-            spk_fname       = os.path.split(spk_path)[1]
-            electrode_match = re.search(r'e\d{0,2}', spk_fname)
-            e_name          = electrode_match.group()
-            e_num           = int(e_name[1::])
-            disp('loading spikes from: ' + spk_fname)
-            labels, assigns, trials, spike_times, waves, nsamp,\
-                    nchan, ids, nunit, unit_type = load_spikes_file(spk_path)
-
-            for trial_ind in np.arange(stim.shape[0]):
-                print('number of units')
-                print(ids)
-
-                for k, unit in enumerate(ids): # iterate through ALL UNITS FROM ONE SPIKE FILE
-
-                    ## GETS SPIKE TIMES FOR ONE UNIT FOR ONE TRIAL ##
-                    spk_times_bool = sp.logical_and(trials == trial_index + 1, assigns == unit) # trial_index + 1 since trials are 1 based (i.e. there is no trial 0)
-                    if unit_type[k] < 3 and trial_index == 0:
-
-                        unit_id = sort_file_basename + '-u' + str(unit).zfill(3)
-                        unit_ids = df_spk_msr['unit_id'].tolist()
-                        unit_index = unit_ids.index(unit_id)
-
-                        block.segments[trial_index].spiketrains.append(neo.SpikeTrain(spike_times[spk_times_bool]*1000,
-## replace with variable ----->>>>> t_start=0 * pq.ms
-## replace with variable ----->>>>> t_stop=3200 * pq.ms,
-                                sampling_rate=30 * pq.kHz,
-                                units=pq.ms,
-                                description="Spike train for unit: " + str(unit),
-                                depth=df_spk_msr.loc[unit_index,'depth'],
-                                cell_type=df_spk_msr.loc[unit_index,'cell_type'],
-                                wave_duration=df_spk_msr.loc[unit_index,'wave_duration'],
-                                wave_ratio=df_spk_msr.loc[unit_index,'wave_ratio'],
-                                mean_waves=str2nparray(df_spk_msr.loc[unit_index,'mean_waves']),
-                                std_waves=str2nparray(df_spk_msr.loc[unit_index,'std_waves']),
-                                spike_file= spike_file_name,
-                                unit_id=unit,
-                                fid=fid))
-
-                    elif unit_type[k] == 3 and trial_index == 0: #if multi-unit add to segment with no other information
-                        block.segments[trial_index].spiketrains.append(neo.SpikeTrain(spike_times[spk_times_bool]*1000,
-                                t_stop=3200 * pq.ms,
-                                sampling_rate=30 * pq.kHz,
-                                units=pq.ms,
-                                description="Spike train for unit: " + str(unit),
-                                depth=np.nan,
-                                cell_type='MU',
-                                wave_duration=np.nan,
-                                wave_ratio=np.nan,
-                                mean_waves=np.nan,
-                                std_waves=np.nan,
-                                spike_file= spike_file_name,
-                                unit_id=unit,
-                                fid=fid))
-                    elif unit_type[k] < 3 and trial_index > 0: # add spiketrains for single unit
-                        block.segments[trial_index].spiketrains.append(neo.SpikeTrain(spike_times[spk_times_bool]*1000,
-                                t_stop=3200 * pq.ms,
-                                sampling_rate=30 * pq.kHz,
-                                units=pq.ms))
-                    elif unit_type[k] == 3 and trial_index > 0: # add spiketrains for multi-unit
-                        block.segments[trial_index].spiketrains.append(neo.SpikeTrain(spike_times[spk_times_bool]*1000,
-                                t_stop=3200 * pq.ms,
-                                sampling_rate=30 * pq.kHz,
-                                units=pq.ms))
-        # close writer object to stop adding blocks to the file
-    writer.write(block)
-    return block
-
 
 def fwhm(x,y):
     '''
@@ -433,9 +277,9 @@ def plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
     plt.suptitle('birds eye view of runspeeds across experiment')
     plt.show()
 
-def classify_run_trials(vel_mat, trtime_list, stim_time_list, t_after_start=0.250,\
+def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.250,\
         t_after_stop=0.5, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=False):
-    num_trials = len(vel_mat)
+    num_trials = len(vel_list)
     mean_vel = []
     sigm_vel = []
     run_bool_list = [False]*num_trials
@@ -443,7 +287,7 @@ def classify_run_trials(vel_mat, trtime_list, stim_time_list, t_after_start=0.25
     for count, trial in enumerate(range(num_trials)):
         stim_period_inds = (trtime_list[trial] >= (stim_time_list[trial][0] + t_after_start))\
                 & (trtime_list[trial] <= (stim_time_list[trial][1] + t_after_stop))
-        vel = vel_mat[trial][stim_period_inds]
+        vel = vel_list[trial][stim_period_inds]
         mean_vel.append(np.mean(vel))
         sigm_vel.append(np.std(vel))
         if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
@@ -462,7 +306,168 @@ def classify_run_trials(vel_mat, trtime_list, stim_time_list, t_after_start=0.25
 
     return run_bool_list
 
+def make_neo_object(writer, data_dir, lfp_files, spikes_files, \
+        wtrack_files, vel_list, run_bool_list, stim, stim_time_list):
+    print('\n----- make_neo_block -----')
 
+    ##### REMOVE THIS AFTER DEBUGGING #####
+    block = neo.Block(name=fid, description='This is a neo block for experiment' + fid) # create block for experiment
+    ##### REMOVE THIS AFTER DEBUGGING #####
+
+    ## Make neo block and segment objects
+    #  block = neo.Block(name='test_block', description="This is a simple Neo example")
+    #  create block for experiment. make the same number of segments as number of trials
+    for trial_ind in np.arange(stim.shape[0]):
+
+        # add trial info to trial segment data
+        seg_description = 'Trial number: ' + str(trial_ind) + ' Trial type: ' + str(stim[trial_ind][0])
+        segment = neo.Segment(
+                description  = seg_description,
+                index        = trial_ind,                    # trial number as an index
+                run_boolean  = run_bool_list[trial_ind],     # running=1, not-running=0
+                trial_number = trial_ind,                    # trial number as an annotation
+                trial_type   = stim[trial_ind][0],           # stimulus presented
+                stim_times   = stim_time_list[trial_ind])    # start/stop times of the stimulus object
+        block.segments.append(segment)
+
+        # add velocity data to trial segment
+        sig0 = neo.AnalogSignal(
+                signal=vel_list[trial_ind][:],
+                units=pq.deg/pq.S,
+                sampling_rate=6*pq.kHz,
+                name='run speed')
+        block.segments[trial_ind].analogsignals.append(sig0)
+        ##### How to access important metadata from analogsignals #####
+        #     a = block.segments[0].analogsignals[::2][0]
+        #     a.t_start, a.tstop, num_samples=len(a)
+        #     to make a time vector you could do: t = np.linspace(a.t_start,
+        #     a.t_stop, num_samples)
+
+    ## Add LFPs to trial segment
+    if lfp_files:
+        for e, lfp_path in enumerate(lfp_files):
+            lfp_fname       = os.path.split(lfp_path)[1]
+            electrode_match = re.search(r'e\d{0,2}', lfp_fname)
+            e_name          = electrode_match.group()
+            e_num           = int(e_name[1::])
+            print('loading LFPs from: ' + lfp_fname)
+            lfp             = load_v73_mat_file(lfp_path, variable_name='lfp')
+
+            # for each trial add LFPs for every channel on the electrode
+            for trial_ind in np.arange(stim.shape[0]):
+                sig0 = neo.AnalogSignalArray(
+                        signal=lfp[trial_ind],
+                        units=pq.uV,
+                        sampling_rate=1.5*pq.kHz,
+                        name='LFPs'+'-'+e_name,
+                        shank_name=e_name,
+                        shank_num=e_num)
+                block.segments[trial_ind].analogsignals.append(sig0)
+
+    if wtrack_files:
+        for e, wt_path in enumerate(wtrack_files):
+            wt_fname = os.path.split(wt_path)[1]
+            print('loading whisker tracking data from: ' + wt_name)
+            wt       = load_v73_mat_file(lfp_path, variable_name='lfp')
+
+            for trial_ind in np.arange(stim.shape[0]):
+                sig0 = neo.AnalogSignal(
+                        signal=wt[trial_ind][:,0],
+                        units=pq.deg,
+                        sampling_rate=500*pq.Hz,
+                        name='angle')
+                sig1 = neo.AnalogSignal(
+                        signal=wt[trial_ind][:,1],
+                        units=pq.deg,
+                        sampling_rate=500*pq.Hz,
+                        name='set-point')
+                sig2 = neo.AnalogSignal(
+                        signal=wt[trial_ind][:,2],
+                        units=pq.deg,
+                        sampling_rate=500*pq.Hz,
+                        name='amplitude')
+                sig3 = neo.AnalogSignal(
+                        signal=wt[trial_ind][:,3],
+                        units=pq.deg/pq.S,
+                        sampling_rate=500*pq.Hz,
+                        name='velocity')
+                # ADD PHASE???
+                sig4 = neo.AnalogSignal(
+                        signal=wt[trial_ind][:,3],
+                        units=pq.rad,
+                        sampling_rate=500*pq.Hz,
+                        name='phase')
+                block.segments[trial_ind].analogsignals.append(sig0)
+                block.segments[trial_ind].analogsignals.append(sig1)
+                block.segments[trial_ind].analogsignals.append(sig2)
+                block.segments[trial_ind].analogsignals.append(sig3)
+                block.segments[trial_ind].analogsignals.append(sig4)
+
+    ## Load in spike measure mat file ##
+    spike_measure_path = data_dir + 'spike_measures.mat'
+    if os.path.exists(spike_measure_path):
+        spk_msrs = load_mat_file(spike_measure_path, variable_name='spike_msr_mat')
+
+    if spikes_files:
+        for e, spike_path in enumerate(spikes_files):
+            spike_fname       = os.path.split(spike_path)[1]
+            electrode_match = re.search(r'e\d{0,2}', spike_fname)
+            e_name          = electrode_match.group()
+            e_num           = int(e_name[1::])
+            fid_match       = re.search(r'FID\d{0,4}', spike_fname, re.IGNORECASE)
+            fid_name        = fid_match.group()
+            fid_num         = int(fid_name[3::])
+            fid_inds        = np.where(spk_msrs[:, 0] == fid_num)[0]
+            e_inds          = np.where(spk_msrs[:, 1] == e_num)[0]
+            exp_inds        = np.intersect1d(fid_inds, e_inds)
+            print('loading spikes from: ' + spike_fname)
+            labels, assigns, trials, spiketimes, _, _,\
+                    _, ids, nunit, unit_type, trial_times = load_spike_file(spike_path)
+
+            for trial_ind in np.arange(stim.shape[0]):
+                for k, unit in enumerate(ids): # iterate through ALL UNITS FROM ONE SPIKE FILE
+
+                    ## GETS SPIKE TIMES FOR ONE UNIT FOR ONE TRIAL ##
+                    spk_times_bool = sp.logical_and(trials == trial_ind + 1, assigns == unit) # trial_ind + 1 since trials are 1 based
+                    if unit_type[k] > 0 and unit_type[k] < 3: # get multi-unit and single-units
+
+                        # look for unit in spike_measures matrix
+                        unit_inds = np.where(spk_msrs[:, 2] == unit)[0]
+                        unit_ind = np.intersect1d(exp_inds, unit_inds)
+
+                        # if unit is in spike_measures file add appropriate data
+                        if unit_ind:
+                            block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
+                                    t_start=trial_times[trial_ind, 0] * pq.s,
+                                    t_stop=trial_times[trial_ind, 1]  * pq.s,
+                                    sampling_rate=30 * pq.kHz,
+                                    units=pq.s,
+                                    description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
+                                    depth=spk_msrs[unit_ind, 3]*pq.um,
+                                    cell_type=spk_msrs[unit_ind, 7],
+                                    fid=fid_name,
+                                    shank=e_name,
+                                    unit_id=unit))
+
+                        # if unit isn't in spike_measures file add spike times
+                        # and which experiment and shank it came from and label
+                        # it as an unclassified cell type with an unknown depth
+                        else:
+                            block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
+                                    t_start=trial_times[trial_ind, 0] * pq.s,
+                                    t_stop=trial_times[trial_ind, 1]  * pq.s,
+                                    sampling_rate=30 * pq.kHz,
+                                    units=pq.s,
+                                    description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
+                                    depth=np.nan,
+                                    cell_type=3,
+                                    fid=fid_name,
+                                    shank=e_name,
+                                    unit_id=unit))
+
+        # close writer object to stop adding blocks to the file
+    writer.write(block)
+    return block
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
@@ -471,8 +476,9 @@ if __name__ == "__main__":
     # Select which experiments to analyze
     fids = ['0871','0872','0873']
     fids = ['FID1293']
+    data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 
-    writer = NeoHdf5IO(os.path.join('/Users', 'Greg', 'Desktop', 'fid0872_m1_s1.h5'))
+    writer = NeoHdf5IO(data_dir + fids[0] + '.h5')
 
     for fid in fids:
         # get paths to run, whiser tracking, lfp, and spikes files if they
@@ -480,17 +486,16 @@ if __name__ == "__main__":
         # REMEMBER glob.glob returns a LIST of path strings you must
         # index into the appropriate one for whatever experiment/electrode
         # you're trying to add to the neo object
-        data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
         run_file = glob.glob(data_dir + fid + '*/' + fid + '*.run')
         lfp_files = glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*LFP.mat')
         spikes_files = glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*spikes.mat')
-        wtrack_file = glob.glob(data_dir + fid + '*/' + fid + '*.wtr')
+        wtrack_files = glob.glob(data_dir + fid + '*/' + fid + '*.wtr')
 
         # Calculate runspeed
         run_list = load_v73_mat_file(run_file[0], variable_name='run_cell')
         vel_list, trtime_list = calculate_runspeed(run_list)
 
-        # get stimulus on/off times
+        # get stimulus on/off times and stimulus ID for each trial
         stim_time_list = load_v73_mat_file(run_file[0], variable_name='stimulus_times')
         stim = load_v73_mat_file(run_file[0], variable_name='stimsequence')
 
@@ -498,11 +503,11 @@ if __name__ == "__main__":
         plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=True)
 
         # # Create running trial dictionary
-        run_bool_list = classify_run_trials(vel_mat, trtime_list, stim_time_list, t_after_start=1.25,\
+        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=1.25,\
                 t_after_stop=2.25, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=True)
 
         # Put data into a neo object and save
-        block = neo.Block(name=fid +, description='This is a neo block for experiment FID ' + fid) # create block for experiment
+        block = neo.Block(name=fid, description='This is a neo block for experiment ' + fid) # create block for experiment
         block = make_neo_object(writer, data_dir, lfp_files, spikes_files,\
                 wtrack_files, vel_list, run_bool_list, stim, stim_time_list)
     writer.close()
