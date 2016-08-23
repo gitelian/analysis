@@ -90,7 +90,6 @@ def calculate_runspeed(run_list,Fs=30000.0):
     t = time.time()
 
     ntrials = len(run_list)
-    #nsamples = run_mat.shape[1]
     down_samp = 5.0
     down_samp_fs = round(Fs/down_samp)
 
@@ -463,36 +462,6 @@ def classify_run_trials(vel_mat, trtime_list, stim_time_list, t_after_start=0.25
 
     return run_bool_list
 
-def str2nparray(string):
-    '''
-    convert string of numbers in CSV file to numpy array.
-
-    Saving to a CSV saves everything as a string. Including the numpy brakets
-    '[', ']', periods '.', negative signs '-', white space ' ', and 'e' for
-    scientific notation. This function removes the mentioned strings (with the
-    exception of white space...unless there is multiple white space strings)
-    and converts the remaining strings to numbers.
-
-    RETURNS: numpy array
-    '''
-    for i, x in enumerate(string):
-        try:
-            float(x)
-        except ValueError:
-            if x != ' ' and x != '.' and x != '-' and x != 'e' and x != ',':
-                string = string.translate(None, x)
-    string = string.replace('  ', ' ')
-    string = string.replace('  ', ' ')
-    k = 0
-    while k < 10:
-        if string[0] == ' ':
-            string = string[1::]
-        elif string[-1] == ' ':
-            string = string[:-2]
-        k += 1
-    string = string.replace('  ', ' ')
-    c = map(float, string.split(' '))
-    return np.array(c)
 
 
 ########## MAIN CODE ##########
@@ -502,8 +471,8 @@ if __name__ == "__main__":
     # Select which experiments to analyze
     fids = ['0871','0872','0873']
     fids = ['FID1293']
-    writer = NeoHdf5IO(os.path.join('/Users', 'Greg', 'Desktop', 'fid0872_m1_s1.h5'))
 
+    writer = NeoHdf5IO(os.path.join('/Users', 'Greg', 'Desktop', 'fid0872_m1_s1.h5'))
 
     for fid in fids:
         # get paths to run, whiser tracking, lfp, and spikes files if they
