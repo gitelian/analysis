@@ -10,6 +10,7 @@ from scipy.interpolate import interp1d
 from scipy import signal as sig
 import re
 import os
+import pandas as pd
 #import itertools as it
 from sklearn.cluster import KMeans
 from sklearn import mixture
@@ -20,6 +21,8 @@ import os.path
 import neo
 from neo.io import NeoHdf5IO
 import quantities as pq
+## NEW STUFF FOR WARNING
+from warnings import warn
 
 def load_spike_file(path):
     """
@@ -54,12 +57,15 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
     Loading in MATLAB -v7.3 files is finiky. You may need to play around with
     the h5py.File('path/to/file') function to figure out how to access the data
     '''
-    print('\n----- load_v73_mat_file -----')
-    print('Loading data from: ' + file_path + '\nvariable: ' + variable_name)
-    mat = h5py.File(file_path)
     # if it is a simple cell array it will have h5 references in each cell
     # these references must be passed into the original file ('mat') to
     # retrieve the data
+    # MAKES SURE IT IS THE CORRECT SHAPE! Loading in -v7.3 mat files is FINIKY!!!
+
+    print('\n----- load_v73_mat_file -----')
+    print('Loading data from: ' + file_path + '\nvariable: ' + variable_name)
+    mat = h5py.File(file_path)
+
     if variable_name == 'run_cell':
         data = [mat[element][0][:].T for element in mat[variable_name][0]]
 
@@ -73,7 +79,7 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
 
     else: # try this and hope it works!
         data = mat[variable_name][:].T
-    print('MAKES SURE IT IS THE CORRECT SHAPE! Loading in -v7.3 mat files is FINIKY!!!')
+
     return data
 
 def load_mat_file(file_path, variable_name='spike_msr_mat'):
@@ -306,13 +312,35 @@ def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.2
 
     return run_bool_list
 
-def make_neo_object(writer, data_dir, lfp_files, spikes_files, \
+def get_exp_details_info(data_dir_path, fid, key):
+    ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
+    print('\n----- get_exp_details_info -----')
+    experiment_details_path = data_dir_path + 'experiment_details.csv'
+    print('Loading experiment details file for FID: ' + str(fid) + '\nkey: ' + key)
+    df_exp_det_regular_index = pd.read_csv(experiment_details_path,sep=',')
+    df_exp_det_fid_index = df_exp_det_regular_index.set_index('fid')
+
+    # check if experiment is in the experiment details csv file
+    # need this info to extract electrode depth
+
+    if fid not in df_exp_det_fid_index.index:
+        warn('fid' + str(fid) + ' not found in experiment details csv file.\n\
+                        Please update file and try again.')
+        return None
+
+    exp_info = df_exp_det_fid_index.loc[fid]
+
+    if key not in exp_info:
+        warn('key "' + key + '" not found in experiment details csv file.\n\
+                        Setting to None.')
+        return None
+    else:
+        print('Loading experiment info for fid: ' + str(fid))
+        return exp_info[key]
+
+def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
         wtrack_files, vel_list, run_bool_list, stim, stim_time_list):
     print('\n----- make_neo_block -----')
-
-    ##### REMOVE THIS AFTER DEBUGGING #####
-    block = neo.Block(name=fid, description='This is a neo block for experiment' + fid) # create block for experiment
-    ##### REMOVE THIS AFTER DEBUGGING #####
 
     ## Make neo block and segment objects
     #  block = neo.Block(name='test_block', description="This is a simple Neo example")
@@ -474,11 +502,11 @@ def make_neo_object(writer, data_dir, lfp_files, spikes_files, \
 
 if __name__ == "__main__":
     # Select which experiments to analyze
-    fids = ['0871','0872','0873']
     fids = ['FID1293']
-    data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+    #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+    data_dir = '/media/greg/Data/Neuro/'
 
-    writer = NeoHdf5IO(data_dir + fids[0] + '.h5')
+    writer = NeoHdf5IO(data_dir + fids[0] + '_neo_object.h5')
 
     for fid in fids:
         # get paths to run, whiser tracking, lfp, and spikes files if they
@@ -506,12 +534,17 @@ if __name__ == "__main__":
         run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=1.25,\
                 t_after_stop=2.25, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=True)
 
+        ## get control position
+        control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
+
         # Put data into a neo object and save
-        block = neo.Block(name=fid, description='This is a neo block for experiment ' + fid) # create block for experiment
-        block = make_neo_object(writer, data_dir, lfp_files, spikes_files,\
+        block = neo.Block(name=fid, description='This is a neo block for experiment ' + fid, \
+                control_pos=control_pos) # create block for experiment
+        block = make_neo_object(writer, data_dir, fid, lfp_files, spikes_files,\
                 wtrack_files, vel_list, run_bool_list, stim, stim_time_list)
     writer.close()
 
 
 #how to get spike times: block.segments[0].spiketrains[0].tolist()
+
 
