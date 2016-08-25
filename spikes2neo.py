@@ -465,9 +465,11 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
 
                         # if unit is in spike_measures file add appropriate data
                         if unit_ind:
+                            # round t_stop because sometimes a spiketime would
+                            # be slightly longer than it (by about 0.0001 s)
                             block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
                                     t_start=trial_times[trial_ind, 0] * pq.s,
-                                    t_stop=trial_times[trial_ind, 1]  * pq.s,
+                                    t_stop=np.around(trial_times[trial_ind, 1], decimals=1)  * pq.s,
                                     sampling_rate=30 * pq.kHz,
                                     units=pq.s,
                                     description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
@@ -483,7 +485,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         else:
                             block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
                                     t_start=trial_times[trial_ind, 0] * pq.s,
-                                    t_stop=trial_times[trial_ind, 1]  * pq.s,
+                                    t_stop=np.around(trial_times[trial_ind, 1], decimals=1)  * pq.s,
                                     sampling_rate=30 * pq.kHz,
                                     units=pq.s,
                                     description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
@@ -502,7 +504,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
 
 if __name__ == "__main__":
     # Select which experiments to analyze
-    fids = ['FID1293']
+    fids = ['FID1294']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
     data_dir = '/media/greg/Data/Neuro/'
 
