@@ -30,13 +30,12 @@ def load_spike_file(path):
     """
     mat  = h5py.File(path)
     spks = mat['spikes']
-
-    labels      = np.asarray(spks['labels']).T         # ndarray shape(n x m) n: num elements, m0 = unit label, m1 = type of unit (i.e. single, multi, garbage)
     assigns     = np.asarray(spks['assigns']).T        # ndarray shape(n) n: num of spike times for all units
     trials      = np.asarray(spks['trials']).T         # ndarray shape(n) n: num of spike times for all units
     spike_times = np.asarray(spks['spiketimes']).T     # ndarray shape(n) n: num of spike times for all units
     waves       = np.asarray(spks['waveforms']).T      # ndarray shape(n x m x p) n: num of spike times for all units m: num of range(m)les in waveform
     trial_times = np.asarray(spks['trial_times']).T    # p: num of recording channels
+    labels      = np.asarray(spks['labels']).T
     nsamp       = waves.shape[1]
     nchan       = waves.shape[2]  # get number of channels used
 
@@ -489,7 +488,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                                     sampling_rate=30 * pq.kHz,
                                     units=pq.s,
                                     description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
-                                    depth=np.nan,
+                                    depth=np.nan * pq.um,
                                     cell_type=3,
                                     fid=fid_name,
                                     shank=e_name,
