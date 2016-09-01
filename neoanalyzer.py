@@ -9,7 +9,7 @@ class NeuroAnalyzer(object):
     """
     Analyzes data contained in a neo object
 
-    REMEMBER: any changes to the passed in neo object are occur to the original
+    REMEMBER: any changes to the passed in neo object also occur to the original
     object. They point to the same place in memory. No copy is made.
     """
 
@@ -42,7 +42,12 @@ class NeuroAnalyzer(object):
             for spike in seg.spiketrains:
                 fid.append(spike.annotations['fid'])
                 shank.append(spike.annotations['shank'])
-                depth.append(spike.annotations['depth'][0])
+                # would freak out if you tried to index into an array with an
+                # nan because it was not an array
+                if np.isnan(spike.annotations['depth']):
+                    depth.append(np.asarray(-1))
+                else:
+                    depth.append(spike.annotations['depth'][0])
 
             spike_msr_sort_inds = np.lexsort((tuple(depth), tuple(shank), tuple(fid)))
             sorted_spiketrains = [seg.spiketrains[j] for j in spike_msr_sort_inds]
@@ -50,6 +55,9 @@ class NeuroAnalyzer(object):
                 neo_obj.segments[i].spiketrains[k] = ordered_spiketrain
 
     def __get_shank_ids(self):
+        '''
+        Return shank IDs for each unit
+        '''
         shank_ids = np.zeros((self.num_units, ))
         for k, shank_name in enumerate(self.shank_names):
             for j, unit in enumerate(self.neo_obj.segments[0].spiketrains):
@@ -58,7 +66,9 @@ class NeuroAnalyzer(object):
         return shank_ids
 
     def __get_num_run_trials(self):
-        '''return a list with the number of running trials for each stimulus condition'''
+        '''
+        Return a list with the number of running trials for each stimulus condition
+        '''
         num_run_trials = list()
         for stim_id in self.stim_ids:
             run_count = 0
@@ -81,12 +91,20 @@ class NeuroAnalyzer(object):
         evoked_rate      = list()
         absolute_counts  = list()
         evoked_counts    = list()
+        binned_spikes    = list()
+        psth             = list()
+        t_before = 0.500
+        bins = np.arange(-t_before, 2.5, 0.001)
+        alpha_kernel = self.__make_alpha_kernel()
+        self._bins = bins
 
         for k, trials_ran in enumerate(self.num_run_trials):
                 absolute_rate.append(np.zeros((trials_ran, self.num_units)))
                 evoked_rate.append(np.zeros((trials_ran, self.num_units)))
                 absolute_counts.append(np.zeros((trials_ran, self.num_units)))
                 evoked_counts.append(np.zeros((trials_ran, self.num_units)))
+                binned_spikes.append(np.zeros((bins.shape[0]-1, self.num_units, trials_ran)))
+                psth.append(np.zeros((bins.shape[0]-1, self.num_units, trials_ran)))
 
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
@@ -101,6 +119,15 @@ class NeuroAnalyzer(object):
 
                     for unit, spike_train in enumerate(trial.spiketrains):
                         spk_times = np.asarray(spike_train.tolist())
+
+                        # bin spikes for rasters
+                        spk_times_relative = spk_times - trial.annotations['stim_times'][0]
+                        counts = np.histogram(spk_times_relative, bins=bins)[0]
+                        binned_spikes[stim_ind][:, unit, good_trial_ind] = counts
+
+                        # convolve binned spikes to make PSTH
+                        psth[stim_ind][:, unit, good_trial_ind] =\
+                                np.convolve(counts, alpha_kernel)[:-alpha_kernel.shape[0]+1]
 
                         # calculate absolute and evoked rate
                         abs_rate = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum())/(stim_stop - stim_start)
@@ -117,10 +144,19 @@ class NeuroAnalyzer(object):
 
                     good_trial_ind += 1
 
-        self.abs_rate  = absolute_rate
-        self.abs_count = absolute_counts
-        self.evk_rate  = evoked_rate
-        self.evk_count = evoked_counts
+        self.abs_rate      = absolute_rate
+        self.abs_count     = absolute_counts
+        self.evk_rate      = evoked_rate
+        self.evk_count     = evoked_counts
+        self.binned_spikes = binned_spikes
+        self.psth          = psth
+
+    def __make_alpha_kernel(self, resolution=0.025):
+        # Build alpha kernel with 25msec resolution
+        alpha = 1.0/resolution
+        tau   = np.arange(0,1/alpha*10, 0.001)
+        alpha_kernel = alpha**2*tau*np.exp(-alpha*tau)
+        return alpha_kernel
 
     def get_burst_isi(self):
         '''
@@ -212,7 +248,7 @@ class NeuroAnalyzer(object):
         # setup x-axis with correct labels and range
         pos = range(1,control_pos)
         x_vals = range(1, control_pos+1)
-        labels = [str(i) for i in pos]; labels.append('No Contact')
+        labels = [str(i) for i in pos]; labels.append('NC')
         line_color = ['k','r','g']
 
         # determine number of rows and columns in the subplot
@@ -227,33 +263,43 @@ class NeuroAnalyzer(object):
         unit_count, plot_count = 0, 0
         fig = plt.subplots(num_rows, num_cols)
         for unit in unit_ind:
+            meanr = [np.mean(k[:, unit]) for k in kind_of_tuning[kind_dict[kind]]]
+            stder = [np.std(k[:, unit]) / np.sqrt(k[:, unit].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
             for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), control_pos )):
                 # compute the means and standard errors
-                meanr = [np.mean(k[:, unit]) for k in kind_of_tuning[kind_dict[kind]]]
-                stder = [np.std(k[:, unit]) / np.sqrt(k[:, unit].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
 
                 ax = plt.subplot(num_rows, num_cols, plot_count+1)
                 # plot stimulus positions separately from control so the
                 # control position is not connected with the others
-                plt.errorbar(pos[0:control_pos-1], meanr[0:control_pos-1], yerr=stder[0:control_pos-1],\
+                plt.errorbar(pos[0:control_pos-1],\
+                        meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
+                        yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
                         fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
                 # plot control position separately from stimulus positions
-                plt.errorbar(control_pos, meanr[control_pos-1], yerr=stder[control_pos-1],\
+                plt.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
                         fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
-                plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
-                        ' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']))
-                plt.plot([0, control_pos+1],[0,0],'--k')
-                plt.xlim(0, len(meanr)+2)
-                plt.ylim(plt.ylim()[0]-1, plt.ylim()[1]+1)
-                ax.set_xticks([])
-                plt.xticks(x_vals, labels)
-                plt.xlabel('Bar Position', fontsize=8)
-                plt.show()
+
+            plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
+                    ' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']))
+            plt.plot([0, control_pos+1],[0,0],'--k')
+            plt.xlim(0, control_pos+1)
+            plt.ylim(plt.ylim()[0]-1, plt.ylim()[1]+1)
+            ax.set_xticks([])
+            plt.xticks(x_vals, labels)
+            plt.xlabel('Bar Position', fontsize=8)
+            plt.show()
             # count after each plot is made
             plot_count += 1
             unit_count += 1
-            if unit_count == len(unit_ind):
-                print('where am I?')
+
+            if unit_count == len(unit_ind) and plot_count == (num_rows*num_cols):
+                print('finished')
+                plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
+                plt.suptitle(kind)
+                plt.show()
+                return ax
+            elif unit_count == len(unit_ind):
+                print('finished')
                 plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
                 plt.suptitle(kind)
                 plt.show()
@@ -267,7 +313,90 @@ class NeuroAnalyzer(object):
                     fig = plt.subplots(num_rows, num_cols)
                 plot_count = 0
 
+    def make_raster(self, unit_ind=0, trial_type=0):
+        '''
+        Makes a raster plot for the given unit index and trial type.
+        If called alone it will plot a raster to the current axis. This function
+        is called by plot_all_rasters and returns an axis handle to the current
+        subplot. This allows plot_all_rasters to plot rasters in the appropriate
+        subplots.
+        '''
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'binned_spikes') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Making raster for unit {} and trial_type {}'.format(unit_ind, trial_type))
+        ax = plt.gca()
+        count_mat = self.binned_spikes[trial_type][:, unit_ind, :] # returns bins x num_trials array
+
+        for trial in range(count_mat.shape[1]):
+            trial_inds = np.where(count_mat[:, trial] > 0)[0]
+            spike_times = self._bins[trial_inds]
+            plt.vlines(spike_times, trial, trial+1, color='k')
+        plt.hlines(trial+1, 0, 1.5, color='k')
+        plt.xlim(self._bins[0], self._bins[-1])
+        plt.ylim(0, trial+1)
+
+        return ax
+
+    def make_psth(self, unit_ind=0, trial_type=0):
+        '''
+        Makes a PSTH plot for the given unit index and trial type.
+        If called alone it will plot a PSTH to the current axis. This function
+        is called by plot_all_PSTHs and returns an axis handle to the current
+        subplot. This allows plot_all_PSTHs to plot PSTHs in the appropriate
+        subplots.
+        '''
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'psth') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Making PSTH for unit {} and trial_type {}'.format(unit_ind, trial_type))
+        ax = plt.gca()
+
+        psth_temp = self.psth[trial_type][:, unit_ind, :]
+        mean_psth = np.mean(psth_temp, axis=1) # mean across all trials
+        se = sp.stats.sem(psth_temp, axis=1)
+        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
+        h = se*sp.stats.t.ppf((1+0.95)/2.0, psth_temp.shape[1]-1) # (1+1.95)/2 = 0.975
+
+        plt.plot(self._bins[0:-1], mean_psth, 'k')
+        plt.fill_between(self._bins[0:-1], mean_psth - h, mean_psth + h, facecolor='k', alpha=0.3)
+
+        return ax
+
+    def plot_all_rasters(self, unit_ind=0):
+        '''
+        Plots all rasters for a given unit with subplots.
+        Each positions is a row and each manipulation is a column.
+
+        TODO:
+        - generalize code to see how many manipulations occurred and set the
+          number of subplots occordingly.
+        '''
+        fig = subplots(9, 1)
+        for trial in range(9):
+            subplot(9,1,trial+1)
+            self.make_raster(unit_ind=unit_ind, trial_type=trial)
+
+    def plot_all_psths(self, unit_ind=0):
+        '''
+        Plots all PSTHs for a given unit with subplots.
+        Each positions is a row and each manipulation is a column.
+
+        TODO:
+        - generalize code to see how many manipulations occurred and set the
+          number of subplots occordingly.
+        '''
+        fig = subplots(9, 1)
+        for trial in range(9):
+            subplot(9,1,trial+1)
+            self.make_psth(unit_ind=unit_ind, trial_type=trial)
+
 ###############################################################################
+######## Doesn't work in Ubuntu...figure out why ##############################
 ###############################################################################
     def make_raster_movie(self, trial_type=1, run_trials=True):
         # stim_times is the time of the stimulus onset and offset
@@ -344,16 +473,16 @@ class NeuroAnalyzer(object):
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 
-    if __name__ == "__main__":
-        data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-        manager = NeoHdf5IO(os.path.join(data_dir + 'FID1293.h5'))
-        print('Loading...')
-        block = manager.read()
-        print('...Loading Complete!')
-        manager.close()
-        exp1 = block[0]
-        neuro = NeuroAnalyzer(exp1)
-        neuro.make_simple_tuning_curve()
+#data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+data_dir = '/media/greg/Data/Neuro/neo/'
+manager = NeoHdf5IO(os.path.join(data_dir + 'FID1293_neo_object.h5'))
+print('Loading...')
+block = manager.read()
+print('...Loading Complete!')
+manager.close()
+exp1 = block[0]
+neuro = NeuroAnalyzer(exp1)
+neuro.make_simple_tuning_curve()
 
 
 
