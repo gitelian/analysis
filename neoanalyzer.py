@@ -225,6 +225,24 @@ class NeuroAnalyzer(object):
 
         self.bisi_list = bisi_list
 
+    def get_selectivity(self):
+        if hasattr(self, 'abs_count') is False:
+            self.rates()
+        control_pos = self.control_pos
+        num_manipulations = self.stim_ids.shape[0]/control_pos
+        sel_mat = np.zeros((self.num_units, num_manipulations))
+
+        for manip in range(num_manipulations):
+            for unit in range(self.num_units):
+                meanr = [np.mean(k[:, unit]) for k in self.abs_count]
+                x = np.asarray(meanr[(manip*control_pos):((manip+1)*control_pos-1)])
+                # calculate selectivity for unit during manipulation
+                sel_mat[unit, manip] = \
+                        1 - ((np.linalg.norm(x/np.max(x))- 1)/\
+                        (np.sqrt(x.shape[0]) - 1))
+
+        self.selectivity = sel_mat
+
     def plot_tuning_curve(self, unit_ind=[], kind='abs_count'):
         '''
         make_simple_tuning_curve allows one to specify what type of tuning
@@ -390,10 +408,6 @@ class NeuroAnalyzer(object):
         '''
         Plots all PSTHs for a given unit with subplots.
         Each positions is a row and each manipulation is a column.
-
-        TODO:
-        - generalize code to see how many manipulations occurred and set the
-          number of subplots occordingly.
         '''
         ymax = 0
         color = ['k','r','g']
@@ -502,6 +516,37 @@ print('...Loading Complete!')
 manager.close()
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
+
+
+##### Plot selectivity stuff #####
+
+neuro.get_selectivity()
+m1_inds = np.where(neuro.shank_ids == 0)[0]
+s1_inds = np.where(neuro.shank_ids == 1)[0]
+m1_sel_nolight  = neuro.selectivity[m1_inds, 0]
+m1_sel_s1light  = neuro.selectivity[m1_inds, 1]
+s1_sel_nolight  = neuro.selectivity[s1_inds, 0]
+s1_sel_s1light  = neuro.selectivity[s1_inds, 1]
+
+# m1 selectivity with and without s1 silencing
+bins = np.arange(0, 1, 0.05)
+plt.figure()
+plt.hist(m1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
+plt.hist(m1_sel_s1light, bins=bins, edgecolor='None', alpha=0.5, color='r')
+
+bins = np.arange(-1, 1, 0.05)
+plt.figure()
+plt.hist(m1_sel_s1light-m1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
+
+
+
+
+
+
+
+
+
+
 
 
 
