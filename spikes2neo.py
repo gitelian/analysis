@@ -505,9 +505,9 @@ if __name__ == "__main__":
     # Select which experiments to analyze
     fids = ['FID1293']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-    data_dir = '/media/greg/Data/Neuro/'
+    data_dir = '/media/greg/data/neuro/'
 
-    writer = NeoHdf5IO('/media/greg/Data/Neuro/neo/' + fids[0] + '_neo_object.h5')
+    writer = NeoHdf5IO('/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5')
 
     for fid in fids:
         # get paths to run, whiser tracking, lfp, and spikes files if they

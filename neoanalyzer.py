@@ -508,7 +508,7 @@ class NeuroAnalyzer(object):
 ########## MAIN CODE ##########
 
 #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-data_dir = '/media/greg/Data/Neuro/neo/'
+data_dir = '/media/greg/data/neuro/neo/'
 manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
 print('Loading...')
 block = manager.read()
