@@ -30,7 +30,19 @@ class NeuroAnalyzer(object):
         self.shank_names    = np.sort(np.unique([k.annotations['shank'] for k in neo_obj.segments[0].spiketrains]))
         self.shank_ids      = self.__get_shank_ids()
         self.control_pos    = int(self.neo_obj.annotations['control_pos'])
+        # dictionary of cell types
+        self.cell_type_dict = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
+        self.cell_type      = self.__get_celltypeID()
 
+    def __get_celltypeID(self):
+        '''
+        Put celltype IDs in an array that corresponds to the unit order
+        '''
+        cell_type = list()
+        for spike in self.neo_obj.segments[0].spiketrains:
+            cell_type.append(self.cell_type_dict[spike.annotations['cell_type'][0]])
+
+        return np.asarray(cell_type)
 
     def __sort_units(self, neo_obj):
         '''
@@ -269,7 +281,7 @@ class NeuroAnalyzer(object):
         pos = range(1,control_pos)
         x_vals = range(1, control_pos+1)
         labels = [str(i) for i in pos]; labels.append('NC')
-        line_color = ['k','r','g']
+        line_color = ['k','r','b']
 
         # determine number of rows and columns in the subplot
         if unit_ind:
@@ -281,7 +293,7 @@ class NeuroAnalyzer(object):
         num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
 
         unit_count, plot_count = 0, 0
-        fig = plt.subplots(num_rows, num_cols)
+        fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
         for unit in unit_ind:
             meanr = [np.mean(k[:, unit]) for k in kind_of_tuning[kind_dict[kind]]]
             stder = [np.std(k[:, unit]) / np.sqrt(k[:, unit].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
@@ -300,7 +312,8 @@ class NeuroAnalyzer(object):
                         fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
 
             plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
-                    ' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']))
+                    ' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
+                    '\ncell type: ' + str(self.cell_type[unit]))
             plt.plot([0, control_pos+1],[0,0],'--k')
             plt.xlim(0, control_pos+1)
             plt.ylim(plt.ylim()[0]-1, plt.ylim()[1]+1)
@@ -330,7 +343,7 @@ class NeuroAnalyzer(object):
                 plt.show()
                 # create a new plot
                 if plot_count != len(unit_ind):
-                    fig = plt.subplots(num_rows, num_cols)
+                    fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
                 plot_count = 0
 
     def plot_raster(self, unit_ind=0, trial_type=0):
@@ -410,7 +423,7 @@ class NeuroAnalyzer(object):
         Each positions is a row and each manipulation is a column.
         '''
         ymax = 0
-        color = ['k','r','g']
+        color = ['k','r','b']
         num_manipulations = self.stim_ids.shape[0]/self.control_pos
         fig = plt.subplots(self.control_pos, 1, figsize=(6, 12))
 
@@ -508,14 +521,17 @@ class NeuroAnalyzer(object):
 ########## MAIN CODE ##########
 
 #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-data_dir = '/media/greg/Data/Neuro/neo/'
-manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
+data_dir = '/media/greg/data/neuro/neo/'
+manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
 print('Loading...')
 block = manager.read()
 print('...Loading Complete!')
 manager.close()
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
+
+##### Plot tuning curves #####
+neuro.plot_tuning_curve()
 
 
 ##### Plot selectivity stuff #####
@@ -538,11 +554,28 @@ bins = np.arange(-1, 1, 0.05)
 plt.figure()
 plt.hist(m1_sel_s1light-m1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
 
+bins = np.arange(0, 1, 0.05)
+plt.figure()
+plt.hist(s1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
+plt.hist(s1_sel_s1light, bins=bins, edgecolor='None', alpha=0.5, color='r')
 
 
+##### bursty plots #####
 
+pre  = neuro.bisi_list[4][19][:, 0]
+post = neuro.bisi_list[4][19][:, 1]
+plt.figure()
+hist2d(pre, post, bins=arange(0,0.3,0.01))
 
+pre_cont  = neuro.bisi_list[9][19][:, 0]
+post_cont = neuro.bisi_list[9][19][:, 1]
+plt.figure()
+hist2d(pre_cont, post_cont, bins=arange(0,0.3,0.01))
 
+pre_light  = neuro.bisi_list[4+9*2][19][:, 0]
+post_light = neuro.bisi_list[4+9*2][19][:, 1]
+plt.figure()
+hist2d(pre_light, post_light, bins=arange(0,0.3,0.01))
 
 
 

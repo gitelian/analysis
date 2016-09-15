@@ -420,7 +420,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         name='velocity')
                 # ADD PHASE???
                 sig4 = neo.AnalogSignal(
-                        signal=wt[trial_ind][:,3],
+                        signal=wt[trial_ind][:,4],
                         units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='phase')
@@ -503,11 +503,11 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
 
 if __name__ == "__main__":
     # Select which experiments to analyze
-    fids = ['FID1293']
+    fids = ['FID1302']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-    data_dir = '/media/greg/Data/Neuro/'
+    data_dir = '/media/greg/data/neuro/'
 
-    writer = NeoHdf5IO('/media/greg/Data/Neuro/neo/' + fids[0] + '_neo_object.h5')
+    writer = NeoHdf5IO('/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5')
 
     for fid in fids:
         # get paths to run, whiser tracking, lfp, and spikes files if they
