@@ -76,6 +76,11 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
     elif variable_name == 'spike_measures':
         data = mat[variable_name][:].T
 
+    elif variable_name == 'wt_cell':
+        data = list()
+        for k in range(mat['wt_cell'][0].shape[0]):
+            data.append(mat[mat['wt_cell'][0][k]][:].T)
+
     else: # try this and hope it works!
         data = mat[variable_name][:].T
 
@@ -334,7 +339,6 @@ def get_exp_details_info(data_dir_path, fid, key):
                         Setting to None.')
         return None
     else:
-        print('Loading experiment info for fid: ' + str(fid))
         return exp_info[key]
 
 def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
@@ -377,7 +381,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
             electrode_match = re.search(r'e\d{0,2}', lfp_fname)
             e_name          = electrode_match.group()
             e_num           = int(e_name[1::])
-            print('loading LFPs from: ' + lfp_fname)
+            print('\nloading LFPs from: ' + lfp_fname)
             lfp             = load_v73_mat_file(lfp_path, variable_name='lfp')
 
             # for each trial add LFPs for every channel on the electrode
@@ -394,8 +398,8 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
     if wtrack_files:
         for e, wt_path in enumerate(wtrack_files):
             wt_fname = os.path.split(wt_path)[1]
-            print('loading whisker tracking data from: ' + wt_name)
-            wt       = load_v73_mat_file(lfp_path, variable_name='lfp')
+            print('\nloading whisker tracking data from: ' + wt_fname)
+            wt       = load_v73_mat_file(wt_path, variable_name='wt_cell')
 
             for trial_ind in np.arange(stim.shape[0]):
                 sig0 = neo.AnalogSignal(
@@ -415,20 +419,25 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         name='amplitude')
                 sig3 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,3],
-                        units=pq.deg/pq.S,
-                        sampling_rate=500*pq.Hz,
-                        name='velocity')
-                # ADD PHASE???
-                sig4 = neo.AnalogSignal(
-                        signal=wt[trial_ind][:,4],
                         units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='phase')
+                sig4 = neo.AnalogSignal(
+                        signal=wt[trial_ind][:,4],
+                        units=pq.deg/pq.S,
+                        sampling_rate=500*pq.Hz,
+                        name='velocity')
+                sig5 = neo.AnalogSignal(
+                        signal=wt[trial_ind][:,5],
+                        units=pq.deg,
+                        sampling_rate=500*pq.Hz,
+                        name='whisking')
                 block.segments[trial_ind].analogsignals.append(sig0)
                 block.segments[trial_ind].analogsignals.append(sig1)
                 block.segments[trial_ind].analogsignals.append(sig2)
                 block.segments[trial_ind].analogsignals.append(sig3)
                 block.segments[trial_ind].analogsignals.append(sig4)
+                block.segments[trial_ind].analogsignals.append(sig5)
 
     ## Load in spike measure mat file ##
     spike_measure_path = data_dir + 'spike_measures.mat'
@@ -447,7 +456,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
             fid_inds        = np.where(spk_msrs[:, 0] == fid_num)[0]
             e_inds          = np.where(spk_msrs[:, 1] == e_num)[0]
             exp_inds        = np.intersect1d(fid_inds, e_inds)
-            print('loading spikes from: ' + spike_fname)
+            print('\nloading spikes from: ' + spike_fname)
             labels, assigns, trials, spiketimes, _, _,\
                     _, ids, nunit, unit_type, trial_times = load_spike_file(spike_path)
 
@@ -503,7 +512,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
 
 if __name__ == "__main__":
     # Select which experiments to analyze
-    fids = ['FID1302']
+    fids = ['FID1295']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
     data_dir = '/media/greg/data/neuro/'
 
@@ -515,10 +524,10 @@ if __name__ == "__main__":
         # REMEMBER glob.glob returns a LIST of path strings you must
         # index into the appropriate one for whatever experiment/electrode
         # you're trying to add to the neo object
-        run_file = glob.glob(data_dir + fid + '*/' + fid + '*.run')
-        lfp_files = glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*LFP.mat')
-        spikes_files = glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*spikes.mat')
-        wtrack_files = glob.glob(data_dir + fid + '*/' + fid + '*.wtr')
+        run_file     = glob.glob(data_dir + fid + '*/' + fid + '*.run')
+        lfp_files    = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*LFP.mat'))
+        spikes_files = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*spikes.mat'))
+        wtrack_files = sorted(glob.glob(data_dir + fid + '*/' + fid + '*.wtr'))
 
         # Calculate runspeed
         run_list = load_v73_mat_file(run_file[0], variable_name='run_cell')

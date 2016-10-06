@@ -522,7 +522,7 @@ class NeuroAnalyzer(object):
 
 #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 data_dir = '/media/greg/data/neuro/neo/'
-manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
+manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
 print('Loading...')
 block = manager.read()
 print('...Loading Complete!')
@@ -534,54 +534,54 @@ neuro = NeuroAnalyzer(exp1)
 neuro.plot_tuning_curve()
 
 
-##### Plot selectivity stuff #####
-
-neuro.get_selectivity()
-m1_inds = np.where(neuro.shank_ids == 0)[0]
-s1_inds = np.where(neuro.shank_ids == 1)[0]
-m1_sel_nolight  = neuro.selectivity[m1_inds, 0]
-m1_sel_s1light  = neuro.selectivity[m1_inds, 1]
-s1_sel_nolight  = neuro.selectivity[s1_inds, 0]
-s1_sel_s1light  = neuro.selectivity[s1_inds, 1]
-
-# m1 selectivity with and without s1 silencing
-bins = np.arange(0, 1, 0.05)
-plt.figure()
-plt.hist(m1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
-plt.hist(m1_sel_s1light, bins=bins, edgecolor='None', alpha=0.5, color='r')
-
-bins = np.arange(-1, 1, 0.05)
-plt.figure()
-plt.hist(m1_sel_s1light-m1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
-
-bins = np.arange(0, 1, 0.05)
-plt.figure()
-plt.hist(s1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
-plt.hist(s1_sel_s1light, bins=bins, edgecolor='None', alpha=0.5, color='r')
-
-
-##### bursty plots #####
-
-pre  = neuro.bisi_list[4][19][:, 0]
-post = neuro.bisi_list[4][19][:, 1]
-plt.figure()
-hist2d(pre, post, bins=arange(0,0.3,0.01))
-
-pre_cont  = neuro.bisi_list[9][19][:, 0]
-post_cont = neuro.bisi_list[9][19][:, 1]
-plt.figure()
-hist2d(pre_cont, post_cont, bins=arange(0,0.3,0.01))
-
-pre_light  = neuro.bisi_list[4+9*2][19][:, 0]
-post_light = neuro.bisi_list[4+9*2][19][:, 1]
-plt.figure()
-hist2d(pre_light, post_light, bins=arange(0,0.3,0.01))
-
-
-
-
-
-
-
-#how to get spike times: block.segments[0].spiketrains[0].tolist()
-
+###### Plot selectivity stuff #####
+#
+#neuro.get_selectivity()
+#m1_inds = np.where(neuro.shank_ids == 0)[0]
+#s1_inds = np.where(neuro.shank_ids == 1)[0]
+#m1_sel_nolight  = neuro.selectivity[m1_inds, 0]
+#m1_sel_s1light  = neuro.selectivity[m1_inds, 1]
+#s1_sel_nolight  = neuro.selectivity[s1_inds, 0]
+#s1_sel_s1light  = neuro.selectivity[s1_inds, 1]
+#
+## m1 selectivity with and without s1 silencing
+#bins = np.arange(0, 1, 0.05)
+#plt.figure()
+#plt.hist(m1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
+#plt.hist(m1_sel_s1light, bins=bins, edgecolor='None', alpha=0.5, color='r')
+#
+#bins = np.arange(-1, 1, 0.05)
+#plt.figure()
+#plt.hist(m1_sel_s1light-m1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
+#
+#bins = np.arange(0, 1, 0.05)
+#plt.figure()
+#plt.hist(s1_sel_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
+#plt.hist(s1_sel_s1light, bins=bins, edgecolor='None', alpha=0.5, color='r')
+#
+#
+###### bursty plots #####
+#
+#pre  = neuro.bisi_list[4][19][:, 0]
+#post = neuro.bisi_list[4][19][:, 1]
+#plt.figure()
+#hist2d(pre, post, bins=arange(0,0.3,0.01))
+#
+#pre_cont  = neuro.bisi_list[9][19][:, 0]
+#post_cont = neuro.bisi_list[9][19][:, 1]
+#plt.figure()
+#hist2d(pre_cont, post_cont, bins=arange(0,0.3,0.01))
+#
+#pre_light  = neuro.bisi_list[4+9*2][19][:, 0]
+#post_light = neuro.bisi_list[4+9*2][19][:, 1]
+#plt.figure()
+#hist2d(pre_light, post_light, bins=arange(0,0.3,0.01))
+#
+#
+#
+#
+#
+#
+#
+##how to get spike times: block.segments[0].spiketrains[0].tolist()
+#
