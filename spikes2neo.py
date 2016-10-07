@@ -516,7 +516,11 @@ if __name__ == "__main__":
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
     data_dir = '/media/greg/data/neuro/'
 
-    writer = NeoHdf5IO('/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5')
+    neo_fname = '/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5'
+    if os.path.exists(neo_fname):
+        print('!!! DELETING OLD NEO FILE !!!')
+        os.remove(neo_fname)
+    writer = NeoHdf5IO(neo_fname)
 
     for fid in fids:
         # get paths to run, whiser tracking, lfp, and spikes files if they
