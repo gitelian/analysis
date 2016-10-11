@@ -16,6 +16,7 @@ class NeuroAnalyzer(object):
 
     def __init__(self, neo_obj):
 
+        print('\n-----__init__-----')
         # segments can get out of the order they were created
         sorted_index_list = np.argsort([k.index for k in neo_obj.segments])
         neo_obj.segments  = [neo_obj.segments[k] for k in sorted_index_list]
@@ -33,6 +34,39 @@ class NeuroAnalyzer(object):
         # dictionary of cell types
         self.cell_type_dict = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
         self.cell_type      = self.__get_celltypeID()
+        self.__trim_wt(neo_obj)
+
+    def __trim_wt(self, neo_obj):
+        '''Trims whisker tracking data to shortest trial length'''
+        # make time vector for whisker tracking data
+        print('\n-----__trim_wt-----')
+
+        wt_bool = False
+        for anlg in self.neo_obj.segments[0].analogsignals:
+            if anlg.name == 'angle':
+                wt_bool = True
+
+        if wt_bool:
+            for i, seg in enumerate(neo_obj.segments):
+                for anlg in seg.analogsignals:
+
+                    if i == 0:
+                        min_samp = len(anlg)
+
+                    if anlg.name == 'angle' and len(anlg) < min_samp:
+                        min_samp = len(anlg)
+
+            for i, seg in enumerate(neo_obj.segments):
+                for k, anlg in enumerate(seg.analogsignals):
+
+                    if anlg.name == 'angle' or \
+                            anlg.name == 'set-point' or\
+                            anlg.name == 'amplitude' or\
+                            anlg.name == 'phase' or\
+                            anlg.name == 'velocity'or\
+                            anlg.name == 'whisking':
+                                neo_obj.segments[i].analogsignals[k] = anlg[0:min_samp]
+
 
     def __get_celltypeID(self):
         '''
@@ -107,6 +141,7 @@ class NeuroAnalyzer(object):
 
     def rates(self, t_after_stim=0.500, psth_t_start= -0.500, psth_t_stop=2.000):
 
+        print('\n-----computing rates----')
         absolute_rate   = list()
         evoked_rate     = list()
         absolute_counts = list()
@@ -119,6 +154,17 @@ class NeuroAnalyzer(object):
         alpha_kernel = self.__make_alpha_kernel()
         self._bins = bins
 
+        # make time vector for whisker tracking data
+        wt_bool = False
+        for anlg in self.neo_obj.segments[0].analogsignals:
+            if anlg.name == 'angle':
+                wt_bool = True
+        if wt_bool:
+            wt     = list()
+            wt_len = len(self.neo_obj.segments[0].analogsignals[1])
+            fps    = 500.0
+            wtt    = np.arange(0, wt_len/fps, 1/fps)
+
         for k, trials_ran in enumerate(self.num_run_trials):
                 absolute_rate.append(np.zeros((trials_ran, self.num_units)))
                 evoked_rate.append(np.zeros((trials_ran, self.num_units)))
@@ -126,12 +172,27 @@ class NeuroAnalyzer(object):
                 evoked_counts.append(np.zeros((trials_ran, self.num_units)))
                 binned_spikes.append(np.zeros((bins.shape[0]-1, self.num_units, trials_ran)))
                 psth.append(np.zeros((bins.shape[0]-1, self.num_units, trials_ran)))
+                if wt_bool:
+                    wt.append(np.zeros((wtt.shape[0], 6, trials_ran)))
 
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
 
             for trial in self.neo_obj.segments:
                 if trial.annotations['trial_type'] == stim_id and trial.annotations['run_boolean']:
+
+                    # organize whisker tracking data by trial type
+                    if wt_bool:
+                        k = 0
+                        for anlg in trial.analogsignals:
+                            if anlg.name == 'angle' or \
+                                    anlg.name == 'set-point' or\
+                                    anlg.name == 'amplitude' or\
+                                    anlg.name == 'phase' or\
+                                    anlg.name == 'velocity'or\
+                                    anlg.name == 'whisking':
+                                        wt[stim_ind][:, k, good_trial_ind] = anlg[:]
+                                        k += 1
 
                     stim_start = trial.annotations['stim_times'][0] + t_after_stim
                     stim_stop  = trial.annotations['stim_times'][1]
@@ -171,6 +232,47 @@ class NeuroAnalyzer(object):
         self.evk_count     = evoked_counts
         self.binned_spikes = binned_spikes
         self.psth          = psth
+
+        if wt_bool:
+            self.wt        = wt
+            self.wtt       = wtt
+
+    def make_design_matrix(self, rate_type='evk_count', trode=None, trim_trials=True):
+        '''make design matrix for classification and regressions'''
+
+        print('\n-----make design matrix----')
+        min_trials     = np.min(self.num_run_trials)
+        num_cond       = len(self.stim_ids)
+        kind_dict      = {'abs_rate': 0, 'abs_count': 1, 'evk_rate': 2, 'evk_count': 3}
+        kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
+        rates          = kind_of_tuning[kind_dict[rate_type]]
+
+        if trode:
+            trode_inds = np.where(self.shank_ids == trode-1)[0]
+            num_units = len(trode_inds)
+        else:
+            trode_inds = np.where(self.shank_ids >= 0)[0]
+            num_units  = self.num_units
+
+        if trim_trials:
+            X = np.zeros((num_cond*min_trials, num_units))
+            y = np.ones((num_cond*min_trials, ))
+        else:
+            X = np.zeros((np.sum(self.num_run_trials), num_units))
+            y = np.ones((np.sum(self.num_run_trials), ))
+
+        last_t_ind = 0
+        for k, cond in enumerate(rates):
+            if trim_trials:
+                X[min_trials*k:min_trials*(k+1)] = cond[0:min_trials, trode_inds]
+                y[min_trials*k:min_trials*(k+1)] = k*y[min_trials*k:min_trials*(k+1)]
+            else:
+                min_trials = cond.shape[0]
+                X[last_t_ind:(min_trials + last_t_ind)] = cond[:, trode_inds]
+                y[last_t_ind:(min_trials + last_t_ind)] = k*y[last_t_ind:(min_trials + last_t_ind)]
+                last_t_ind = min_trials + last_t_ind
+
+        return X, y
 
     def get_burst_isi(self):
         '''
@@ -517,21 +619,75 @@ class NeuroAnalyzer(object):
 #
 
 
+
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 
 #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 data_dir = '/media/greg/data/neuro/neo/'
-manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
+manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
 print('Loading...')
 block = manager.read()
 print('...Loading Complete!')
 manager.close()
+
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
+neuro.rates()
 
+plt.figure()
+lda = LinearDiscriminantAnalysis(n_components=2)
+X, y = neuro.make_design_matrix('evk_count', trode=1)
+X_r0 = X[y<9, :]
+y_r0 = y[y<9]
+X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+plt.subplot(1,2,1)
+color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+for k in range(9):
+    c = next(color)
+    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
+plt.legend(loc='best')
+
+X, y = neuro.make_design_matrix('evk_count', trode=1)
+trial_inds = np.logical_and(y>=9, y<18)
+X_r0 = X[trial_inds, :]
+y_r0 = y[trial_inds]
+X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+plt.subplot(1,2,2)
+for k in range(9):
+    c = next(color)
+    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
+plt.legend(loc='best')
+
+plt.figure()
+lda = LinearDiscriminantAnalysis(n_components=2)
+X, y = neuro.make_design_matrix('evk_count', trode=2)
+X_r0 = X[y<9, :]
+y_r0 = y[y<9]
+X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+plt.subplot(1,2,1)
+color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+for k in range(9):
+    c = next(color)
+    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
+plt.legend(loc='best')
+
+X, y = neuro.make_design_matrix('evk_count', trode=2)
+trial_inds = np.where(y>= 18)[0]
+X_r0 = X[trial_inds, :]
+y_r0 = y[trial_inds]
+X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+plt.subplot(1,2,2)
+for k in range(9):
+    c = next(color)
+    plt.plot(X_r0[y_r0==k+9*2, 0], X_r0[y_r0==k+9*2, 1], 'o', c=c, label=str(k))
+plt.legend(loc='best')
 ##### Plot tuning curves #####
-neuro.plot_tuning_curve()
+#neuro.plot_tuning_curve()
 
 
 ###### Plot selectivity stuff #####

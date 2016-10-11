@@ -393,7 +393,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         name='LFPs'+'-'+e_name,
                         shank_name=e_name,
                         shank_num=e_num)
-                block.segments[trial_ind].analogsignals.append(sig0)
+                block.segments[trial_ind].analogsignalarrays.append(sig0)
 
     if wtrack_files:
         for e, wt_path in enumerate(wtrack_files):
