@@ -1,10 +1,15 @@
 #!/bin/bash
 import os.path
+import warnings
 import scipy as sp
 import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import matplotlib.cm as cm
 from neo.io import NeoHdf5IO
+# for LDA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 class NeuroAnalyzer(object):
     """
@@ -24,66 +29,27 @@ class NeuroAnalyzer(object):
         # sort by shank/region and then by depth
         sorted_index_list = self.__sort_units(neo_obj)
 
-        self.neo_obj        = neo_obj
-        self.stim_ids       = np.sort(np.unique([k.annotations['trial_type'] for k in neo_obj.segments]))
-        self.num_run_trials = self.__get_num_run_trials()
-        self.num_units      = len(self.neo_obj.segments[0].spiketrains)
-        self.shank_names    = np.sort(np.unique([k.annotations['shank'] for k in neo_obj.segments[0].spiketrains]))
-        self.shank_ids      = self.__get_shank_ids()
-        self.control_pos    = int(self.neo_obj.annotations['control_pos'])
+        self.neo_obj         = neo_obj
+        self.stim_ids        = np.sort(np.unique([k.annotations['trial_type'] for k in neo_obj.segments]))
+        self.num_units       = len(self.neo_obj.segments[0].spiketrains)
+        self.shank_names     = np.sort(np.unique([k.annotations['shank'] for k in neo_obj.segments[0].spiketrains]))
+        self.shank_ids       = self.__get_shank_ids()
+        self.control_pos     = int(self.neo_obj.annotations['control_pos'])
         # dictionary of cell types
-        self.cell_type_dict = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
-        self.cell_type      = self.__get_celltypeID()
-        self.__trim_wt(neo_obj)
-
-    def __trim_wt(self, neo_obj):
-        '''Trims whisker tracking data to shortest trial length'''
-        # make time vector for whisker tracking data
-        print('\n-----__trim_wt-----')
-
-        wt_bool = False
-        for anlg in self.neo_obj.segments[0].analogsignals:
-            if anlg.name == 'angle':
-                wt_bool = True
-
-        if wt_bool:
-            for i, seg in enumerate(neo_obj.segments):
-                for anlg in seg.analogsignals:
-
-                    if i == 0:
-                        min_samp = len(anlg)
-
-                    if anlg.name == 'angle' and len(anlg) < min_samp:
-                        min_samp = len(anlg)
-
-            for i, seg in enumerate(neo_obj.segments):
-                for k, anlg in enumerate(seg.analogsignals):
-
-                    if anlg.name == 'angle' or \
-                            anlg.name == 'set-point' or\
-                            anlg.name == 'amplitude' or\
-                            anlg.name == 'phase' or\
-                            anlg.name == 'velocity'or\
-                            anlg.name == 'whisking':
-                                neo_obj.segments[i].analogsignals[k] = anlg[0:min_samp]
-
-
-    def __get_celltypeID(self):
-        '''
-        Put celltype IDs in an array that corresponds to the unit order
-        '''
-        cell_type = list()
-        for spike in self.neo_obj.segments[0].spiketrains:
-            cell_type.append(self.cell_type_dict[spike.annotations['cell_type'][0]])
-
-        return np.asarray(cell_type)
+        self.cell_type_dict  = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
+        self.cell_type       = self.__get_celltypeID()
+        self.t_after_stim    = 0.500
+        print('time after stim is set to: ' + str(self.t_after_stim))
+        self.__trim_wt()
+        self.get_num_good_trials()
+        self.classify_whisking_trials(threshold='user')
+        self.rates()
 
     def __sort_units(self, neo_obj):
         '''
         Units are saved out of order in the neo object.
         This reorders units by experiment FID, shank, and depth across all segments.
         '''
-
         for i, seg in enumerate(neo_obj.segments):
             fid, shank, depth = list(), list(), list()
 
@@ -102,6 +68,21 @@ class NeuroAnalyzer(object):
             for k, ordered_spiketrain in enumerate(sorted_spiketrains):
                 neo_obj.segments[i].spiketrains[k] = ordered_spiketrain
 
+    def get_num_good_trials(self, kind='run_boolean'):
+        '''
+        Return a list with the number of good trials for each stimulus condition
+        And the specified annotations to use.
+        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
+        '''
+        num_good_trials = list()
+        for stim_id in self.stim_ids:
+            run_count = 0
+            for trial in self.neo_obj.segments:
+                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
+                    run_count += 1
+            num_good_trials.append(run_count)
+        self.num_good_trials = num_good_trials
+
     def __get_shank_ids(self):
         '''
         Return shank IDs for each unit
@@ -113,25 +94,131 @@ class NeuroAnalyzer(object):
                     shank_ids[j] = k
         return shank_ids
 
-    def __get_num_run_trials(self):
+    def __get_celltypeID(self):
         '''
-        Return a list with the number of running trials for each stimulus condition
+        Put celltype IDs in an array that corresponds to the unit order
         '''
-        num_run_trials = list()
-        for stim_id in self.stim_ids:
-            run_count = 0
-            for trial in self.neo_obj.segments:
-                if trial.annotations['trial_type'] == stim_id and trial.annotations['run_boolean']:
-                    run_count += 1
-            num_run_trials.append(run_count)
-        return num_run_trials
+        cell_type = list()
+        for spike in self.neo_obj.segments[0].spiketrains:
+            cell_type.append(self.cell_type_dict[spike.annotations['cell_type'][0]])
+
+        return np.asarray(cell_type)
+
+    def __trim_wt(self):
+        '''Trims whisker tracking data to shortest trial length'''
+        # make time vector for whisker tracking data
+        print('\n-----__trim_wt-----')
+
+        wt_boolean = False
+        for anlg in self.neo_obj.segments[0].analogsignals:
+            if anlg.name == 'angle':
+                wt_boolean = True
+
+        if wt_boolean:
+            print('whisker tracking data found! trimming data to be all the same length in time')
+            for i, seg in enumerate(self.neo_obj.segments):
+                for anlg in seg.analogsignals:
+
+                    if i == 0:
+                        min_samp = len(anlg)
+
+                    if anlg.name == 'angle' and len(anlg) < min_samp:
+                        min_samp = len(anlg)
+
+            for i, seg in enumerate(self.neo_obj.segments):
+                for k, anlg in enumerate(seg.analogsignals):
+
+                    if anlg.name == 'angle' or \
+                            anlg.name == 'set-point' or\
+                            anlg.name == 'amplitude' or\
+                            anlg.name == 'phase' or\
+                            anlg.name == 'velocity'or\
+                            anlg.name == 'whisking':
+                                self.neo_obj.segments[i].analogsignals[k] = anlg[0:min_samp]
+
+            fps      = 500.0
+            wtt      = np.arange(0, min_samp/fps, 1/fps)
+        else:
+            print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
+                    '\nuse runspeed to classify trials')
+        self.wtt = wtt
+        self.wt_boolean = wt_boolean
+        self._wt_min_samp = min_samp
 
     def __make_alpha_kernel(self, resolution=0.025):
-        # Build alpha kernel with 25msec resolution
+        '''Build alpha kernel with specified 25msec (default) resolution'''
         alpha = 1.0/resolution
         tau   = np.arange(0,1/alpha*10, 0.001)
         alpha_kernel = alpha**2*tau*np.exp(-alpha*tau)
         return alpha_kernel
+
+    def classify_whisking_trials(self, threshold='user'):
+        '''
+        Classify a trial as good if whisking occurs during a specified period.
+        A trial is considered whisking if the mouse was whisking during the
+        baseline period and the stimulus period.
+
+        threshold can take the values 'median' or 'user' (default)
+        A new annotation ('wsk_boolean') is added to each segment
+        '''
+
+        # make "whisking" distribution and compute threshold
+        print('\n-----classify_whisking_trials-----')
+        wsk_dist = np.empty((self._wt_min_samp, 1))
+        for i, seg in enumerate(self.neo_obj.segments):
+            for k, anlg in enumerate(seg.analogsignals):
+                if anlg.name == 'whisking':
+                    wsk_dist = np.append(wsk_dist, anlg.reshape(-1, 1), axis=1) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
+        wsk_dist = np.ravel(wsk_dist[:, 1:])
+
+        # plot distribution
+        sns.set(style="ticks")
+        f, (ax_box, ax_hist) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
+        sns.boxplot(wsk_dist, vert=False, ax=ax_box)
+        sns.distplot(wsk_dist, ax=ax_hist)
+        ax_box.set(yticks=[])
+        sns.despine(ax=ax_hist)
+        sns.despine(ax=ax_box, left=True)
+        plt.xlim(70, 180)
+        plt.show()
+
+        # select threshold
+        if threshold is 'median':
+            thresh = np.median(wsk_dist)
+        elif threshold is 'user':
+            thresh = int(raw_input("Enter a threshold value: "))
+
+        plt.close(f)
+        del wsk_dist
+
+        wtt = self.wtt
+        for i, seg in enumerate(self.neo_obj.segments):
+            stim_start = seg.annotations['stim_times'][0] + self.t_after_stim
+            stim_stop  = seg.annotations['stim_times'][1]
+            base_start = seg.annotations['stim_times'][0] - (stim_stop - stim_start)
+            base_stop  = seg.annotations['stim_times'][0]
+
+            wsk_base_ind = np.logical_and(base_start < wtt, base_stop > wtt)
+            wsk_stim_ind = np.logical_and(stim_start < wtt, stim_stop > wtt)
+
+            for k, anlg in enumerate(seg.analogsignals):
+                if anlg.name == 'whisking':
+                    wsk = anlg.reshape(-1, 1)
+                    base_high  = np.sum(wsk[wsk_base_ind] > thresh)
+                    stim_high  = np.sum(wsk[wsk_stim_ind] > thresh)
+                    total_high = base_high + stim_high
+                    total_samp = np.sum(wsk_base_ind) + np.sum(wsk_stim_ind)
+                    fraction_high = float(total_high)/float(total_samp)
+
+                    if fraction_high > 0.8:
+                        self.neo_obj.segments[i].annotations['wsk_boolean'] = True
+                    else:
+                        self.neo_obj.segments[i].annotations['wsk_boolean'] = False
+
+    def update_t_after_stim(self, t_after_stim):
+        self.t_after_stim = t_after_stim
+        self.classify_whisking_trials(threshold='user')
+        self.rates()
 
     def get_annotations_index(self, key, value):
         '''Returns trial index for the given key value pair'''
@@ -139,7 +226,19 @@ class NeuroAnalyzer(object):
                 if segment.annotations[key] == value]
         return stim_index
 
-    def rates(self, t_after_stim=0.500, psth_t_start= -0.500, psth_t_stop=2.000):
+    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean'):
+        '''
+        rates computes the absolute and evoked firing rate and counts for the
+        specified stimulus period. The time to start analyzing after the stimulus
+        start time is specified by neuro.t_after_stim. The baseline period to
+        be analyzed is taken to be the same size as the length of the stimulus
+        period.
+
+        MAKE SURE THAT THE EXPERIMENT WAS DESIGNED TO HAVE A LONG ENOUGH BASELINE
+        THAT IS IT IS AT LEASE AS LONG AS THE STIMULUS PERIOD TO BE ANALYZED
+
+        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
+        '''
 
         print('\n-----computing rates----')
         absolute_rate   = list()
@@ -149,40 +248,45 @@ class NeuroAnalyzer(object):
         binned_spikes   = list()
         psth            = list()
 
+        # make whisker tracking list wt
+        if self.wt_boolean:
+            wt          = list()
+        if kind == 'wsk_boolean' and not self.wt_boolean:
+            warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
+                    using run speed to select good trials')
+            kind = 'run_boolean'
+        elif kind == 'wsk_boolean' and self.wt_boolean:
+            print('using whisking to find good trials')
+            self.get_num_good_trials(kind='wsk_boolean')
+        elif kind == 'run_boolean':
+            print('using running to find good trials')
+            self.get_num_good_trials(kind='run_boolean')
+
         # make bins for rasters and PSTHs
         bins = np.arange(psth_t_start, psth_t_stop, 0.001)
         alpha_kernel = self.__make_alpha_kernel()
         self._bins = bins
 
-        # make time vector for whisker tracking data
-        wt_bool = False
-        for anlg in self.neo_obj.segments[0].analogsignals:
-            if anlg.name == 'angle':
-                wt_bool = True
-        if wt_bool:
-            wt     = list()
-            wt_len = len(self.neo_obj.segments[0].analogsignals[1])
-            fps    = 500.0
-            wtt    = np.arange(0, wt_len/fps, 1/fps)
-
-        for k, trials_ran in enumerate(self.num_run_trials):
+        # preallocation loop
+        for k, trials_ran in enumerate(self.num_good_trials):
                 absolute_rate.append(np.zeros((trials_ran, self.num_units)))
                 evoked_rate.append(np.zeros((trials_ran, self.num_units)))
                 absolute_counts.append(np.zeros((trials_ran, self.num_units)))
                 evoked_counts.append(np.zeros((trials_ran, self.num_units)))
                 binned_spikes.append(np.zeros((bins.shape[0]-1, self.num_units, trials_ran)))
                 psth.append(np.zeros((bins.shape[0]-1, self.num_units, trials_ran)))
-                if wt_bool:
-                    wt.append(np.zeros((wtt.shape[0], 6, trials_ran)))
+
+                if self.wt_boolean:
+                    wt.append(np.zeros((self.wtt.shape[0], 6, trials_ran)))
 
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
 
             for trial in self.neo_obj.segments:
-                if trial.annotations['trial_type'] == stim_id and trial.annotations['run_boolean']:
+                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
 
                     # organize whisker tracking data by trial type
-                    if wt_bool:
+                    if self.wt_boolean:
                         k = 0
                         for anlg in trial.analogsignals:
                             if anlg.name == 'angle' or \
@@ -194,11 +298,15 @@ class NeuroAnalyzer(object):
                                         wt[stim_ind][:, k, good_trial_ind] = anlg[:]
                                         k += 1
 
-                    stim_start = trial.annotations['stim_times'][0] + t_after_stim
+                    # get baseline and stimulus period times for this trial
+                    stim_start = trial.annotations['stim_times'][0] + self.t_after_stim
                     stim_stop  = trial.annotations['stim_times'][1]
                     base_start = trial.annotations['stim_times'][0] - (stim_stop - stim_start)
                     base_stop  = trial.annotations['stim_times'][0]
 
+                    # iterate through all units and count calculate various
+                    # spike rates (e.g. absolute firing and evoked firing rates
+                    # and counts)
                     for unit, spike_train in enumerate(trial.spiketrains):
                         spk_times = np.asarray(spike_train.tolist())
 
@@ -233,15 +341,14 @@ class NeuroAnalyzer(object):
         self.binned_spikes = binned_spikes
         self.psth          = psth
 
-        if wt_bool:
+        if self.wt_boolean:
             self.wt        = wt
-            self.wtt       = wtt
 
     def make_design_matrix(self, rate_type='evk_count', trode=None, trim_trials=True):
         '''make design matrix for classification and regressions'''
 
         print('\n-----make design matrix----')
-        min_trials     = np.min(self.num_run_trials)
+        min_trials     = np.min(self.num_good_trials)
         num_cond       = len(self.stim_ids)
         kind_dict      = {'abs_rate': 0, 'abs_count': 1, 'evk_rate': 2, 'evk_count': 3}
         kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
@@ -258,8 +365,8 @@ class NeuroAnalyzer(object):
             X = np.zeros((num_cond*min_trials, num_units))
             y = np.ones((num_cond*min_trials, ))
         else:
-            X = np.zeros((np.sum(self.num_run_trials), num_units))
-            y = np.ones((np.sum(self.num_run_trials), ))
+            X = np.zeros((np.sum(self.num_good_trials), num_units))
+            y = np.ones((np.sum(self.num_good_trials), ))
 
         last_t_ind = 0
         for k, cond in enumerate(rates):
@@ -274,7 +381,7 @@ class NeuroAnalyzer(object):
 
         return X, y
 
-    def get_burst_isi(self):
+    def get_burst_isi(self, kind='run_boolean'):
         '''
         Compute the interspike interval for spikes during the stimulus period.
         get_burst_isi creates a list that has n_stimulus_types entries. Each
@@ -283,7 +390,20 @@ class NeuroAnalyzer(object):
         These values can be used to identify bursting activity.
         '''
 
-        t_after_stim = 0.500 # change this from being hardcoded!!!
+        if self.wt_boolean:
+            wt          = list()
+        if kind == 'wsk_boolean' and not self.wt_boolean:
+            warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
+                    using run speed to select good trials')
+            kind = 'run_boolean'
+        elif kind == 'wsk_boolean' and self.wt_boolean:
+            print('using whisking to find good trials')
+            self.get_num_good_trials(kind='wsk_boolean')
+        elif kind == 'run_boolean':
+            print('using running to find good trials')
+            self.get_num_good_trials(kind='run_boolean')
+
+        t_after_stim = self.t_after_stim
         bisi_list = [list() for stim in self.stim_ids]
 
         # iterate through all stimulus IDs
@@ -297,7 +417,7 @@ class NeuroAnalyzer(object):
 
                 # if a trial segment is from the current stim_id and it is a
                 # running trial get the spike ISIs.
-                if trial.annotations['trial_type'] == stim_id and trial.annotations['run_boolean']:
+                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
 
                     # get the stimulus start and stop times for this trial
                     stim_start = trial.annotations['stim_times'][0]
@@ -547,46 +667,46 @@ class NeuroAnalyzer(object):
 ###############################################################################
 ######## Doesn't work in Ubuntu...figure out why ##############################
 ###############################################################################
-    def make_raster_movie(self, trial_type=1, run_trials=True):
-        # stim_times is the time of the stimulus onset and offset
-
-        stim_inds = self.get_annotations_index(key='trial_type', value=trial_type)
-        run_inds  = self.get_annotations_index(key='run_boolean', value=True)
-        stim_index = stim_inds and run_inds
-        num_frames = len(stim_index)
-        shank_borders = np.where(np.diff(self.shank_ids) > 0)[0]
-
-        def __get_spike_xy_coord(segment):
-            x = list()
-            y = list()
-            for unit in range(self.num_units):
-                x.extend(segment.spiketrains[unit].tolist())
-                y.extend(np.ones(len(segment.spiketrains[unit]), )*unit)
-            return np.array(x), np.array(y)
-
-        FFMpegWriter = animation.writers['ffmpeg']
-        writer = FFMpegWriter(fps=3)
-        fig = plt.figure()
-
-        with writer.saving(fig, self.neo_obj.name + '_allunitraster_trial_'  + str(trial_type) + ".mp4", 70):
-            for sind in stim_index:
-                x, y = __get_spike_xy_coord(self.neo_obj.segments[sind])
-                stim_times = self.neo_obj.segments[sind].annotations['stim_times']
-                t_start = self.neo_obj.segments[sind].spiketrains[0].t_start
-                t_stop  = self.neo_obj.segments[sind].spiketrains[0].t_stop
-
-                plt.vlines(x, y-1, y, 'k')
-                plt.vlines(np.array(stim_times), 0, self.num_units, 'r')
-                plt.hlines(shank_borders, t_start, t_stop, 'g')
-                plt.ylim(0, self.num_units)
-                plt.xlim(t_start, t_stop)
-                plt.gca().invert_yaxis()
-                plt.xlabel('time (s)')
-                plt.ylabel('unit')
-                plt.title('all unit raster')
-                writer.grab_frame()
-                plt.clf()
-        plt.close()
+#    def make_raster_movie(self, trial_type=1, run_trials=True):
+#        # stim_times is the time of the stimulus onset and offset
+#
+#        stim_inds = self.get_annotations_index(key='trial_type', value=trial_type)
+#        run_inds  = self.get_annotations_index(key='run_boolean', value=True)
+#        stim_index = stim_inds and run_inds
+#        num_frames = len(stim_index)
+#        shank_borders = np.where(np.diff(self.shank_ids) > 0)[0]
+#
+#        def __get_spike_xy_coord(segment):
+#            x = list()
+#            y = list()
+#            for unit in range(self.num_units):
+#                x.extend(segment.spiketrains[unit].tolist())
+#                y.extend(np.ones(len(segment.spiketrains[unit]), )*unit)
+#            return np.array(x), np.array(y)
+#
+#        FFMpegWriter = animation.writers['ffmpeg']
+#        writer = FFMpegWriter(fps=3)
+#        fig = plt.figure()
+#
+#        with writer.saving(fig, self.neo_obj.name + '_allunitraster_trial_'  + str(trial_type) + ".mp4", 70):
+#            for sind in stim_index:
+#                x, y = __get_spike_xy_coord(self.neo_obj.segments[sind])
+#                stim_times = self.neo_obj.segments[sind].annotations['stim_times']
+#                t_start = self.neo_obj.segments[sind].spiketrains[0].t_start
+#                t_stop  = self.neo_obj.segments[sind].spiketrains[0].t_stop
+#
+#                plt.vlines(x, y-1, y, 'k')
+#                plt.vlines(np.array(stim_times), 0, self.num_units, 'r')
+#                plt.hlines(shank_borders, t_start, t_stop, 'g')
+#                plt.ylim(0, self.num_units)
+#                plt.xlim(t_start, t_stop)
+#                plt.gca().invert_yaxis()
+#                plt.xlabel('time (s)')
+#                plt.ylabel('unit')
+#                plt.title('all unit raster')
+#                writer.grab_frame()
+#                plt.clf()
+#        plt.close()
 #
 #def single_trial_all_unit_raster(segments, trial_type, stim_times, stim_ids, run_trials=True):
 #    '''
@@ -620,14 +740,14 @@ class NeuroAnalyzer(object):
 
 
 
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 
 #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 data_dir = '/media/greg/data/neuro/neo/'
-manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
+#manager = NeoHdf5IO(os.path.join(data_dir + 'FID1290_neo_object.h5'))
+manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
 print('Loading...')
 block = manager.read()
 print('...Loading Complete!')
@@ -635,7 +755,7 @@ manager.close()
 
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
-neuro.rates()
+neuro.rates(kind='wsk_boolean')
 
 plt.figure()
 lda = LinearDiscriminantAnalysis(n_components=2)
