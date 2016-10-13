@@ -10,6 +10,10 @@ import matplotlib.cm as cm
 from neo.io import NeoHdf5IO
 # for LDA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+# for t-distributed stochastic neighbor embedding
+from sklearn.manifold import TSNE
+# for MDS
+from sklearn import manifold
 
 class NeuroAnalyzer(object):
     """
@@ -138,12 +142,13 @@ class NeuroAnalyzer(object):
 
             fps      = 500.0
             wtt      = np.arange(0, min_samp/fps, 1/fps)
+            self.wtt = wtt
+            self.wt_boolean = wt_boolean
+            self._wt_min_samp = min_samp
         else:
             print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
                     '\nuse runspeed to classify trials')
-        self.wtt = wtt
-        self.wt_boolean = wt_boolean
-        self._wt_min_samp = min_samp
+            self.wt_boolean = wt_boolean
 
     def __make_alpha_kernel(self, resolution=0.025):
         '''Build alpha kernel with specified 25msec (default) resolution'''
@@ -162,58 +167,82 @@ class NeuroAnalyzer(object):
         A new annotation ('wsk_boolean') is added to each segment
         '''
 
-        # make "whisking" distribution and compute threshold
-        print('\n-----classify_whisking_trials-----')
-        wsk_dist = np.empty((self._wt_min_samp, 1))
-        for i, seg in enumerate(self.neo_obj.segments):
-            for k, anlg in enumerate(seg.analogsignals):
-                if anlg.name == 'whisking':
-                    wsk_dist = np.append(wsk_dist, anlg.reshape(-1, 1), axis=1) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
-        wsk_dist = np.ravel(wsk_dist[:, 1:])
+        if self.wt_boolean:
+            print('whisker tracking data found! trimming data to be all the same length in time')
+            # make "whisking" distribution and compute threshold
+            print('\n-----classify_whisking_trials-----')
+            wsk_dist = np.empty((self._wt_min_samp, 1))
+            for i, seg in enumerate(self.neo_obj.segments):
+                for k, anlg in enumerate(seg.analogsignals):
+                    if anlg.name == 'whisking':
+                        wsk_dist = np.append(wsk_dist, anlg.reshape(-1, 1), axis=1) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
+            wsk_dist = np.ravel(wsk_dist[:, 1:])
 
-        # plot distribution
-        sns.set(style="ticks")
-        f, (ax_box, ax_hist) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
-        sns.boxplot(wsk_dist, vert=False, ax=ax_box)
-        sns.distplot(wsk_dist, ax=ax_hist)
-        ax_box.set(yticks=[])
-        sns.despine(ax=ax_hist)
-        sns.despine(ax=ax_box, left=True)
-        plt.xlim(70, 180)
-        plt.show()
+            # plot distribution
+            sns.set(style="ticks")
+            f, (ax_box, ax_hist) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
+            sns.boxplot(wsk_dist, vert=False, ax=ax_box)
+            sns.distplot(wsk_dist, ax=ax_hist)
+            ax_box.set(yticks=[])
+            sns.despine(ax=ax_hist)
+            sns.despine(ax=ax_box, left=True)
+            plt.xlim(70, 180)
+            plt.show()
 
-        # select threshold
-        if threshold is 'median':
-            thresh = np.median(wsk_dist)
-        elif threshold is 'user':
-            thresh = int(raw_input("Enter a threshold value: "))
+            # select threshold
+            if threshold is 'median':
+                thresh = np.median(wsk_dist)
+            elif threshold is 'user':
+                thresh = int(raw_input("Enter a threshold value: "))
 
-        plt.close(f)
-        del wsk_dist
+            plt.close(f)
+            del wsk_dist
 
-        wtt = self.wtt
-        for i, seg in enumerate(self.neo_obj.segments):
-            stim_start = seg.annotations['stim_times'][0] + self.t_after_stim
-            stim_stop  = seg.annotations['stim_times'][1]
-            base_start = seg.annotations['stim_times'][0] - (stim_stop - stim_start)
-            base_stop  = seg.annotations['stim_times'][0]
+            wtt = self.wtt
+            for i, seg in enumerate(self.neo_obj.segments):
+                stim_start = seg.annotations['stim_times'][0] + self.t_after_stim
+                stim_stop  = seg.annotations['stim_times'][1]
+                base_start = seg.annotations['stim_times'][0] - (stim_stop - stim_start)
+                base_stop  = seg.annotations['stim_times'][0]
 
-            wsk_base_ind = np.logical_and(base_start < wtt, base_stop > wtt)
-            wsk_stim_ind = np.logical_and(stim_start < wtt, stim_stop > wtt)
+                wsk_base_ind = np.logical_and(base_start < wtt, base_stop > wtt)
+                wsk_stim_ind = np.logical_and(stim_start < wtt, stim_stop > wtt)
 
-            for k, anlg in enumerate(seg.analogsignals):
-                if anlg.name == 'whisking':
-                    wsk = anlg.reshape(-1, 1)
-                    base_high  = np.sum(wsk[wsk_base_ind] > thresh)
-                    stim_high  = np.sum(wsk[wsk_stim_ind] > thresh)
-                    total_high = base_high + stim_high
-                    total_samp = np.sum(wsk_base_ind) + np.sum(wsk_stim_ind)
-                    fraction_high = float(total_high)/float(total_samp)
+                for k, anlg in enumerate(seg.analogsignals):
+                    if anlg.name == 'whisking':
+                        wsk = anlg.reshape(-1, 1)
+                        base_high  = np.sum(wsk[wsk_base_ind] > thresh)
+                        stim_high  = np.sum(wsk[wsk_stim_ind] > thresh)
+                        total_high = base_high + stim_high
+                        total_samp = np.sum(wsk_base_ind) + np.sum(wsk_stim_ind)
+                        fraction_high = float(total_high)/float(total_samp)
 
-                    if fraction_high > 0.8:
-                        self.neo_obj.segments[i].annotations['wsk_boolean'] = True
-                    else:
-                        self.neo_obj.segments[i].annotations['wsk_boolean'] = False
+                        if fraction_high > 0.8:
+                            self.neo_obj.segments[i].annotations['wsk_boolean'] = True
+                        else:
+                            self.neo_obj.segments[i].annotations['wsk_boolean'] = False
+        else:
+            print('NO WHISKER TRACKING DATA FOUND!\nuse runspeed to classify trials')
+
+    def get_protraction_times(self):
+        # TODO TODO
+        # CLEAN THIS UP
+        # WORK IN PROGRESS
+        # TODO TODO
+        #                    condition 1                    condition 2                     condition n
+        # [  [ [phase trial 1], [phase trial 2],...,[phase trial i]], [ [phase trial 1], [phs trial i]], ..., [condition ] ] ]
+        # phs[condition i][trial j][timestamp k]
+        phs_cond = list()
+        for cond in self.wt:
+            phs_trial = list()
+            for k in range(cond.shape[2]):
+                phs_timestamps = list()
+                phase = cond[:, 3, k]
+                # find zero crossings
+                zero_crossings = numpy.where(numpy.diff(numpy.sign(phase)))[0]
+                phs_trial.append(timestamps[zero_crossings])
+            phs_cond.append(phs_trial)
+        self.protraction_times = phs_cond
 
     def update_t_after_stim(self, t_after_stim):
         self.t_after_stim = t_after_stim
@@ -782,30 +811,69 @@ for k in range(9):
     plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
 plt.legend(loc='best')
 
-plt.figure()
-lda = LinearDiscriminantAnalysis(n_components=2)
-X, y = neuro.make_design_matrix('evk_count', trode=2)
-X_r0 = X[y<9, :]
-y_r0 = y[y<9]
-X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
-plt.subplot(1,2,1)
-color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-for k in range(9):
-    c = next(color)
-    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
-plt.legend(loc='best')
+#plt.figure()
+#lda = LinearDiscriminantAnalysis(n_components=2)
+#X, y = neuro.make_design_matrix('evk_count', trode=2)
+#X_r0 = X[y<9, :]
+#y_r0 = y[y<9]
+#X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+#plt.subplot(1,2,1)
+#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+#for k in range(9):
+#    c = next(color)
+#    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
+#plt.legend(loc='best')
+#
+#X, y = neuro.make_design_matrix('evk_count', trode=2)
+#trial_inds = np.where(y>= 18)[0]
+#X_r0 = X[trial_inds, :]
+#y_r0 = y[trial_inds]
+#X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+#plt.subplot(1,2,2)
+#for k in range(9):
+#    c = next(color)
+#    plt.plot(X_r0[y_r0==k+9*2, 0], X_r0[y_r0==k+9*2, 1], 'o', c=c, label=str(k))
+#plt.legend(loc='best')
+################
+##### TSNE or MDS #####
+################
 
-X, y = neuro.make_design_matrix('evk_count', trode=2)
-trial_inds = np.where(y>= 18)[0]
-X_r0 = X[trial_inds, :]
-y_r0 = y[trial_inds]
-X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
-color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-plt.subplot(1,2,2)
-for k in range(9):
-    c = next(color)
-    plt.plot(X_r0[y_r0==k+9*2, 0], X_r0[y_r0==k+9*2, 1], 'o', c=c, label=str(k))
-plt.legend(loc='best')
+#from sklearn import manifold
+#
+#plt.figure()
+#X, y = neuro.make_design_matrix('evk_count', trode=1)
+#X_r0 = X[y<9, :]
+#y_r0 = y[y<9]
+#clf = manifold.MDS(n_components=2, n_init=1, max_iter=100)
+#X_r0 = clf.fit_transform(X_r0)
+#plt.subplot(1,2,1)
+#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+#for k in range(9):
+#    c = next(color)
+#    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
+#plt.legend(loc='best')
+#
+#X, y = neuro.make_design_matrix('evk_count', trode=1)
+#trial_inds = np.logical_and(y>=9, y<18)
+#X_r0 = X[trial_inds, :]
+#y_r0 = y[trial_inds]
+#clf = manifold.MDS(n_components=2, n_init=1, max_iter=100)
+#X_r0 = clf.fit_transform(X_r0)
+##model = TSNE(n_components=2, random_state=0)
+##model.fit_transform(X_r0)
+#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+#plt.subplot(1,2,2)
+#for k in range(9):
+#    c = next(color)
+#    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
+#plt.legend(loc='best')
+#
+#
+#
+
+
+
 ##### Plot tuning curves #####
 #neuro.plot_tuning_curve()
 
