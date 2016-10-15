@@ -659,7 +659,7 @@ class NeuroAnalyzer(object):
         Plots all rasters for a given unit with subplots.
         Each positions is a row and each manipulation is a column.
         '''
-        num_manipulations = self.stim_ids.shape[0]/self.control_pos
+        num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
         subplt_indices    = np.arange(self.control_pos*num_manipulations).reshape(self.control_pos, num_manipulations)
         fig = plt.subplots(self.control_pos, num_manipulations, figsize=(6*num_manipulations, 12))
 
@@ -675,7 +675,7 @@ class NeuroAnalyzer(object):
         '''
         ymax = 0
         color = ['k','r','b']
-        num_manipulations = self.stim_ids.shape[0]/self.control_pos
+        num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
         fig = plt.subplots(self.control_pos, 1, figsize=(6, 12))
 
         for manip in range(num_manipulations):
@@ -772,11 +772,11 @@ class NeuroAnalyzer(object):
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
-
+sns.set_style("whitegrid", {'axes.grid' : True})
 #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 data_dir = '/media/greg/data/neuro/neo/'
-#manager = NeoHdf5IO(os.path.join(data_dir + 'FID1290_neo_object.h5'))
-manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
+manager = NeoHdf5IO(os.path.join(data_dir + 'FID1290_neo_object.h5'))
+#manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
 print('Loading...')
 block = manager.read()
 print('...Loading Complete!')
@@ -785,31 +785,34 @@ manager.close()
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
 neuro.rates(kind='wsk_boolean')
+neuro.plot_tuning_curve(kind='evk_count')
+plt.show()
 
 plt.figure()
 lda = LinearDiscriminantAnalysis(n_components=2)
 X, y = neuro.make_design_matrix('evk_count', trode=1)
-X_r0 = X[y<9, :]
-y_r0 = y[y<9]
+X_r0 = X[y<8, :]
+y_r0 = y[y<8]
 X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
 plt.subplot(1,2,1)
 color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-for k in range(9):
+for k in range(len(np.unique(y_r0))):
     c = next(color)
     plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
 plt.legend(loc='best')
 
 X, y = neuro.make_design_matrix('evk_count', trode=1)
-trial_inds = np.logical_and(y>=9, y<18)
+trial_inds = np.logical_and(y>=9, y<17) # no control position
 X_r0 = X[trial_inds, :]
 y_r0 = y[trial_inds]
 X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
 color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
 plt.subplot(1,2,2)
-for k in range(9):
+for k in range(len(np.unique(y_r0))):
     c = next(color)
     plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
 plt.legend(loc='best')
+plt.show()
 
 #plt.figure()
 #lda = LinearDiscriminantAnalysis(n_components=2)
