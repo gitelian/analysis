@@ -932,3 +932,29 @@ plt.show()
 #
 ##how to get spike times: block.segments[0].spiketrains[0].tolist()
 #
+##############!!!!!!!!!!!!!!!!!!!!!!!#########################
+##### HOW TO TRANSFORM A MATRIX SO THAT TRIALS ARE APPENDED TOGETHER
+#### i.e. take 3d stack and move backwards in the 3d dimention every time we
+# iterate to the next page we place the page beneath the first and then the
+# third page goes beneath the second etc.
+# when we reshape in numpy the 3rd dimension changes the fasters and we want to
+# make it the slowest (this will put it at the bottom of the page after going
+# through all the ones and twos from the first page). these are the order of
+# the matrix coordinates when we use reshape:
+# (1,1,1)-(1,1,2)-(1,1,3)-(1,2,1)-(1,2,2)-(1,2,3) <-look how we choose the
+# third dimension the most.
+# we want this pattern
+# (1,1,1)-(1,2,1)-(2,1,1)-(2,2,1)-(3,1,1)-(3,2,1)-(4,1,1)-(4,2,1)-(1,1,2)-(1,2,2)-(2,1,2)-(2,1,2)-(2,2,2)-(3,1,2)
+# here 2 is most frequent then 1 and lastly 3. to acheive this we have to switch
+# dim 3 (the most frequent) with 1 (least frequent) and switch 1 with 2 (middle frequent)
+# make this pattern 3-2-1 into this 2-1-3
+
+# use this: a.swapaxes(0,2).swapaxes(1,2).reshape(6,2)
+
+
+# - find shortest baseline period
+# - find shortest post stimulus period
+# - bin spikes between these two points using 1msec bins. (this will align all
+#   trials and make spikes at time 0 aligned with the stimulus.
+# - subtract off stimulus start from the high speed camera time. This way all
+#   spiking data will be aligned an one the same timescale as the camera.
