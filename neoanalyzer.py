@@ -302,8 +302,8 @@ class NeuroAnalyzer(object):
                 evoked_rate.append(np.zeros((trials_ran, self.num_units)))
                 absolute_counts.append(np.zeros((trials_ran, self.num_units)))
                 evoked_counts.append(np.zeros((trials_ran, self.num_units)))
-                binned_spikes.append(np.zeros((bins.shape[0]-1, self.num_units, trials_ran)))
-                psth.append(np.zeros((bins.shape[0]-1, self.num_units, trials_ran)))
+                binned_spikes.append(np.zeros((bins.shape[0]-1, trials_ran, self.num_units)))
+                psth.append(np.zeros((bins.shape[0]-1,trials_ran, self.num_units))) # samples x trials x units
 
                 if self.wt_boolean:
                     wt.append(np.zeros((self.wtt.shape[0], 6, trials_ran)))
@@ -342,10 +342,10 @@ class NeuroAnalyzer(object):
                         # bin spikes for rasters (time 0 is stimulus start)
                         spk_times_relative = spk_times - trial.annotations['stim_times'][0]
                         counts = np.histogram(spk_times_relative, bins=bins)[0]
-                        binned_spikes[stim_ind][:, unit, good_trial_ind] = counts
+                        binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
 
                         # convolve binned spikes to make PSTH
-                        psth[stim_ind][:, unit, good_trial_ind] =\
+                        psth[stim_ind][:, good_trial_ind, unit] =\
                                 np.convolve(counts, alpha_kernel)[:-alpha_kernel.shape[0]+1]
 
                         # calculate absolute and evoked rate
@@ -612,7 +612,7 @@ class NeuroAnalyzer(object):
 
         print('Making raster for unit {} and trial_type {}'.format(unit_ind, trial_type))
         ax = plt.gca()
-        count_mat = self.binned_spikes[trial_type][:, unit_ind, :] # returns bins x num_trials array
+        count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
 
         for trial in range(count_mat.shape[1]):
             trial_inds = np.where(count_mat[:, trial] > 0)[0]
@@ -640,7 +640,7 @@ class NeuroAnalyzer(object):
         print('Making PSTH for unit {} and trial_type {}'.format(unit_ind, trial_type))
         ax = plt.gca()
 
-        psth_temp = self.psth[trial_type][:, unit_ind, :]
+        psth_temp = self.psth[trial_type][:, :, unit_ind]
         mean_psth = np.mean(psth_temp, axis=1) # mean across all trials
         se = sp.stats.sem(psth_temp, axis=1)
         # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
@@ -775,7 +775,7 @@ class NeuroAnalyzer(object):
 sns.set_style("whitegrid", {'axes.grid' : True})
 #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 data_dir = '/media/greg/data/neuro/neo/'
-manager = NeoHdf5IO(os.path.join(data_dir + 'FID1290_neo_object.h5'))
+manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
 #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
 print('Loading...')
 block = manager.read()
@@ -787,6 +787,8 @@ neuro = NeuroAnalyzer(exp1)
 neuro.rates(kind='wsk_boolean')
 neuro.plot_tuning_curve(kind='evk_count')
 plt.show()
+
+fail()
 
 plt.figure()
 lda = LinearDiscriminantAnalysis(n_components=2)
