@@ -15,6 +15,8 @@ from sklearn.manifold import TSNE
 # for MDS
 from sklearn import manifold
 
+sns.set_style("whitegrid", {'axes.grid' : False})
+
 class NeuroAnalyzer(object):
     """
     Analyzes data contained in a neo object
@@ -33,21 +35,42 @@ class NeuroAnalyzer(object):
         # sort by shank/region and then by depth
         sorted_index_list = self.__sort_units(neo_obj)
 
+        # add neo object to class instance
         self.neo_obj         = neo_obj
+
+        # find stimulus IDs
         self.stim_ids        = np.sort(np.unique([k.annotations['trial_type'] for k in neo_obj.segments]))
+
+        # find number of units
         self.num_units       = len(self.neo_obj.segments[0].spiketrains)
+
+        # find shank names (i.e. names of electrodes/recording sites, e.g.
+        # 'e1', 'e2')
         self.shank_names     = np.sort(np.unique([k.annotations['shank'] for k in neo_obj.segments[0].spiketrains]))
+
+        # find shank IDs for each unit (e.g. [0, 0, 1, 1, 1])
         self.shank_ids       = self.__get_shank_ids()
+
+        # get the control position
         self.control_pos     = int(self.neo_obj.annotations['control_pos'])
-        # dictionary of cell types
+
+        # make dictionary of cell types and get cell type IDs
         self.cell_type_dict  = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
         self.cell_type       = self.__get_celltypeID()
+
+        # set time after stimulus to start analyzing
+        # time_after_stim + stim_start MUST BE LESS THAN stim_stop time
         self.t_after_stim    = 0.500
         print('time after stim is set to: ' + str(self.t_after_stim))
-        self.__trim_wt()
-        self.get_num_good_trials()
-        self.classify_whisking_trials(threshold='user')
-        self.rates()
+
+        # find shortest baseline and trial length
+        self.__find_min_times()
+
+        # trim whisker tracking data and align it to shortest trial
+#        self.__trim_wt()
+#        self.get_num_good_trials()
+#        self.classify_whisking_trials(threshold='user')
+#        self.rates()
 
     def __sort_units(self, neo_obj):
         '''
@@ -72,21 +95,6 @@ class NeuroAnalyzer(object):
             for k, ordered_spiketrain in enumerate(sorted_spiketrains):
                 neo_obj.segments[i].spiketrains[k] = ordered_spiketrain
 
-    def get_num_good_trials(self, kind='run_boolean'):
-        '''
-        Return a list with the number of good trials for each stimulus condition
-        And the specified annotations to use.
-        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
-        '''
-        num_good_trials = list()
-        for stim_id in self.stim_ids:
-            run_count = 0
-            for trial in self.neo_obj.segments:
-                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
-                    run_count += 1
-            num_good_trials.append(run_count)
-        self.num_good_trials = num_good_trials
-
     def __get_shank_ids(self):
         '''
         Return shank IDs for each unit
@@ -108,9 +116,55 @@ class NeuroAnalyzer(object):
 
         return np.asarray(cell_type)
 
+    def __find_min_times(self):
+        print('\n-----finding minimum trial lengths----')
+        # iterate through all trials and find smallest baseline and smallest
+        # post-trial time
+        for k, seg in enumerate(self.neo_obj.segments):
+            # get baseline and stimulus period times for this trial
+            stim_start = seg.annotations['stim_times'][0] + self.t_after_stim
+            stim_stop  = seg.annotations['stim_times'][1]
+            base_start = seg.annotations['stim_times'][0] - (stim_stop - stim_start)
+            base_stop  = seg.annotations['stim_times'][0]
+            baseline_length = base_stop - base_start
+
+            # iterate through all units and find longest trial length
+            temp_max = 0
+            for unit, spike_train in enumerate(seg.spiketrains):
+                if spike_train.t_stop > temp_max:
+                    temp_max = spike_train.t_stop
+
+            if k == 0:
+                min_baseline = baseline_length
+                min_trialtime = temp_max
+
+            if baseline_length < min_baseline:
+                min_baseline = baseline_length
+
+            if temp_max < min_trialtime:
+                min_trialtime = temp_max
+
+        self.min_baseline  = min_baseline
+        self.min_trialtime = min_trialtime
+        print('smallest baseline period: {0}\nsmallest trial length: {1}'.format(str(min_baseline), str(min_trialtime)))
+
+    def get_num_good_trials(self, kind='run_boolean'):
+        '''
+        Return a list with the number of good trials for each stimulus condition
+        And the specified annotations to use.
+        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
+        '''
+        num_good_trials = list()
+        for stim_id in self.stim_ids:
+            run_count = 0
+            for trial in self.neo_obj.segments:
+                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
+                    run_count += 1
+            num_good_trials.append(run_count)
+        self.num_good_trials = num_good_trials
+
     def __trim_wt(self):
         '''Trims whisker tracking data to shortest trial length'''
-        # make time vector for whisker tracking data
         print('\n-----__trim_wt-----')
 
         wt_boolean = False
@@ -129,6 +183,7 @@ class NeuroAnalyzer(object):
                     if anlg.name == 'angle' and len(anlg) < min_samp:
                         min_samp = len(anlg)
 
+            # make time vector for whisker tracking data
             for i, seg in enumerate(self.neo_obj.segments):
                 for k, anlg in enumerate(seg.analogsignals):
 
@@ -939,7 +994,7 @@ plt.show()
 #### i.e. take 3d stack and move backwards in the 3d dimention every time we
 # iterate to the next page we place the page beneath the first and then the
 # third page goes beneath the second etc.
-# when we reshape in numpy the 3rd dimension changes the fasters and we want to
+# when we reshape in numpy the 3rd dimension changes the fastest and we want to
 # make it the slowest (this will put it at the bottom of the page after going
 # through all the ones and twos from the first page). these are the order of
 # the matrix coordinates when we use reshape:
@@ -954,8 +1009,8 @@ plt.show()
 # use this: a.swapaxes(0,2).swapaxes(1,2).reshape(6,2)
 
 
-# - find shortest baseline period
-# - find shortest post stimulus period
+# X find shortest baseline period
+# X find shortest post stimulus period
 # - bin spikes between these two points using 1msec bins. (this will align all
 #   trials and make spikes at time 0 aligned with the stimulus.
 # - subtract off stimulus start from the high speed camera time. This way all
