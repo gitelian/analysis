@@ -857,8 +857,8 @@ class NeuroAnalyzer(object):
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 sns.set_style("whitegrid", {'axes.grid' : True})
-data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-#data_dir = '/media/greg/data/neuro/neo/'
+#data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+data_dir = '/media/greg/data/neuro/neo/'
 manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
 #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
 print('Loading...')
@@ -868,6 +868,7 @@ manager.close()
 
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
+
 fail()
 
 neuro.rates(kind='wsk_boolean')
