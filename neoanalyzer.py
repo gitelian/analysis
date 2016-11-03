@@ -68,9 +68,16 @@ class NeuroAnalyzer(object):
 
         # trim whisker tracking data and align it to shortest trial
         self.__trim_wt()
-#        self.get_num_good_trials()
-#        self.classify_whisking_trials(threshold='user')
-#        self.rates()
+
+        # return a list with the number of good trials for each stimulus condition
+        self.get_num_good_trials()
+
+        # classify a trial as good if whisking occurs during a specified period.
+        # a new annotation ('wsk_boolean') is added to each segment
+        self.classify_whisking_trials(threshold='user')
+
+        # calculate rates, psths, whisking array, etc.
+        self.rates()
 
     def __sort_units(self, neo_obj):
         '''
@@ -126,27 +133,92 @@ class NeuroAnalyzer(object):
             stim_stop  = seg.annotations['stim_times'][1]
             base_start = seg.annotations['stim_times'][0] - (stim_stop - stim_start)
             base_stop  = seg.annotations['stim_times'][0]
-            baseline_length = base_stop - base_start
+            baseline_length = base_stop - base_start # time before stimulus
 
             # iterate through all units and find longest trial length
             temp_max = 0
             for unit, spike_train in enumerate(seg.spiketrains):
                 if spike_train.t_stop > temp_max:
-                    temp_max = spike_train.t_stop
+                    temp_max = np.asarray(spike_train.t_stop)
+            temp_max -= np.asarray(seg.annotations['stim_times'][0]) # time after stimulus
 
             if k == 0:
-                min_baseline = baseline_length
-                min_trialtime = temp_max
+                min_tbefore_stim = baseline_length
+                min_tafter_stim = temp_max
 
-            if baseline_length < min_baseline:
-                min_baseline = baseline_length
+            if baseline_length < min_tbefore_stim:
+                min_tbefore_stim = baseline_length
 
-            if temp_max < min_trialtime:
-                min_trialtime = temp_max
+            if temp_max < min_tafter_stim:
+                min_tafter_stim = temp_max
 
-        self.min_baseline  = np.asarray(min_baseline)
-        self.min_trialtime = np.asarray(min_trialtime)
-        print('smallest baseline period: {0}\nsmallest trial length: {1}'.format(str(min_baseline), str(min_trialtime)))
+        self.min_tbefore_stim = np.asarray(min_tbefore_stim)
+        self.min_tafter_stim  = np.asarray(min_tafter_stim)
+        print('smallest baseline period (time before stimulus): {0}\nsmallest trial length (time after stimulus): {1}'.format(str(min_tbefore_stim), str(min_tafter_stim)))
+
+    def __trim_wt(self):
+        '''
+        Trim whisker tracking arrays to the length of the shortest trial.
+        Time zero of the wt time corresponds to stimulus onset.
+        '''
+        print('\n-----__trim_wt-----')
+
+        fps        = 500.0
+        wt_boolean = False
+        for anlg in self.neo_obj.segments[0].analogsignals:
+            if anlg.name == 'angle':
+                wt_boolean = True
+
+        if wt_boolean:
+
+            print('whisker tracking data found! trimming data to be all the same length in time')
+            # make time vector for whisker tracking data
+            num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*fps ) # total time (s) * frames/sec
+            wt_indices  = np.arange(num_samples) - int( self.min_tbefore_stim * fps )
+            print(wt_indices)
+            wtt         = wt_indices / fps
+            #wtt         = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 1/fps)
+
+            for i, seg in enumerate(self.neo_obj.segments):
+                for k, anlg in enumerate(seg.analogsignals):
+
+                    # find number of samples in the trial
+                    if anlg.name == 'angle':
+                        num_samp = len(anlg)
+
+                        # get stimulus onset
+                        stim_start = seg.annotations['stim_times'][0]
+
+                        # slide indices window over
+                        # get the frame that corresponds to the stimulus time
+                        # and add it to wt_indices.
+                        good_inds = wt_indices + int( stim_start*fps )
+
+                        if i == 0:
+                            min_trial_length = len(good_inds)
+                        elif min_trial_length > len(good_inds):
+                            warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
+                                    LINE 200 __trim_wt')
+
+                    if anlg.name == 'angle' or \
+                            anlg.name == 'set-point' or\
+                            anlg.name == 'amplitude' or\
+                            anlg.name == 'phase' or\
+                            anlg.name == 'velocity'or\
+                            anlg.name == 'whisking':
+                                if num_samp > len(good_inds):
+                                    self.neo_obj.segments[i].analogsignals[k] = anlg[good_inds]
+                                else:
+                                    warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
+                                            + '**** this data must have already been trimmed ****')
+
+            self.wtt          = wtt
+            self.wt_boolean   = wt_boolean
+            self._wt_min_samp = num_samples
+        else:
+            print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
+                    '\nuse runspeed to classify trials')
+            self.wt_boolean = wt_boolean
 
     def get_num_good_trials(self, kind='run_boolean'):
         '''
@@ -162,71 +234,6 @@ class NeuroAnalyzer(object):
                     run_count += 1
             num_good_trials.append(run_count)
         self.num_good_trials = num_good_trials
-
-    def __trim_wt(self):
-        '''Trims whisker tracking data to shortest trial length'''
-        print('\n-----__trim_wt-----')
-
-        fps        = 500.0
-        wt_boolean = False
-        for anlg in self.neo_obj.segments[0].analogsignals:
-            if anlg.name == 'angle':
-                wt_boolean = True
-
-        if wt_boolean:
-
-            print('whisker tracking data found! trimming data to be all the same length in time')
-            # make time vector for whisker tracking data
-            wtt = np.arange(0, self.min_trialtime, 1/fps)
-
-            for i, seg in enumerate(self.neo_obj.segments):
-                for k, anlg in enumerate(seg.analogsignals):
-
-                    # find number of samples in the trial
-                    if anlg.name == 'angle':
-                        num_samp = len(anlg)
-
-                        # get stimulus onset
-                        stim_start = seg.annotations['stim_times'][0]
-
-                        # subtract stimulus onset (0 represents stimulus start)
-                        wtt_temp = wtt - stim_start
-
-                        # find indices corresponding to the shortest trial
-                        good_inds = np.in1d(np.where(wtt_temp >= -self.min_baseline)[0], np.where(wtt_temp <= self.min_trialtime)[0])
-
-                        if i == 0:
-                            min_trial_length = len(good_inds)
-                            print(min_trial_length)
-                            print('index: {}'.format(str(i)))
-                        elif min_trial_length > len(good_inds):
-                            print(len(good_inds))
-                            print('index: {}'.format(str(i)))
-                            warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
-                                    LINE 200 __trim_wt')
-
-                    if anlg.name == 'angle' or \
-                            anlg.name == 'set-point' or\
-                            anlg.name == 'amplitude' or\
-                            anlg.name == 'phase' or\
-                            anlg.name == 'velocity'or\
-                            anlg.name == 'whisking':
-                                self.neo_obj.segments[i].analogsignals[k] = anlg[good_inds]
-
-            self.wtt = wtt
-            self.wt_boolean = wt_boolean
-            self._wt_min_samp = min_samp
-        else:
-            print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
-                    '\nuse runspeed to classify trials')
-            self.wt_boolean = wt_boolean
-
-    def __make_alpha_kernel(self, resolution=0.025):
-        '''Build alpha kernel with specified 25msec (default) resolution'''
-        alpha = 1.0/resolution
-        tau   = np.arange(0,1/alpha*10, 0.001)
-        alpha_kernel = alpha**2*tau*np.exp(-alpha*tau)
-        return alpha_kernel
 
     def classify_whisking_trials(self, threshold='user'):
         '''
@@ -270,14 +277,12 @@ class NeuroAnalyzer(object):
             del wsk_dist
 
             wtt = self.wtt
+            # trimming whisking data sets negative values to baseline period
+            wsk_base_ind = wtt < 0
+            # min_tbefore is the min baseline length (equal to the stimulus
+            # period to be analyzed) offset by t_after_stim
+            wsk_stim_ind = np.logical_and( wtt > self.t_after_stim, wtt < (self.min_tbefore_stime + self.t_after_stim) )
             for i, seg in enumerate(self.neo_obj.segments):
-                stim_start = seg.annotations['stim_times'][0] + self.t_after_stim
-                stim_stop  = seg.annotations['stim_times'][1]
-                base_start = seg.annotations['stim_times'][0] - (stim_stop - stim_start)
-                base_stop  = seg.annotations['stim_times'][0]
-
-                wsk_base_ind = np.logical_and(base_start < wtt, base_stop > wtt)
-                wsk_stim_ind = np.logical_and(stim_start < wtt, stim_stop > wtt)
 
                 for k, anlg in enumerate(seg.analogsignals):
                     if anlg.name == 'whisking':
@@ -294,6 +299,13 @@ class NeuroAnalyzer(object):
                             self.neo_obj.segments[i].annotations['wsk_boolean'] = False
         else:
             print('NO WHISKER TRACKING DATA FOUND!\nuse runspeed to classify trials')
+
+    def __make_alpha_kernel(self, resolution=0.025):
+        '''Build alpha kernel with specified 25msec (default) resolution'''
+        alpha = 1.0/resolution
+        tau   = np.arange(0,1/alpha*10, 0.001)
+        alpha_kernel = alpha**2*tau*np.exp(-alpha*tau)
+        return alpha_kernel
 
     def get_protraction_times(self):
         # TODO TODO
@@ -458,6 +470,7 @@ class NeuroAnalyzer(object):
             trode_inds = np.where(self.shank_ids == trode-1)[0]
             num_units = len(trode_inds)
         else:
+            print('Collecting data from electrode {}'.format(str(trode)))
             trode_inds = np.where(self.shank_ids >= 0)[0]
             num_units  = self.num_units
 
@@ -844,8 +857,8 @@ class NeuroAnalyzer(object):
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 sns.set_style("whitegrid", {'axes.grid' : True})
-#data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-data_dir = '/media/greg/data/neuro/neo/'
+data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+#data_dir = '/media/greg/data/neuro/neo/'
 manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
 #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
 print('Loading...')
