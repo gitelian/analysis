@@ -175,9 +175,7 @@ class NeuroAnalyzer(object):
             # make time vector for whisker tracking data
             num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*fps ) # total time (s) * frames/sec
             wt_indices  = np.arange(num_samples) - int( self.min_tbefore_stim * fps )
-            print(wt_indices)
             wtt         = wt_indices / fps
-            #wtt         = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 1/fps)
 
             for i, seg in enumerate(self.neo_obj.segments):
                 for k, anlg in enumerate(seg.analogsignals):
@@ -257,6 +255,7 @@ class NeuroAnalyzer(object):
             wsk_dist = np.ravel(wsk_dist[:, 1:])
 
             # plot distribution
+            print('making "whisking" histogram')
             sns.set(style="ticks")
             f, (ax_box, ax_hist) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
             sns.boxplot(wsk_dist, vert=False, ax=ax_box)
@@ -281,7 +280,7 @@ class NeuroAnalyzer(object):
             wsk_base_ind = wtt < 0
             # min_tbefore is the min baseline length (equal to the stimulus
             # period to be analyzed) offset by t_after_stim
-            wsk_stim_ind = np.logical_and( wtt > self.t_after_stim, wtt < (self.min_tbefore_stime + self.t_after_stim) )
+            wsk_stim_ind = np.logical_and( wtt > self.t_after_stim, wtt < (self.min_tbefore_stim + self.t_after_stim) )
             for i, seg in enumerate(self.neo_obj.segments):
 
                 for k, anlg in enumerate(seg.analogsignals):
@@ -347,7 +346,7 @@ class NeuroAnalyzer(object):
         period.
 
         MAKE SURE THAT THE EXPERIMENT WAS DESIGNED TO HAVE A LONG ENOUGH BASELINE
-        THAT IS IT IS AT LEASE AS LONG AS THE STIMULUS PERIOD TO BE ANALYZED
+        THAT IT IS AT LEAST AS LONG AS THE STIMULUS PERIOD TO BE ANALYZED
 
         kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
         '''
@@ -375,7 +374,8 @@ class NeuroAnalyzer(object):
             self.get_num_good_trials(kind='run_boolean')
 
         # make bins for rasters and PSTHs
-        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
+        bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
+#        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
         alpha_kernel = self.__make_alpha_kernel()
         self._bins = bins
 
