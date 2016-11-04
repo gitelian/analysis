@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.cm as cm
 from neo.io import NeoHdf5IO
+import sys
 # for LDA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 # for t-distributed stochastic neighbor embedding
@@ -119,7 +120,10 @@ class NeuroAnalyzer(object):
         '''
         cell_type = list()
         for spike in self.neo_obj.segments[0].spiketrains:
-            cell_type.append(self.cell_type_dict[spike.annotations['cell_type'][0]])
+            try:
+                cell_type.append(self.cell_type_dict[spike.annotations['cell_type'][0]])
+            except:
+                cell_type.append(self.cell_type_dict[spike.annotations['cell_type']])
 
         return np.asarray(cell_type)
 
@@ -247,24 +251,28 @@ class NeuroAnalyzer(object):
             print('whisker tracking data found! trimming data to be all the same length in time')
             # make "whisking" distribution and compute threshold
             print('\n-----classify_whisking_trials-----')
-            wsk_dist = np.empty((self._wt_min_samp, 1))
+            #wsk_dist = np.empty((self._wt_min_samp, 1))
+            wsk_dist = list()
             for i, seg in enumerate(self.neo_obj.segments):
                 for k, anlg in enumerate(seg.analogsignals):
                     if anlg.name == 'whisking':
-                        wsk_dist = np.append(wsk_dist, anlg.reshape(-1, 1), axis=1) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
-            wsk_dist = np.ravel(wsk_dist[:, 1:])
+                        #wsk_dist = np.append(wsk_dist, anlg.reshape(-1, 1), axis=1) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
+                        wsk_dist.extend(anlg.tolist()) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
+            #wsk_dist = np.ravel(wsk_dist[:, 1:])
+            wsk_dist = np.ravel(np.asarray(wsk_dist))
+            wsk_dist = wsk_dist[~np.isnan(wsk_dist)]
 
             # plot distribution
             print('making "whisking" histogram')
             sns.set(style="ticks")
-            f, (ax_box, ax_hist) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
+            f, (ax_box, ax_hist) = sns.plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
             sns.boxplot(wsk_dist, vert=False, ax=ax_box)
             sns.distplot(wsk_dist, ax=ax_hist)
             ax_box.set(yticks=[])
             sns.despine(ax=ax_hist)
             sns.despine(ax=ax_box, left=True)
-            plt.xlim(70, 180)
-            plt.show()
+            sns.plt.xlim(70, 180)
+            sns.plt.show()
 
             # select threshold
             if threshold is 'median':
@@ -708,7 +716,7 @@ class NeuroAnalyzer(object):
 
         return ax
 
-    def plot_psth(self, unit_ind=0, trial_type=0, error='ci', color='k'):
+    def plot_psth(self, axis=None, unit_ind=0, trial_type=0, error='ci', color='k'):
         '''
         Makes a PSTH plot for the given unit index and trial type.
         If called alone it will plot a PSTH to the current axis. This function
@@ -722,7 +730,11 @@ class NeuroAnalyzer(object):
             self.rates()
 
         print('Making PSTH for unit {} and trial_type {}'.format(unit_ind, trial_type))
-        ax = plt.gca()
+
+        if axis == None:
+            ax = plt.gca()
+        else:
+            ax = axis
 
         psth_temp = self.psth[trial_type][:, :, unit_ind]
         mean_psth = np.mean(psth_temp, axis=1) # mean across all trials
@@ -733,8 +745,9 @@ class NeuroAnalyzer(object):
         elif error == 'sem':
             err = se
 
-        plt.plot(self._bins[0:-1], mean_psth, color)
-        plt.fill_between(self._bins[0:-1], mean_psth - err, mean_psth + err, facecolor=color, alpha=0.3)
+        ax.plot(self._bins[0:-1], mean_psth, color)
+        ax.fill_between(self._bins[0:-1], mean_psth - err, mean_psth + err, facecolor=color, alpha=0.3)
+        plt.xlim(self._bins[0], self._bins[-1])
 
         return ax
 
@@ -760,22 +773,18 @@ class NeuroAnalyzer(object):
         ymax = 0
         color = ['k','r','b']
         num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
-        fig = plt.subplots(self.control_pos, 1, figsize=(6, 12))
+        fig, ax = plt.subplots(self.control_pos, 1, figsize=(6, 12), sharex=True, sharey=True)
+        plt.subplots_adjust(hspace=0.001)
 
         for manip in range(num_manipulations):
             for trial in range(self.control_pos):
-                plt.subplot(self.control_pos,1,trial+1)
-                self.plot_psth(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip),\
+                #plt.subplot(self.control_pos,1,trial+1)
+                self.plot_psth(axis=ax[trial], unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip),\
                         error=error, color=color[manip])
 
                 if plt.ylim()[1] > ymax:
                     ymax = plt.ylim()[1]
-
-        # change axis to be the same for all plots
-        for manip in range(num_manipulations):
-            for trial in range(self.control_pos):
-                plt.subplot(self.control_pos,1,trial+1)
-                plt.ylim(0, ymax)
+        plt.show()
 
 ###############################################################################
 ######## Doesn't work in Ubuntu...figure out why ##############################
@@ -859,7 +868,9 @@ class NeuroAnalyzer(object):
 sns.set_style("whitegrid", {'axes.grid' : True})
 #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 data_dir = '/media/greg/data/neuro/neo/'
-manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
+#manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
+print(sys.argv)
+manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
 #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
 print('Loading...')
 block = manager.read()
@@ -869,38 +880,38 @@ manager.close()
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
 
-fail()
-
-neuro.rates(kind='wsk_boolean')
-neuro.plot_tuning_curve(kind='evk_count')
-plt.show()
-
-
-plt.figure()
-lda = LinearDiscriminantAnalysis(n_components=2)
-X, y = neuro.make_design_matrix('evk_count', trode=1)
-X_r0 = X[y<8, :]
-y_r0 = y[y<8]
-X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
-plt.subplot(1,2,1)
-color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-for k in range(len(np.unique(y_r0))):
-    c = next(color)
-    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
-plt.legend(loc='best')
-
-X, y = neuro.make_design_matrix('evk_count', trode=1)
-trial_inds = np.logical_and(y>=9, y<17) # no control position
-X_r0 = X[trial_inds, :]
-y_r0 = y[trial_inds]
-X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
-color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-plt.subplot(1,2,2)
-for k in range(len(np.unique(y_r0))):
-    c = next(color)
-    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
-plt.legend(loc='best')
-plt.show()
+#fail()
+#
+#neuro.rates(kind='wsk_boolean')
+#neuro.plot_tuning_curve(kind='evk_count')
+#plt.show()
+#
+#
+#plt.figure()
+#lda = LinearDiscriminantAnalysis(n_components=2)
+#X, y = neuro.make_design_matrix('evk_count', trode=1)
+#X_r0 = X[y<8, :]
+#y_r0 = y[y<8]
+#X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+#plt.subplot(1,2,1)
+#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+#for k in range(len(np.unique(y_r0))):
+#    c = next(color)
+#    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
+#plt.legend(loc='best')
+#
+#X, y = neuro.make_design_matrix('evk_count', trode=1)
+#trial_inds = np.logical_and(y>=9, y<17) # no control position
+#X_r0 = X[trial_inds, :]
+#y_r0 = y[trial_inds]
+#X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
+#plt.subplot(1,2,2)
+#for k in range(len(np.unique(y_r0))):
+#    c = next(color)
+#    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
+#plt.legend(loc='best')
+#plt.show()
 
 #plt.figure()
 #lda = LinearDiscriminantAnalysis(n_components=2)
@@ -1040,9 +1051,3 @@ plt.show()
 # use this: a.swapaxes(0,2).swapaxes(1,2).reshape(6,2)
 
 
-# X find shortest baseline period
-# X find shortest post stimulus period
-# - bin spikes between these two points using 1msec bins. (this will align all
-#   trials and make spikes at time 0 aligned with the stimulus.
-# - subtract off stimulus start from the high speed camera time. This way all
-#   spiking data will be aligned an one the same timescale as the camera.
