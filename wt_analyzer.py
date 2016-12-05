@@ -6,17 +6,16 @@ import statsmodels.stats.multitest as smm
 from scipy.optimize import curve_fit
 
 fids = ['1289', '1290', '1295', '1302']
-fids = ['1289']
 exps = list()
 for fid in fids:
     #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
+    neuro.rates(kind='wsk_boolean')
     exps.append(neuro)
 # neuro.plot_tuning_curve(kind='evk_count')
 
 neuro = exps[3]
 
-neuro.rates(kind='wsk_boolean')
 neuro.plot_tuning_curve(kind='evk_count')
 
 # LDA analysis
@@ -172,26 +171,26 @@ for neuro in exps:
     plt.errorbar(np.arange(1,10), frq_nolight_mean, yerr=frq_nolight_err, fmt='-o')
     plt.errorbar(np.arange(1,10), frq_light_mean, yerr=frq_light_err, fmt='-o')
 
-    ##### make distribution plots and do statistical test corrections #####
-    plt.subplots(1, 3)
+##### make distribution plots and do statistical test corrections #####
+plt.subplots(1, 3)
 
-    # set-point
-    plt.subplot(1, 5, 1)
-    plt.hist(sp_diff, bins=np.arange(-20,20,2), align='left')
-    rej, pval_corr = smm.multipletests(sp_p, alpha=0.05, method='sh')[:2]
-    plt.title('set-point; num-sig: ' + str(np.sum(rej)))
+# set-point
+plt.subplot(1, 3, 1)
+plt.hist(sp_diff, bins=np.arange(-20,20,2), align='left')
+rej, pval_corr = smm.multipletests(sp_p, alpha=0.05, method='sh')[:2]
+plt.title('set-point; num-sig: ' + str(np.sum(rej)))
 
-    # velocity
-    plt.subplot(1, 5, 2)
-    plt.hist(vel_diff, bins=np.arange(-400,400,50), align='left')
-    rej, pval_corr = smm.multipletests(vel_p, alpha=0.05, method='sh')[:2]
-    plt.title('vel; num-sig: ' + str(np.sum(rej)))
+# velocity
+plt.subplot(1, 3, 2)
+plt.hist(vel_diff, bins=np.arange(-400,400,50), align='left')
+rej, pval_corr = smm.multipletests(vel_p, alpha=0.05, method='sh')[:2]
+plt.title('vel; num-sig: ' + str(np.sum(rej)))
 
-    # frequency
-    plt.subplot(1, 5, 3)
-    plt.hist(frq_diff, bins=np.arange(-4,4,0.5), align='left')
-    rej, pval_corr = smm.multipletests(frq_p, alpha=0.05, method='sh')[:2]
-    plt.title('frq; num-sig: ' + str(np.sum(rej)))
+# frequency
+plt.subplot(1, 3, 3)
+plt.hist(frq_diff, bins=np.arange(-4,4,0.5), align='left')
+rej, pval_corr = smm.multipletests(frq_p, alpha=0.05, method='sh')[:2]
+plt.title('frq; num-sig: ' + str(np.sum(rej)))
 
 #    # run speed
 #    plt.subplot(1, 5, 4)
