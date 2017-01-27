@@ -5,7 +5,8 @@ import scipy.signal
 import statsmodels.stats.multitest as smm
 from scipy.optimize import curve_fit
 
-fids = ['1289', '1290', '1295', '1302']
+#fids = ['1289', '1290', '1295', '1302']
+fids = ['1325']
 exps = list()
 for fid in fids:
     #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
@@ -74,7 +75,7 @@ def plot_setpoint(neuro, cond=0, color='k', error='sem'):
 for k in range(neuro.control_pos):
     plt.figure()
     plot_setpoint(neuro, cond=k, color='k')
-    plot_setpoint(neuro, cond=k+9, color='r')
+#    plot_setpoint(neuro, cond=k+9, color='r')
 #     plot_setpoint(neuro, cond=k+9+9, color='b')
     plt.xlim(-0.5, 2.0)
     plt.xlabel('time (s)')
