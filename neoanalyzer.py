@@ -7,6 +7,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.cm as cm
+import matplotlib as mpl
 from neo.io import NeoHdf5IO
 import sys
 # for LDA
@@ -16,6 +17,9 @@ from sklearn.manifold import TSNE
 # for MDS
 from sklearn import manifold
 
+
+# change default figure type to PDF
+mpl.rcParams['savefig.format'] = 'pdf'
 sns.set_style("whitegrid", {'axes.grid' : False})
 
 class NeuroAnalyzer(object):
@@ -883,8 +887,8 @@ neuro = NeuroAnalyzer(exp1)
 #fail()
 #
 #neuro.rates(kind='wsk_boolean')
-#neuro.plot_tuning_curve(kind='evk_count')
-#plt.show()
+neuro.plot_tuning_curve(kind='evk_count')
+plt.show()
 #
 #
 #plt.figure()
