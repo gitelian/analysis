@@ -6,6 +6,7 @@ import statsmodels.stats.multitest as smm
 from scipy.optimize import curve_fit
 
 fids = ['1289', '1290', '1295', '1302']
+#fids = ['1302']
 exps = list()
 for fid in fids:
     #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
@@ -16,10 +17,13 @@ for fid in fids:
 
 neuro = exps[3]
 
+# plot all set-point traces
+plot(neuro.wtt, neuro.wt[6+9][:,1,:])
+
 neuro.plot_tuning_curve(kind='evk_count')
 
 # LDA analysis
-trode = 1
+trode = 2
 
 plt.figure()
 lda = LinearDiscriminantAnalysis(n_components=2)
@@ -36,8 +40,8 @@ plt.legend(loc='best')
 
 
 X, y = neuro.make_design_matrix('evk_count', trode=trode)
-trial_inds = np.logical_and(y>=9, y<17) # no control position
-#trial_inds = np.logical_and(y>=18, y<26) # no control position
+#trial_inds = np.logical_and(y>=9, y<17) # no control position
+trial_inds = np.logical_and(y>=18, y<26) # no control position
 X_r0 = X[trial_inds, :]
 y_r0 = y[trial_inds]
 X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
@@ -45,10 +49,10 @@ color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
 plt.subplot(1,2,2)
 for k in range(len(np.unique(y_r0))):
     c = next(color)
-    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
+#    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
     plt.xlim(-5,3)
     plt.ylim(-6, 4)
-#    plt.plot(X_r0[y_r0==k+9+9, 0], X_r0[y_r0==k+9+9, 1], 'o', c=c, label=str(k))
+    plt.plot(X_r0[y_r0==k+9+9, 0], X_r0[y_r0==k+9+9, 1], 'o', c=c, label=str(k))
 plt.legend(loc='best')
 plt.show()
 
@@ -74,8 +78,8 @@ def plot_setpoint(neuro, cond=0, color='k', error='sem'):
 for k in range(neuro.control_pos):
     plt.figure()
     plot_setpoint(neuro, cond=k, color='k')
-    plot_setpoint(neuro, cond=k+9, color='r')
-#     plot_setpoint(neuro, cond=k+9+9, color='b')
+#    plot_setpoint(neuro, cond=k+9, color='r')
+    plot_setpoint(neuro, cond=k+9+9, color='b')
     plt.xlim(-0.5, 2.0)
     plt.xlabel('time (s)')
     plt.ylabel('set-point (deg)')
@@ -226,6 +230,108 @@ def plot_freq(neuro, cond=0, color='k', error='sem'):
     plt.plot(f, mean_frq, color)
     plt.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
     return ax
+
+# plot PSD of whisking frequency for s1 and m1 silencing
+plt.figure()
+plot_freq(neuro, cond=8, color='k')
+#plot_freq(neuro, cond=8+9, color='r')
+plot_freq(neuro, cond=8+9+9, color='b')
+plt.xlim(0,40); plt.xlabel('frequency (Hz)')
+
+
+# baseline firing rate analysis
+m1_rates = list()
+s1_rates = list()
+m1_sel   = list()
+s1_sel   = list()
+
+#for k in range(27):
+for k in range(18):
+    m1_temp = np.empty(1)
+    s1_temp = np.empty(1)
+    for neuro in exps: #exps[2::]:
+        rates_temp = neuro.abs_count[k].mean(axis=0)
+        m1_inds = np.logical_and(neuro.shank_ids == 0, neuro.cell_type == 'RS')
+        s1_inds = neuro.shank_ids == 1
+        m1_temp = np.append(m1_temp, rates_temp[m1_inds])
+        s1_temp = np.append(s1_temp, rates_temp[s1_inds])
+
+        if k == 0:
+            neuro.get_selectivity()
+            m1_sel.append(neuro.selectivity[m1_inds, :])
+            s1_sel.append(neuro.selectivity[s1_inds, :])
+    m1_rates.append(m1_temp[1:-1])
+    s1_rates.append(s1_temp[1:-1])
+
+#    m1_rates.append(rates_temp[m1_inds])
+#    s1_rates.append(rates_temp[s1_inds])
+
+plt.figure()
+# m1
+plt.scatter(m1_rates[8], m1_rates[8+9], color='b')
+# s1
+plt.scatter(s1_rates[8], s1_rates[8+9+9], color='r')
+# unity line
+plt.plot([0, 40], [0, 40], 'k')
+plt.xlim(0, 40); plt.ylim(0, 40)
+
+plt.figure()
+# m1
+plt.scatter(m1_rates[8], m1_rates[8+9+9], color='b')
+# s1
+plt.scatter(s1_rates[8], s1_rates[8+9], color='r')
+# unity line
+plt.plot([0, 100], [0, 100], 'k')
+plt.xlim(0, 100); plt.ylim(0, 100)
+
+# violin plot of spontaneous rates
+pos = [1, 2]
+violinplot([m1_rates[8], s1_rates[8]], pos, vert=True, widths=0.7,
+                              showextrema=True, showmedians=True)
+
+# OMI for control position (diff over the sum)
+m1_omi = (m1_rates[8+9] - m1_rates[8])/ (m1_rates[8+9] + m1_rates[8])
+s1_omi = (s1_rates[8+9] - s1_rates[8])/ (s1_rates[8+9] + s1_rates[8])
+violinplot([m1_omi, s1_omi], pos, vert=True, widths=0.7,
+                              showextrema=True, showmedians=True)
+
+# selectivity
+
+m1_temp = list()
+s1_temp = list()
+for k in m1_sel:
+    m1_temp.extend(k[:, 0].ravel())
+for k in s1_sel:
+    s1_temp.extend(k[:, 0].ravel())
+
+plt.subplots(1,2)
+plt.subplot(1,2,1)
+plt.hist(m1_temp)
+plt.subplot(1,2,2)
+plt.hist(s1_temp)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
