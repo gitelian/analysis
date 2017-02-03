@@ -5,23 +5,19 @@ import scipy.signal
 import statsmodels.stats.multitest as smm
 from scipy.optimize import curve_fit
 
-<<<<<<< HEAD
 #fids = ['1289', '1290', '1295', '1302']
-fids = ['1325']
-=======
-fids = ['1289', '1290', '1295', '1302']
-#fids = ['1302']
->>>>>>> c59ec45b2168c517d005a7ffea8b0f52b8512100
+#fids = ['1295', '1302', '1326']
+fids = ['1295', '1302']
 exps = list()
 for fid in fids:
     #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
-    neuro.rates(kind='wsk_boolean')
+    #neuro.rates(kind='wsk_boolean')
     exps.append(neuro)
 # neuro.plot_tuning_curve(kind='evk_count')
 
-neuro = exps[3]
-
+neuro = exps[0]
+fail()
 # plot all set-point traces
 plot(neuro.wtt, neuro.wt[6+9][:,1,:])
 
@@ -84,11 +80,7 @@ for k in range(neuro.control_pos):
     plt.figure()
     plot_setpoint(neuro, cond=k, color='k')
 #    plot_setpoint(neuro, cond=k+9, color='r')
-<<<<<<< HEAD
-#     plot_setpoint(neuro, cond=k+9+9, color='b')
-=======
     plot_setpoint(neuro, cond=k+9+9, color='b')
->>>>>>> c59ec45b2168c517d005a7ffea8b0f52b8512100
     plt.xlim(-0.5, 2.0)
     plt.xlabel('time (s)')
     plt.ylabel('set-point (deg)')
@@ -254,10 +246,11 @@ s1_rates = list()
 m1_sel   = list()
 s1_sel   = list()
 
-#for k in range(27):
-for k in range(18):
+for k in range(27):
+#for k in range(18):
     m1_temp = np.empty(1)
     s1_temp = np.empty(1)
+    #for neuro in exps: #exps[2::]:
     for neuro in exps: #exps[2::]:
         rates_temp = neuro.abs_count[k].mean(axis=0)
         m1_inds = np.logical_and(neuro.shank_ids == 0, neuro.cell_type == 'RS')
@@ -269,11 +262,11 @@ for k in range(18):
             neuro.get_selectivity()
             m1_sel.append(neuro.selectivity[m1_inds, :])
             s1_sel.append(neuro.selectivity[s1_inds, :])
-    m1_rates.append(m1_temp[1:-1])
-    s1_rates.append(s1_temp[1:-1])
+#    m1_rates.append(m1_temp[1:-1])
+#    s1_rates.append(s1_temp[1:-1])
 
-#    m1_rates.append(rates_temp[m1_inds])
-#    s1_rates.append(rates_temp[s1_inds])
+    m1_rates.append(rates_temp[m1_inds])
+    s1_rates.append(rates_temp[s1_inds])
 
 plt.figure()
 # m1
