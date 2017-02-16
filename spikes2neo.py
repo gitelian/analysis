@@ -511,8 +511,12 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
 ########## MAIN CODE ##########
 
 if __name__ == "__main__":
+    #TODO check that directories exist. use the data_dir that exists so I can
+    # easily run on laptop and lab computer without changing directory names
+    # and to prevent github confusion.
+
     # Select which experiments to analyze
-    fids = ['FID1326']
+    fids = ['FID1302']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
     data_dir = '/media/greg/data/neuro/'
 
