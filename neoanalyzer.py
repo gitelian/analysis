@@ -580,8 +580,8 @@ class NeuroAnalyzer(object):
         f_temp = list()
         num_trials = input_array.shape[1]
         for trial in range(num_trials):
+            f, Pxx_den = sp.signal.periodogram(input_array[:, trial], sr)
             if trial == 0:
-                f, Pxx_den = sp.signal.periodogram(input_array[:, trial], sr)
                 frq_mat_temp = np.zeros((Pxx_den.shape[0], num_trials))
             frq_mat_temp[:, trial] = Pxx_den
 
@@ -1026,9 +1026,9 @@ fail()
 neuro.get_lfps()
 lfps = neuro.lfps
 stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
-lfp_nolight = lfps[1][5][stim_inds, 16, :]
-lfp_s1light = lfps[1][5+9][stim_inds, 16, :]
-lfp_m1light = lfps[1][5+9+9][stim_inds, 16, :]
+lfp_nolight = lfps[0][5][stim_inds,     20, :]
+lfp_s1light = lfps[0][5+9][stim_inds,   20, :]
+lfp_m1light = lfps[0][5+9+9][stim_inds, 20, :]
 
 f, frq_nolight = neuro.get_psd(lfp_nolight, 1500.)
 f, frq_s1light = neuro.get_psd(lfp_s1light, 1500.)
@@ -1038,7 +1038,7 @@ neuro.plot_freq(f, frq_s1light, color='r')
 neuro.plot_freq(f, frq_m1light, color='b')
 plt.xlim(0, 200)
 plt.legend(('no light', 's1 light', 'm1 light'))
-plt.title('S1 PSD')
+plt.title('M1 PSD')
 
 plt.show()
 fail()
