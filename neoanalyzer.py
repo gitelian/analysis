@@ -8,8 +8,11 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.cm as cm
 import matplotlib as mpl
+import scipy.signal
 from neo.io import NeoHdf5IO
 import sys
+import quantities as pq
+import icsd
 # for LDA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 # for t-distributed stochastic neighbor embedding
@@ -73,6 +76,9 @@ class NeuroAnalyzer(object):
 
         # trim whisker tracking data and align it to shortest trial
         self.__trim_wt()
+
+        # trim LFP data and align it to shortest trial
+        self.__trim_lfp()
 
         # return a list with the number of good trials for each stimulus condition
         self.get_num_good_trials()
@@ -148,6 +154,7 @@ class NeuroAnalyzer(object):
             for unit, spike_train in enumerate(seg.spiketrains):
                 if spike_train.t_stop > temp_max:
                     temp_max = np.asarray(spike_train.t_stop)
+            # temp_max = temp_max - trial_start_time
             temp_max -= np.asarray(seg.annotations['stim_times'][0]) # time after stimulus
 
             if k == 0:
@@ -204,7 +211,7 @@ class NeuroAnalyzer(object):
                             min_trial_length = len(good_inds)
                         elif min_trial_length > len(good_inds):
                             warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
-                                    LINE 200 __trim_wt')
+                                    LINE 208 __trim_wt')
 
                     if anlg.name == 'angle' or \
                             anlg.name == 'set-point' or\
@@ -225,6 +232,66 @@ class NeuroAnalyzer(object):
             print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
                     '\nuse runspeed to classify trials')
             self.wt_boolean = wt_boolean
+
+    def __trim_lfp(self):
+        '''
+        Trim LFP arrays to the length of the shortest trial.
+        Time zero of the LFP time corresponds to stimulus onset.
+        '''
+        print('\n-----__trim_lfp-----')
+
+        chan_per_shank = list()
+        for anlg in self.neo_obj.segments[0].analogsignalarrays:
+            if 'LFPs' in anlg.name:
+                # get the sampling rate
+                lfp_boolean = True
+                chan_per_shank.append(anlg.shape[1])
+                if anlg.sampling_rate.units == pq.kHz:
+                    sr = np.asarray(anlg.sampling_rate)*1000.0
+                elif anlg.sampling_rate.units == pq.Hz:
+                    sr = np.asarray(anlg.sampling_rate)*1.0
+
+        if lfp_boolean:
+
+            print('LFP data found! trimming data to be all the same length in time')
+            # make time vector for LFP data
+            num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*sr ) # total time (s) * samples/sec
+            lfp_indices = np.arange(num_samples) - int( self.min_tbefore_stim * sr )
+            lfp_t       = lfp_indices / sr
+
+            for i, seg in enumerate(self.neo_obj.segments):
+                for k, anlg in enumerate(seg.analogsignalarrays):
+
+                    # find number of samples in the trial
+                    num_samp = len(anlg)
+
+                    # get stimulus onset
+                    stim_start = seg.annotations['stim_times'][0]
+
+                    # slide indices window over
+                    # get the frame that corresponds to the stimulus time
+                    # and add it to lfp_indices.
+                    good_inds = lfp_indices + int( stim_start*sr )
+
+                    if i == 0:
+                        min_trial_length = len(good_inds)
+                    elif min_trial_length > len(good_inds):
+                        warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
+                                LINE 208 __trim_lfp')
+
+                    if num_samp > len(good_inds):
+                        self.neo_obj.segments[i].analogsignalarrays[k] = anlg[good_inds, :]
+                    else:
+                        warnings.warn('\n**** length of LFPs is smaller than the length of the good indices ****\n'\
+                                + '**** this data must have already been trimmed ****')
+
+            self.lfp_t          = lfp_t
+            self.lfp_boolean    = lfp_boolean
+            self._lfp_min_samp  = num_samples
+            self.chan_per_shank = chan_per_shank
+        else:
+            print('NO LFP DATA FOUND!\nSetting lfp_boolean to False')
+            self.lfp_boolean = lfp_boolean
 
     def get_num_good_trials(self, kind='run_boolean'):
         '''
@@ -467,6 +534,56 @@ class NeuroAnalyzer(object):
 
         if self.wt_boolean:
             self.wt        = wt
+
+    def get_lfps(self, kind='run_boolean'):
+        lfps = [list() for x in range(len(self.shank_names))]
+        # preallocation loop
+        for shank in range(len(self.shank_names)):
+            for k, trials_ran in enumerate(self.num_good_trials):
+                lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_ran )))
+
+        for shank in range(len(self.shank_names)):
+            for stim_ind, stim_id in enumerate(self.stim_ids):
+                good_trial_ind = 0
+
+                for trial in self.neo_obj.segments:
+                    if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
+                        lfps[shank][stim_ind][:, :, good_trial_ind] = trial.analogsignalarrays[shank]
+                        good_trial_ind += 1
+        self.lfps = lfps
+
+    def get_psd(self, input_array, sr):
+        '''
+        compute PSD of input array sampled at sampling rate sr
+        input_array: a samples x trial array
+        sr: sampling rate of input signal
+
+        Returns x, and mean y and sem y
+        '''
+        f_temp = list()
+        num_trials = input_array.shape[1]
+        frq_mat_temp = np.zeros((sr/2, num_trials))
+        for trial in range(num_trials):
+            f, Pxx_den = sp.signal.periodogram(input_array[:, trial], sr)
+            frq_mat_temp[:, trial] = Pxx_den
+
+        return f, frq_mat_temp
+
+    def plot_freq(self, f, frq_mat_temp, color='k', error='sem'):
+        ax = plt.gca()
+        mean_frq = np.mean(frq_mat_temp, axis=1)
+        se       = sp.stats.sem(frq_mat_temp, axis=1)
+
+        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
+        if error == 'ci':
+            err = se*sp.stats.t.ppf((1+0.95)/2.0, frq_mat_temp.shape[1]-1) # (1+1.95)/2 = 0.975
+        elif error == 'sem':
+            err = se
+
+        plt.plot(f, mean_frq, color)
+        plt.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
+        ax.set_yscale('log')
+        return ax
 
     def make_design_matrix(self, rate_type='evk_count', trode=None, trim_trials=True):
         '''make design matrix for classification and regressions'''
@@ -884,7 +1001,108 @@ manager.close()
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
 
-#fail()
+##### LFP analysis #####
+##### LFP analysis #####
+
+neuro.get_lfps()
+lfps = neuro.lfps
+stim_inds = np.logical_and(neuro.lfp_t > 0.5, neuro.lfp_t < 1.5)
+lfp_nolight = lfps[1][5][stim_inds, 16, :]
+lfp_s1light = lfps[1][5+9][stim_inds, 16, :]
+lfp_m1light = lfps[1][5+9+9][stim_inds, 16, :]
+
+f, frq_nolight = neuro.get_psd(lfp_nolight, 1500.)
+f, frq_s1light = neuro.get_psd(lfp_s1light, 1500.)
+f, frq_m1light = neuro.get_psd(lfp_m1light, 1500.)
+neuro.plot_freq(f, frq_nolight, color='k')
+neuro.plot_freq(f, frq_s1light, color='r')
+neuro.plot_freq(f, frq_m1light, color='b')
+plt.xlim(0, 150)
+plt.legend(('no light', 's1 light', 'm1 light'))
+plt.title('S1 PSD')
+
+fail()
+##### iCSD analysis #####
+##### iCSD analysis #####
+
+def iCSD(lfp_data):
+    #patch quantities with the SI unit Siemens if it does not exist
+    for symbol, prefix, definition, u_symbol in zip(
+        ['siemens', 'S', 'mS', 'uS', 'nS', 'pS'],
+        ['', '', 'milli', 'micro', 'nano', 'pico'],
+        [pq.A/pq.V, pq.A/pq.V, 'S', 'mS', 'uS', 'nS'],
+        [None, None, None, None, u'uS', None]):
+        if type(definition) is str:
+            definition = lastdefinition / 1000
+        if not hasattr(pq, symbol):
+            setattr(pq, symbol, pq.UnitQuantity(
+                prefix + 'siemens',
+                definition,
+                symbol=symbol,
+                u_symbol=u_symbol))
+        lastdefinition = definition
+
+    #prepare lfp data for use, by changing the units to SI and append quantities,
+    #along with electrode geometry, conductivities and assumed source geometry
+
+    lfp_data = lfp_data * 1E-6 * pq.V        # [uV] -> [V]
+    #z_data = np.linspace(100E-6, 2300E-6, 23) * pq.m  # [m]
+    z_data = np.linspace(100E-6, 1000E-6, 32) * pq.m  # [m]
+    #diam = 500E-6 * pq.m                              # [m]
+    diam = 250E-6 * pq.m                              # [m] bigger vals make smaller sources/sinks
+    h = 100E-6 * pq.m                                 # [m]  (makes no difference with spline iCSD method)
+    sigma = 0.3 * pq.S / pq.m                         # [S/m] or [1/(ohm*m)] (makes no difference with spline iCSD method)
+    sigma_top = 0.3 * pq.S / pq.m                     # [S/m] or [1/(ohm*m)]
+
+    # Input dictionaries for each method
+    spline_input = {
+        'lfp' : lfp_data,
+        'coord_electrode' : z_data,
+        'diam' : diam,
+        'sigma' : sigma,
+        'sigma_top' : sigma,
+        'num_steps' : 201,      # Spatial CSD upsampling to N steps
+        'tol' : 1E-12,
+        'f_type' : 'gaussian',
+        'f_order' : (20, 5),}
+
+    # how to call!
+    csd_obj = icsd.SplineiCSD(**spline_input)
+    csd = csd_obj.get_csd()
+    csd = csd_obj.filter_csd(csd)
+    return csd
+
+
+lfps_mat = lfps[0][5+9]
+for k in range(lfps_mat.shape[2]):
+    csd_temp = iCSD(lfps_mat[:, :, k].T)
+    if k == 0:
+        csd = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
+    csd[:, :, k] = csd_temp
+
+fig, axes = plt.subplots(2,1, figsize=(8,8))
+#plot LFP signal
+ax = axes[0]
+im = ax.imshow(np.array(lfps_mat.mean(axis=2).T), origin='upper', vmin=-abs(lfps_mat.mean(axis=2)).max(), \
+            vmax=abs(lfps_mat.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest')
+ax.axis(ax.axis('tight'))
+cb = plt.colorbar(im, ax=ax)
+#ax.set_xlim(1000, 2200)
+#plot iCSD signal smoothed
+ax = axes[1]
+im = plt.imshow(np.array(csd.mean(axis=2)), origin='upper', vmin=-abs(csd.mean(axis=2)).max(), \
+        vmax=abs(csd.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest')
+ax.axis(ax.axis('tight'))
+cb = plt.colorbar(im, ax=ax)
+#ax.set_xlim(1000, 2200)
+
+
+
+
+
+
+
+
 #
 #neuro.rates(kind='wsk_boolean')
 neuro.plot_tuning_curve(kind='evk_count')
