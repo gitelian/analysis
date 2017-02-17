@@ -526,18 +526,19 @@ class NeuroAnalyzer(object):
                         psth[stim_ind][:, good_trial_ind, unit] =\
                                 np.convolve(counts, alpha_kernel)[:-alpha_kernel.shape[0]+1]
 
-                        # calculate absolute and evoked rate
-                        abs_rate = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum())/(stim_stop - stim_start)
-                        evk_rate = (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())/(stim_stop - stim_start)
-                        absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
-                        evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
-
                         # calculate absolute and evoked counts
                         abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
                         evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
                                 (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
                         absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
                         evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
+
+                        # calculate absolute and evoked rate
+                        abs_rate = float(abs_count)/float((stim_stop - stim_start))
+                        evk_rate = float(evk_count)/float((stim_stop - stim_start))
+                        absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
+                        evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
+
 
                     good_trial_ind += 1
 
@@ -578,9 +579,10 @@ class NeuroAnalyzer(object):
         '''
         f_temp = list()
         num_trials = input_array.shape[1]
-        frq_mat_temp = np.zeros((sr/2, num_trials))
         for trial in range(num_trials):
-            f, Pxx_den = sp.signal.periodogram(input_array[:, trial], sr)
+            if trial == 0:
+                f, Pxx_den = sp.signal.periodogram(input_array[:, trial], sr)
+                frq_mat_temp = np.zeros((Pxx_den.shape[0], num_trials))
             frq_mat_temp[:, trial] = Pxx_den
 
         return f, frq_mat_temp
@@ -1034,7 +1036,7 @@ f, frq_m1light = neuro.get_psd(lfp_m1light, 1500.)
 neuro.plot_freq(f, frq_nolight, color='k')
 neuro.plot_freq(f, frq_s1light, color='r')
 neuro.plot_freq(f, frq_m1light, color='b')
-plt.xlim(0, 150)
+plt.xlim(0, 200)
 plt.legend(('no light', 's1 light', 'm1 light'))
 plt.title('S1 PSD')
 
