@@ -516,7 +516,7 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1302']
+    fids = ['FID1328']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
     data_dir = '/media/greg/data/neuro/'
 

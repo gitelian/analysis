@@ -115,6 +115,7 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
     else:
         path2spikes_files = list()
         for fid_name in fid_list:
+            print(glob.glob(data_dir_path + fid_name + '*/' + 'FID*_e*/' + '*spikes.mat'))
             path2spikes_files.extend(np.sort(glob.glob(data_dir_path + fid_name + '*/' + 'FID*_e*/' + '*spikes.mat')))
 
     #TODO: check to make sure the path exists!!! Error out if it doesn't

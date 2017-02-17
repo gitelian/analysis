@@ -1005,8 +1005,8 @@ class NeuroAnalyzer(object):
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 sns.set_style("whitegrid", {'axes.grid' : False})
-data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-#data_dir = '/media/greg/data/neuro/neo/'
+#data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+data_dir = '/media/greg/data/neuro/neo/'
 #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
 print(sys.argv)
 manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
@@ -1019,6 +1019,9 @@ manager.close()
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
 fail()
+
+##### SCRATCH SPACE #####
+##### SCRATCH SPACE #####
 
 ##### LFP analysis #####
 ##### LFP analysis #####
@@ -1126,7 +1129,7 @@ for shank in range(num_shanks):
         csd_list[shank].append(csd.mean(axis=2))
         del csd
 
-shank = 1
+shank = 0
 pos = 5
 lfps_mat = lfps[shank][pos]
 num_chan = neuro.chan_per_shank[shank]
@@ -1178,18 +1181,8 @@ ax.set_title('shank: {0}, position {1} light'.format(shank, pos))
 ax.set_xlim(-0.1, 1.3)
 
 
-
-####
-plt.imshow(np.array(csd.mean(axis=2)), origin='lower', vmin=-abs(csd.mean(axis=2)).max(), \
-        vmax=abs(csd.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest', \
-        extent=(neuro.lfp_t[0], neuro.lfp_t[-1], 0, 200))
-plt.axis('tight')
-
-
-
-
-
-
+##### SCRATCH SPACE #####
+##### SCRATCH SPACE #####
 #
 #neuro.rates(kind='wsk_boolean')
 neuro.plot_tuning_curve(kind='evk_count')
