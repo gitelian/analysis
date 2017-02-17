@@ -56,6 +56,9 @@ class NeuroAnalyzer(object):
         # 'e1', 'e2')
         self.shank_names     = np.sort(np.unique([k.annotations['shank'] for k in neo_obj.segments[0].spiketrains]))
 
+        # Find depths of each shank and add it to self.shank_depths
+        self.shank_depths = self.__get_shank_depths()
+
         # find shank IDs for each unit (e.g. [0, 0, 1, 1, 1])
         self.shank_ids       = self.__get_shank_ids()
 
@@ -123,6 +126,19 @@ class NeuroAnalyzer(object):
                 if unit.annotations['shank'] == shank_name:
                     shank_ids[j] = k
         return shank_ids
+
+    def __get_shank_depths(self):
+        '''Find depths of each shank and add it to self.shank_depths'''
+        depth = list()
+        for shank in self.shank_names:
+            depth_temp0 = 0
+            for spikes in self.neo_obj.segments[0].spiketrains:
+                if spikes.annotations['shank'] == shank:
+                    depth_temp1 = spikes.annotations['depth']
+                    if depth_temp0 < depth_temp1:
+                        depth_temp0 = depth_temp1
+            depth.append(depth_temp0)
+        return depth
 
     def __get_celltypeID(self):
         '''
@@ -986,7 +1002,7 @@ class NeuroAnalyzer(object):
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
-sns.set_style("whitegrid", {'axes.grid' : True})
+sns.set_style("whitegrid", {'axes.grid' : False})
 data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 #data_dir = '/media/greg/data/neuro/neo/'
 #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
@@ -1000,13 +1016,14 @@ manager.close()
 
 exp1 = block[0]
 neuro = NeuroAnalyzer(exp1)
+fail()
 
 ##### LFP analysis #####
 ##### LFP analysis #####
 
 neuro.get_lfps()
 lfps = neuro.lfps
-stim_inds = np.logical_and(neuro.lfp_t > 0.5, neuro.lfp_t < 1.5)
+stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
 lfp_nolight = lfps[1][5][stim_inds, 16, :]
 lfp_s1light = lfps[1][5+9][stim_inds, 16, :]
 lfp_m1light = lfps[1][5+9+9][stim_inds, 16, :]
@@ -1021,6 +1038,7 @@ plt.xlim(0, 150)
 plt.legend(('no light', 's1 light', 'm1 light'))
 plt.title('S1 PSD')
 
+plt.show()
 fail()
 ##### iCSD analysis #####
 ##### iCSD analysis #####
@@ -1073,30 +1091,97 @@ def iCSD(lfp_data):
     return csd
 
 
-lfps_mat = lfps[0][5+9]
+shank = 1
+lfps_mat = lfps[shank][5]
+num_chan = neuro.chan_per_shank[shank]
+edist = 25.0 # microns
+chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
+
 for k in range(lfps_mat.shape[2]):
     csd_temp = iCSD(lfps_mat[:, :, k].T)
     if k == 0:
         csd = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
     csd[:, :, k] = csd_temp
 
+num_shanks = len(neuro.chan_per_shank)
+csd_list = [list() for x in range(num_shanks)]
+
+# iterate through all shanks
+print('-- computing iCSD --')
+for shank in range(num_shanks):
+
+    # iterate through all positions for a given shank
+    for trial_ind in range(len(neuro.num_good_trials)):
+        print('-- computing iCSD for trial type {0} --'.format(trial_ind))
+        lfps_mat = neuro.lfps[shank][trial_ind]
+
+        # compute iCSD for a single position
+        for k in range(lfps_mat.shape[2]):
+            csd_temp = iCSD(lfps_mat[:, :, k].T)
+            if k == 0:
+                csd = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
+            csd[:, :, k] = csd_temp
+        csd_list[shank].append(csd.mean(axis=2))
+        del csd
+
+shank = 1
+pos = 5
+lfps_mat = lfps[shank][pos]
+num_chan = neuro.chan_per_shank[shank]
+edist = 25.0 # microns
+chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
+for k in range(lfps_mat.shape[2]):
+    csd_temp = iCSD(lfps_mat[:, :, k].T)
+    if k == 0:
+        csd0 = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
+    csd0[:, :, k] = csd_temp
+
+lfps_mat = lfps[shank][pos+9+9]
+num_chan = neuro.chan_per_shank[shank]
+edist = 25.0 # microns
+chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
+for k in range(lfps_mat.shape[2]):
+    csd_temp = iCSD(lfps_mat[:, :, k].T)
+    if k == 0:
+        csd1 = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
+    csd1[:, :, k] = csd_temp
+
 fig, axes = plt.subplots(2,1, figsize=(8,8))
-#plot LFP signal
+#plot iCSD signal smoothed
 ax = axes[0]
-im = ax.imshow(np.array(lfps_mat.mean(axis=2).T), origin='upper', vmin=-abs(lfps_mat.mean(axis=2)).max(), \
-            vmax=abs(lfps_mat.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest')
+#im = ax.imshow(np.array(lfps_mat.mean(axis=2).T), origin='lower', vmin=-abs(lfps_mat.mean(axis=2)).max(), \
+#            vmax=abs(lfps_mat.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest', \
+#            extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
+im = ax.imshow(np.array(csd0.mean(axis=2)), origin='lower', vmin=-abs(csd0.mean(axis=2)).max(), \
+        vmax=abs(csd0.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest', \
+        extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
 ax.axis(ax.axis('tight'))
 cb = plt.colorbar(im, ax=ax)
-#ax.set_xlim(1000, 2200)
+ax.set_ylabel('theoretical depth')
+ax.set_title('shank: {0}, position {1} no light'.format(shank, pos))
+ax.set_xlim(-0.1, 1.3)
+
 #plot iCSD signal smoothed
 ax = axes[1]
-im = plt.imshow(np.array(csd.mean(axis=2)), origin='upper', vmin=-abs(csd.mean(axis=2)).max(), \
-        vmax=abs(csd.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest')
+im = ax.imshow(np.array(csd1.mean(axis=2)), origin='lower', vmin=-abs(csd1.mean(axis=2)).max(), \
+        vmax=abs(csd1.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest', \
+        extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
 ax.axis(ax.axis('tight'))
+#ax.axis(sharex=axes[0])
+ax.axis(sharex=True)
 cb = plt.colorbar(im, ax=ax)
-#ax.set_xlim(1000, 2200)
+ax.set_xlabel('time (s)')
+ax.set_ylabel('theoretical depth')
+ax.set_title('shank: {0}, position {1} light'.format(shank, pos))
+ax.set_xlim(-0.1, 1.3)
 
 
+
+####
+plt.imshow(np.array(csd.mean(axis=2)), origin='lower', vmin=-abs(csd.mean(axis=2)).max(), \
+        vmax=abs(csd.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest', \
+        extent=(neuro.lfp_t[0], neuro.lfp_t[-1], 0, 200))
+plt.axis('tight')
 
 
 
