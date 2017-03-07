@@ -1005,8 +1005,12 @@ class NeuroAnalyzer(object):
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 sns.set_style("whitegrid", {'axes.grid' : False})
-#data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-data_dir = '/media/greg/data/neuro/neo/'
+
+if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
+    data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+elif os.path.isdir('/media/greg/data/neuro/neo/'):
+    data_dir = '/media/greg/data/neuro/neo/'
+
 #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
 print(sys.argv)
 manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))

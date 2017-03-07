@@ -6,8 +6,8 @@ import statsmodels.stats.multitest as smm
 from scipy.optimize import curve_fit
 
 #fids = ['1289', '1290', '1295', '1302']
-#fids = ['1295', '1302', '1326']
-fids = ['1295', '1302']
+#fids = ['1295', '1302', '1328']
+fids = ['1328']
 exps = list()
 for fid in fids:
     #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
@@ -252,8 +252,9 @@ for k in range(27):
     s1_temp = np.empty(1)
     #for neuro in exps: #exps[2::]:
     for neuro in exps: #exps[2::]:
-        rates_temp = neuro.abs_count[k].mean(axis=0)
-        m1_inds = np.logical_and(neuro.shank_ids == 0, neuro.cell_type == 'RS')
+        rates_temp = neuro.abs_rate[k].mean(axis=0)
+        #m1_inds = np.logical_and(neuro.shank_ids == 0, neuro.cell_type == 'RS')
+        m1_inds = neuro.shank_ids == 0
         s1_inds = neuro.shank_ids == 1
         m1_temp = np.append(m1_temp, rates_temp[m1_inds])
         s1_temp = np.append(s1_temp, rates_temp[s1_inds])
@@ -262,11 +263,11 @@ for k in range(27):
             neuro.get_selectivity()
             m1_sel.append(neuro.selectivity[m1_inds, :])
             s1_sel.append(neuro.selectivity[s1_inds, :])
-#    m1_rates.append(m1_temp[1:-1])
-#    s1_rates.append(s1_temp[1:-1])
+    m1_rates.append(m1_temp)
+    s1_rates.append(s1_temp)
 
-    m1_rates.append(rates_temp[m1_inds])
-    s1_rates.append(rates_temp[s1_inds])
+#    m1_rates.append(rates_temp[m1_inds])
+#    s1_rates.append(rates_temp[s1_inds])
 
 plt.figure()
 # m1
