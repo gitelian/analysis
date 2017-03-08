@@ -665,13 +665,17 @@ class NeuroAnalyzer(object):
             self.get_num_good_trials(kind='run_boolean')
 
         t_after_stim = self.t_after_stim
+
+        # create list with entries for each condition
         bisi_list = [list() for stim in self.stim_ids]
+        isi_list  = [list() for stim in self.stim_ids]
 
         # iterate through all stimulus IDs
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
             # this is a list of numpy arrays. There is an array for each unit
             bisi_np_list = [np.empty((1, 4)) for k in range(self.num_units)]
+            isi_np_list  = [np.empty((1, 3)) for k in range(self.num_units)] # ISI, stim_ID, good_trial_index
 
             # iterate through all neo trial segments
             for trial in self.neo_obj.segments:
@@ -708,19 +712,29 @@ class NeuroAnalyzer(object):
                                 bisi_temp[k-1, 1] = t_after
                                 bisi_temp[k-1, 2] = stim_id
                                 bisi_temp[k-1, 3] = good_trial_ind # identifies spikes from the same trial
-                            bisi_np_list[unit] = np.concatenate((bisi_np_list[unit], bisi_temp), axis=0)
-                        else:
-                            bisi_np_list[unit] = 0
 
+                            bisi_np_list[unit] = np.concatenate((bisi_np_list[unit], bisi_temp), axis=0)
+
+                        # compute ISIs and add it to isi_np_list
+                        if num_spk_times > 2:
+                            isi_temp  = np.zeros((num_spk_times-1, 3))
+                            isi_temp[:, 0] = np.diff(spk_times)
+                            isi_temp[:, 1] = np.ones((num_spk_times - 1, ))*stim_id
+                            isi_temp[:, 2] = np.ones((num_spk_times - 1, ))*good_trial_ind
+
+                            isi_np_list[unit] = np.concatenate((isi_np_list[unit], isi_temp), axis=0)
 
                     good_trial_ind += 1
 
             # remove first row which is junk
             for k, nparray in enumerate(bisi_np_list):
                 bisi_np_list[k] = nparray[1::, :]
+                isi_np_list[k]  = nparray[1::, :]
             bisi_list[stim_ind] = bisi_np_list
+            isi_list[stim_ind]  = isi_np_list
 
         self.bisi_list = bisi_list
+        self.isi_list  = isi_list
 
     def get_selectivity(self):
         if hasattr(self, 'abs_count') is False:
@@ -1218,26 +1232,94 @@ plt.show()
 unit_index = 11
 
 # get best contact position from evoked rates
-meanr = [np.mean(k[:, unit_index]) for k in neuro.evk_rate]
+meanr     = np.array([np.mean(k[:, unit_index]) for k in neuro.evk_rate])
+meanr_abs = np.array([np.mean(k[:, unit_index]) for k in neuro.abs_rate])
 best_contact = np.argmax(meanr[0:8])
 
-fig, ax = plt.subplots(2, 3)
+fig, ax = plt.subplots(3, 3)
 
 # top left: best contact PSTH
 neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact, error='sem', color='k')
 neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9, error='sem', color='r')
 neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9+9, error='sem', color='b')
 ax[0][0].set_xlim(0, 2)
+ax[0][0].hlines(0, 0, 2, colors='k', linestyles='dashed')
 
 # top middle: control PSTH
 neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1, error='sem', color='k')
 neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9, error='sem', color='r')
 neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, error='sem', color='b')
 ax[0][1].set_xlim(0, 2)
+ax[0][1].hlines(0, 0, 2, colors='k', linestyles='dashed')
 
 # top right: evoked tuning curves
 neuro.plot_tuning_curve(unit_ind=unit_index, kind='evk_count', axis=ax[0][2])
 ax[0][2].set_xlim(0, 10)
+ax[0][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
+
+# middle left: ISI distributions best contact
+bins = np.arange(0, 0.100, 0.001);
+a, _=np.histogram(neuro.isi_list[best_contact][unit_index][:,0], bins=bins, density=True)
+b, _=np.histogram(neuro.isi_list[best_contact+9][unit_index][:,0], bins=bins, density=True)
+c, _=np.histogram(neuro.isi_list[best_contact+9+9][unit_index][:,0], bins=bins, density=True)
+ax[1][0].plot(bins[:-1], a, 'k', bins[:-1], b, 'r', bins[:-1], c, 'b')
+ax[1][0].set_xlim(-0.005, 0.100)
+ax[1][0].vlines(0.0015, ax[1][0].get_ylim()[0], ax[1][0].get_ylim()[1], colors='k', linestyles='dashed')
+
+# middle middle: ISI distributions control position
+bins = np.arange(0, 0.100, 0.001);
+aa, _=np.histogram(neuro.isi_list[neuro.control_pos-1][unit_index][:,0], bins=bins, density=True)
+bb, _=np.histogram(neuro.isi_list[neuro.control_pos-1+9][unit_index][:,0], bins=bins, density=True)
+cc, _=np.histogram(neuro.isi_list[neuro.control_pos-1+9+9][unit_index][:,0], bins=bins, density=True)
+ax[1][1].plot(bins[:-1], aa, 'k', bins[:-1], bb, 'r', bins[:-1], cc, 'b')
+ax[1][1].set_xlim(-0.005, 0.100)
+ax[1][1].vlines(0.0015, ax[1][1].get_ylim()[0], ax[1][1].get_ylim()[1], colors='k', linestyles='dashed')
+
+# middle right: OMI tuning curves
+omi_s1light = (meanr_abs[neuro.control_pos:neuro.control_pos+9] - meanr_abs[:neuro.control_pos]) / \
+        (meanr_abs[neuro.control_pos:neuro.control_pos+9] + meanr_abs[:neuro.control_pos])
+omi_m1light = (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] - meanr_abs[:neuro.control_pos]) / \
+        (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] + meanr_abs[:neuro.control_pos])
+ax[1][2].plot(np.arange(1,10), omi_s1light, '-ro', np.arange(1,10), omi_m1light, '-bo')
+ax[1][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
+ax[1][2].set_xlim(0, 10)
+ax[1][2].set_ylim(-1, 1)
+
+
+# bottom left: bursty ISI plot best position
+a_pre  = neuro.bisi_list[best_contact][unit_index][:, 0]
+a_post = neuro.bisi_list[best_contact][unit_index][:, 1]
+#b_pre  = neuro.bisi_list[best_contact+9][unit_index][:, 0]
+#b_post = neuro.bisi_list[best_contact+9][unit_index][:, 1]
+#c_pre  = neuro.bisi_list[best_contact+9+9][unit_index][:, 0]
+#c_post = neuro.bisi_list[best_contact+9+9][unit_index][:, 1]
+ax[2][0].plot(a_pre, a_post, 'k.', alpha=0.3, ms=5)
+#ax[2][0].plot(b_pre, b_post, 'r.', alpha=0.3, ms=5)
+#ax[2][0].plot(c_pre, c_post, 'b.', alpha=0.3, ms=5)
+ax[2][0].set_xlim(0, 0.100)
+ax[2][0].set_ylim(0, 0.100)
+
+# bottom middle: bursty ISI plot control position
+aa_pre  = neuro.bisi_list[neuro.control_pos-1][unit_index][:, 0]
+aa_post = neuro.bisi_list[neuro.control_pos-1][unit_index][:, 1]
+ax[2][1].plot(aa_pre, aa_post, 'k.', alpha=0.3, ms=5)
+ax[2][1].set_xlim(0, 0.100)
+ax[2][1].set_ylim(0, 0.100)
+
+#ax[1][0].hist2d(pre, post, bins=arange(0,0.3,0.001))
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # baseline firing rate analysis
 m1_rates = list()
