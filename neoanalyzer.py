@@ -473,6 +473,7 @@ class NeuroAnalyzer(object):
 #        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
         alpha_kernel = self.__make_alpha_kernel()
         self._bins = bins
+        self.bins_t = bins[0:-1]
 
         # preallocation loop
         for k, trials_ran in enumerate(self.num_good_trials):
@@ -707,7 +708,9 @@ class NeuroAnalyzer(object):
                                 bisi_temp[k-1, 1] = t_after
                                 bisi_temp[k-1, 2] = stim_id
                                 bisi_temp[k-1, 3] = good_trial_ind # identifies spikes from the same trial
-                        bisi_np_list[unit] = np.concatenate((bisi_np_list[unit], bisi_temp), axis=0)
+                            bisi_np_list[unit] = np.concatenate((bisi_np_list[unit], bisi_temp), axis=0)
+                        else:
+                            bisi_np_list[unit] = 0
 
 
                     good_trial_ind += 1
@@ -737,7 +740,7 @@ class NeuroAnalyzer(object):
 
         self.selectivity = sel_mat
 
-    def plot_tuning_curve(self, unit_ind=[], kind='abs_count'):
+    def plot_tuning_curve(self, unit_ind=[], kind='abs_count', axis=None):
         '''
         make_simple_tuning_curve allows one to specify what type of tuning
         curve to plot as well as which unit for a single tuning curve or all
@@ -765,68 +768,87 @@ class NeuroAnalyzer(object):
         labels = [str(i) for i in pos]; labels.append('NC')
         line_color = ['k','r','b']
 
-        # determine number of rows and columns in the subplot
+        # if tuning curves from one unit will be plotted on a given axis
         if unit_ind:
-            num_rows, num_cols = 1, 1
-        else:
-            unit_ind = range(self.num_units)
-            num_rows, num_cols = 3, 3
 
-        num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
+            if axis == None:
+                ax = plt.gca()
+            else:
+                ax = axis
 
-        unit_count, plot_count = 0, 0
-        fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
-        for unit in unit_ind:
-            meanr = [np.mean(k[:, unit]) for k in kind_of_tuning[kind_dict[kind]]]
-            stder = [np.std(k[:, unit]) / np.sqrt(k[:, unit].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
+            # compute the means and standard errors
+            meanr = [np.mean(k[:, unit_ind]) for k in kind_of_tuning[kind_dict[kind]]]
+            stder = [np.std(k[:, unit_ind]) / np.sqrt(k[:, unit_ind].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
             for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), control_pos )):
-                # compute the means and standard errors
-
-                ax = plt.subplot(num_rows, num_cols, plot_count+1)
-                # plot stimulus positions separately from control so the
-                # control position is not connected with the others
-                plt.errorbar(pos[0:control_pos-1],\
+                ax.errorbar(pos[0:control_pos-1],\
                         meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
                         yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
                         fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
                 # plot control position separately from stimulus positions
-                plt.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
+                ax.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
                         fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
 
-            plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
-                    ' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
-                    '\ncell type: ' + str(self.cell_type[unit]))
-            plt.plot([0, control_pos+1],[0,0],'--k')
-            plt.xlim(0, control_pos+1)
-            plt.ylim(plt.ylim()[0]-1, plt.ylim()[1]+1)
-            ax.set_xticks([])
-            plt.xticks(x_vals, labels)
-            plt.xlabel('Bar Position', fontsize=8)
-            plt.show()
-            # count after each plot is made
-            plot_count += 1
-            unit_count += 1
+        # if all tuning curves from all units are to be plotted
+        else:
+            # determine number of rows and columns in the subplot
+            unit_ind = range(self.num_units)
+            num_rows, num_cols = 3, 3
 
-            if unit_count == len(unit_ind) and plot_count == (num_rows*num_cols):
-                print('finished')
-                plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
-                plt.suptitle(kind)
+            num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
+
+            unit_count, plot_count = 0, 0
+            fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
+            for unit in unit_ind:
+                meanr = [np.mean(k[:, unit]) for k in kind_of_tuning[kind_dict[kind]]]
+                stder = [np.std(k[:, unit]) / np.sqrt(k[:, unit].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
+                for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), control_pos )):
+                    # compute the means and standard errors
+
+                    ax = plt.subplot(num_rows, num_cols, plot_count+1)
+                    # plot stimulus positions separately from control so the
+                    # control position is not connected with the others
+                    plt.errorbar(pos[0:control_pos-1],\
+                            meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
+                            yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
+                            fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
+                    # plot control position separately from stimulus positions
+                    plt.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
+                            fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
+
+                plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
+                        ' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
+                        '\ncell type: ' + str(self.cell_type[unit]))
+                plt.plot([0, control_pos+1],[0,0],'--k')
+                plt.xlim(0, control_pos+1)
+                plt.ylim(plt.ylim()[0]-1, plt.ylim()[1]+1)
+                ax.set_xticks([])
+                plt.xticks(x_vals, labels)
+                plt.xlabel('Bar Position', fontsize=8)
                 plt.show()
-                return ax
-            elif unit_count == len(unit_ind):
-                print('finished')
-                plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
-                plt.suptitle(kind)
-                plt.show()
-            elif plot_count == (num_rows*num_cols):
-                print('made a new figure')
-                plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
-                plt.suptitle(kind)
-                plt.show()
-                # create a new plot
-                if plot_count != len(unit_ind):
-                    fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
-                plot_count = 0
+                # count after each plot is made
+                plot_count += 1
+                unit_count += 1
+
+                if unit_count == len(unit_ind) and plot_count == (num_rows*num_cols):
+                    print('finished')
+                    plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
+                    plt.suptitle(kind)
+                    plt.show()
+                    return ax
+                elif unit_count == len(unit_ind):
+                    print('finished')
+                    plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
+                    plt.suptitle(kind)
+                    plt.show()
+                elif plot_count == (num_rows*num_cols):
+                    print('made a new figure')
+                    plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
+                    plt.suptitle(kind)
+                    plt.show()
+                    # create a new plot
+                    if plot_count != len(unit_ind):
+                        fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
+                    plot_count = 0
 
     def plot_raster(self, unit_ind=0, trial_type=0):
         '''
@@ -1191,7 +1213,104 @@ ax.set_xlim(-0.1, 1.3)
 #neuro.rates(kind='wsk_boolean')
 neuro.plot_tuning_curve(kind='evk_count')
 plt.show()
-#
+
+# for unit_index in num_units:
+unit_index = 11
+
+# get best contact position from evoked rates
+meanr = [np.mean(k[:, unit_index]) for k in neuro.evk_rate]
+best_contact = np.argmax(meanr[0:8])
+
+fig, ax = plt.subplots(2, 3)
+
+# top left: best contact PSTH
+neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact, error='sem', color='k')
+neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9, error='sem', color='r')
+neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9+9, error='sem', color='b')
+ax[0][0].set_xlim(0, 2)
+
+# top middle: control PSTH
+neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1, error='sem', color='k')
+neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9, error='sem', color='r')
+neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, error='sem', color='b')
+ax[0][1].set_xlim(0, 2)
+
+# top right: evoked tuning curves
+neuro.plot_tuning_curve(unit_ind=unit_index, kind='evk_count', axis=ax[0][2])
+ax[0][2].set_xlim(0, 10)
+
+# baseline firing rate analysis
+m1_rates = list()
+s1_rates = list()
+m1_sel   = list()
+s1_sel   = list()
+
+for k in range(27):
+#for k in range(18):
+    m1_temp = np.empty(1)
+    s1_temp = np.empty(1)
+    #for neuro in exps: #exps[2::]:
+    for neuro in exps: #exps[2::]:
+        rates_temp = neuro.abs_rate[k].mean(axis=0)
+        #m1_inds = np.logical_and(neuro.shank_ids == 0, neuro.cell_type == 'RS')
+        m1_inds = neuro.shank_ids == 0
+        s1_inds = neuro.shank_ids == 1
+        m1_temp = np.append(m1_temp, rates_temp[m1_inds])
+        s1_temp = np.append(s1_temp, rates_temp[s1_inds])
+
+        if k == 0:
+            neuro.get_selectivity()
+            m1_sel.append(neuro.selectivity[m1_inds, :])
+            s1_sel.append(neuro.selectivity[s1_inds, :])
+    m1_rates.append(m1_temp)
+    s1_rates.append(s1_temp)
+
+#    m1_rates.append(rates_temp[m1_inds])
+#    s1_rates.append(rates_temp[s1_inds])
+
+plt.figure()
+# m1
+plt.scatter(m1_rates[8], m1_rates[8+9], color='b')
+# s1
+plt.scatter(s1_rates[8], s1_rates[8+9+9], color='r')
+# unity line
+plt.plot([0, 40], [0, 40], 'k')
+plt.xlim(0, 40); plt.ylim(0, 40)
+
+plt.figure()
+# m1
+plt.scatter(m1_rates[8], m1_rates[8+9+9], color='b')
+# s1
+plt.scatter(s1_rates[8], s1_rates[8+9], color='r')
+# unity line
+plt.plot([0, 100], [0, 100], 'k')
+plt.xlim(0, 100); plt.ylim(0, 100)
+
+# violin plot of spontaneous rates
+pos = [1, 2]
+violinplot([m1_rates[8], s1_rates[8]], pos, vert=True, widths=0.7,
+                              showextrema=True, showmedians=True)
+
+# OMI for control position (diff over the sum)
+m1_omi = (m1_rates[8+9] - m1_rates[8])/ (m1_rates[8+9] + m1_rates[8])
+s1_omi = (s1_rates[8+9] - s1_rates[8])/ (s1_rates[8+9] + s1_rates[8])
+violinplot([m1_omi, s1_omi], pos, vert=True, widths=0.7,
+                              showextrema=True, showmedians=True)
+
+# selectivity
+
+m1_temp = list()
+s1_temp = list()
+for k in m1_sel:
+    m1_temp.extend(k[:, 0].ravel())
+for k in s1_sel:
+    s1_temp.extend(k[:, 0].ravel())
+
+plt.subplots(1,2)
+plt.subplot(1,2,1)
+plt.hist(m1_temp)
+plt.subplot(1,2,2)
+plt.hist(s1_temp)
 #
 #plt.figure()
 #lda = LinearDiscriminantAnalysis(n_components=2)
