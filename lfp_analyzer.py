@@ -1,0 +1,152 @@
+import sys
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import icsd
+import quantities as pq
+
+def iCSD(lfp_data):
+    #patch quantities with the SI unit Siemens if it does not exist
+    for symbol, prefix, definition, u_symbol in zip(
+        ['siemens', 'S', 'mS', 'uS', 'nS', 'pS'],
+        ['', '', 'milli', 'micro', 'nano', 'pico'],
+        [pq.A/pq.V, pq.A/pq.V, 'S', 'mS', 'uS', 'nS'],
+        [None, None, None, None, u'uS', None]):
+        if type(definition) is str:
+            definition = lastdefinition / 1000
+        if not hasattr(pq, symbol):
+            setattr(pq, symbol, pq.UnitQuantity(
+                prefix + 'siemens',
+                definition,
+                symbol=symbol,
+                u_symbol=u_symbol))
+        lastdefinition = definition
+
+    #prepare lfp data for use, by changing the units to SI and append quantities,
+    #along with electrode geometry, conductivities and assumed source geometry
+
+    lfp_data = lfp_data * 1E-6 * pq.V        # [uV] -> [V]
+    #z_data = np.linspace(100E-6, 2300E-6, 23) * pq.m  # [m]
+    z_data = np.linspace(100E-6, 1000E-6, 32) * pq.m  # [m]
+    #diam = 500E-6 * pq.m                              # [m]
+    diam = 250E-6 * pq.m                              # [m] bigger vals make smaller sources/sinks
+    h = 100E-6 * pq.m                                 # [m]  (makes no difference with spline iCSD method)
+    sigma = 0.3 * pq.S / pq.m                         # [S/m] or [1/(ohm*m)] (makes no difference with spline iCSD method)
+    sigma_top = 0.3 * pq.S / pq.m                     # [S/m] or [1/(ohm*m)]
+
+    # Input dictionaries for each method
+    spline_input = {
+        'lfp' : lfp_data,
+        'coord_electrode' : z_data,
+        'diam' : diam,
+        'sigma' : sigma,
+        'sigma_top' : sigma,
+        'num_steps' : 201,      # Spatial CSD upsampling to N steps
+        'tol' : 1E-12,
+        'f_type' : 'gaussian',
+        'f_order' : (20, 5),}
+
+    # how to call!
+    csd_obj = icsd.SplineiCSD(**spline_input)
+    csd = csd_obj.get_csd()
+    csd = csd_obj.filter_csd(csd)
+    return csd
+
+##### start analysis #####
+##### start analysis #####
+
+sns.set_style("whitegrid", {'axes.grid' : False})
+get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
+
+##### LFP analysis #####
+##### LFP analysis #####
+
+neuro.get_lfps()
+lfps = neuro.lfps
+contact = 20
+
+stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
+lfp_nolight = lfps[0][5][stim_inds,     contact, :]
+lfp_s1light = lfps[0][5+9][stim_inds,   contact, :]
+lfp_m1light = lfps[0][5+9+9][stim_inds, contact, :]
+
+f, frq_nolight = neuro.get_psd(lfp_nolight, 1500.)
+f, frq_s1light = neuro.get_psd(lfp_s1light, 1500.)
+f, frq_m1light = neuro.get_psd(lfp_m1light, 1500.)
+neuro.plot_freq(f, frq_nolight, color='k')
+neuro.plot_freq(f, frq_s1light, color='r')
+neuro.plot_freq(f, frq_m1light, color='b')
+plt.xlim(0, 200)
+plt.legend(('no light', 's1 light', 'm1 light'))
+plt.title('M1 PSD')
+
+plt.show()
+
+##### iCSD analysis #####
+##### iCSD analysis #####
+
+
+
+shank = 1
+lfps_mat = lfps[shank][5]
+num_chan = neuro.chan_per_shank[shank]
+edist = 25.0 # microns
+chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
+
+for k in range(lfps_mat.shape[2]):
+    csd_temp = iCSD(lfps_mat[:, :, k].T)
+    if k == 0:
+        csd = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
+    csd[:, :, k] = csd_temp
+
+# compute iCSD for first condition
+shank = 0
+pos = 5
+lfps_mat = lfps[shank][pos]
+num_chan = neuro.chan_per_shank[shank]
+edist = 25.0 # microns
+chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
+for k in range(lfps_mat.shape[2]):
+    csd_temp = iCSD(lfps_mat[:, :, k].T)
+    if k == 0:
+        csd0 = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
+    csd0[:, :, k] = csd_temp
+
+# compute iCSD for second condition
+lfps_mat = lfps[shank][pos+9+9]
+num_chan = neuro.chan_per_shank[shank]
+edist = 25.0 # microns
+chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
+for k in range(lfps_mat.shape[2]):
+    csd_temp = iCSD(lfps_mat[:, :, k].T)
+    if k == 0:
+        csd1 = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
+    csd1[:, :, k] = csd_temp
+
+#plot iCSD signal smoothed
+fig, axes = plt.subplots(2,1, figsize=(8,8))
+ax = axes[0]
+im = ax.imshow(np.array(csd0.mean(axis=2)), origin='lower', vmin=-abs(csd0.mean(axis=2)).max(), \
+        vmax=abs(csd0.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest', \
+        extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
+ax.axis(ax.axis('tight'))
+cb = plt.colorbar(im, ax=ax)
+ax.set_ylabel('theoretical depth')
+ax.set_title('region: {0}, position {1}\nno light'.format(neuro.region_dict[shank], pos))
+ax.set_xlim(-0.1, 1.3)
+
+#plot iCSD signal smoothed
+ax = axes[1]
+im = ax.imshow(np.array(csd1.mean(axis=2)), origin='lower', vmin=-abs(csd1.mean(axis=2)).max(), \
+        vmax=abs(csd1.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest', \
+        extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
+ax.axis(ax.axis('tight'))
+#ax.axis(sharex=axes[0])
+ax.set_title('light')
+ax.axis(sharex=True)
+cb = plt.colorbar(im, ax=ax)
+ax.set_xlabel('time (s)')
+ax.set_ylabel('theoretical depth')
+ax.set_xlim(-0.1, 1.3)
+
