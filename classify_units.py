@@ -82,7 +82,7 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
         print('No FID list provided. Current spike_measures.mat will\n' + \
                 'be overwritten and updated with all spikes files.')
         overwrite=True
-        spike_msr_mat = np.zeros((1, 8))
+        spike_msr_mat = np.zeros((1, 8+240))
 
     elif os.path.exists(spike_measures_path):
         # load spike measures mat file
@@ -90,14 +90,14 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
         spike_msr_mat = load_mat_file(spike_measures_path, variable_name='spike_msr_mat')
         overwrite=False
 
-        if spike_msr_mat.shape[1] != 8:
+        if spike_msr_mat.shape[1] != 8+240:
             raise Exception('Spike_msr_mat is NOT the correct size')
     else:
         # create matrix if it does not exist
         # fid, electrode, unit_id, depth, unit_id, duration, ratio, cell_type
         # cell_type (0=MU, 1=RS, 2=FS, 3=UC)
         print('spike_measures.mat does not exist...creating a new one')
-        spike_msr_mat = np.zeros((1, 8))
+        spike_msr_mat = np.zeros((1, 8+240))
         overwrite=True
 
     ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
@@ -221,16 +221,16 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
                 # depth, unit_id (MU=1, SU=2), duration, ratio, MU/RS/FS/UC
                 if overwrite is True:
                     # add everything to new matrix
-                    spike_msr_mat = np.append(spike_msr_mat, np.array(\
-                            [fid, e_num, unit_id, depth, unit_type[k], dur, ratio, 0]).reshape(1,8), axis=0)
+                    append2mat = np.append(np.asarray([fid, e_num, unit_id, depth, unit_type[k], dur, ratio, 0]), ynew)
+                    spike_msr_mat = np.append(spike_msr_mat, append2mat.reshape(1,8+240), axis=0)
                 elif overwrite is False and unit_in_mat:
                     # use unit index to update matrix row
-                    spike_msr_mat[unit_mat_index, :] = \
-                            np.array([fid, e_num, unit_id, depth, unit_type[k], dur, ratio, 0]).reshape(1,8)
+                    append2mat = np.append(np.asarray([fid, e_num, unit_id, depth, unit_type[k], dur, ratio, 0]), ynew)
+                    spike_msr_mat[unit_mat_index, :] = append2mat.reshape(1,8+240)
                 elif overwrite is False and unit_in_mat is False:
                     # append to existing matrix
-                    spike_msr_mat = np.append(spike_msr_mat, np.array(\
-                            [fid, e_num, unit_id, depth, unit_type[k], dur, ratio, 0]).reshape(1,8), axis=0)
+                    append2mat = np.append(np.asarray([fid, e_num, unit_id, depth, unit_type[k], dur, ratio, 0]), ynew)
+                    spike_msr_mat = np.append(spike_msr_mat, append2mat.reshape(1,8+240), axis=0)
 
         # Free up memory so I don't get a MemoryError
         print('clearing up memory: removing spikes file data')
@@ -262,12 +262,12 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
         print('Loading spike measures mat file: ' + spike_measures_path)
         spike_msr_mat = load_mat_file(spike_measures_path, variable_name='spike_msr_mat')
 
-    if spike_msr_mat.shape[1] != 8:
+    if spike_msr_mat.shape[1] != 8+240:
             raise Exception('Spike_msr_mat is NOT the correct size')
 
         # spike_measures columns order: fid [0], electrode [1], unit_id [2],
         # depth [3], unit_id [4] (MU=1, SU=2), duration [5], ratio [6],
-        # MU/RS/FS/UC [7]
+        # MU/RS/FS/UC [7], mean waveform [8:240]
 
     good_unit_inds  = np.where(spike_msr_mat[:, 4] == 2)[0]
     dur_array       = spike_msr_mat[good_unit_inds, 5]
@@ -278,7 +278,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
     dur_ratio_array = np.concatenate((dur_array, ratio_array),axis=1)
 
     ## GMM Clustering
-    clf = mixture.GMM(n_components=2, covariance_type='full')
+    clf = mixture.GMM(n_components=2, covariance_type='tied')
     clf.fit(dur_ratio_array)
     pred_prob = clf.predict_proba(dur_ratio_array)
     gmm_means = clf.means_
@@ -293,10 +293,10 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
     ## Assign PV or RS label to a unit if it has a 0.90 probability of belonging
     ## to a group otherwise label it as UC for unclassified
     for ind, val in enumerate(pred_prob):
-        if val[rs_index] >= 0.90:
+        if val[rs_index] >= 0.80:
             spike_msr_mat[good_unit_inds[ind], 7] = 1
             #cell_type_list.append('RS')
-        elif val[pv_index] >= 0.90:
+        elif val[pv_index] >= 0.80:
             spike_msr_mat[good_unit_inds[ind], 7] = 2
             #cell_type_list.append('PV')
         else:
@@ -327,7 +327,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
 
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
-    #update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neuro/')
+#    update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/')
 
 
