@@ -475,6 +475,10 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         if unit_ind:
                             # round t_stop because sometimes a spiketime would
                             # be slightly longer than it (by about 0.0001 s)
+
+                            # spike_measures columns order: fid [0], electrode [1], unit_id [2],
+                            # depth [3], unit_id [4] (MU=1, SU=2), duration [5], ratio [6],
+                            # MU/RS/FS/UC [7], mean waveform [8:240]
                             block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
                                     t_start=trial_times[trial_ind, 0] * pq.s,
                                     t_stop=trial_times[trial_ind, 1] * pq.s,
@@ -483,6 +487,9 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                                     description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
                                     depth=spk_msrs[unit_ind, 3]*pq.um,
                                     cell_type=spk_msrs[unit_ind, 7],
+                                    duration=spk_msrs[unit_ind, 5],
+                                    ratio=spk_msrs[unit_ind, 6],
+                                    waveform=spk_msrs[unit_ind, 8::],
                                     fid=fid_name,
                                     shank=e_name,
                                     unit_id=unit))
