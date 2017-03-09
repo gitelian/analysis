@@ -1232,7 +1232,6 @@ neuro.plot_tuning_curve(kind='evk_count')
 plt.show()
 
 neuro.get_burst_isi()
-
 from matplotlib.backends.backend_pdf import PdfPages
 with PdfPages(fid + '_unit_summaries.pdf') as pdf:
     for unit_index in range(neuro.num_units):
