@@ -119,6 +119,11 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         #ax[1][0].hist2d(pre, post, bins=arange(0,0.3,0.001))
 
         # bottom right: mean waveform
+        ax[2][2].plot(neuro.waves[unit_index, :], 'k.')
+        ax[2][2].set_title('Mean waveform')
+        ax[2][2].set_xlabel('dur: {}, ratio: {}'.format(\
+                neuro.duration[unit_index],\
+                neuro.ratio[unit_index]))
 
 
         pdf.savefig()
