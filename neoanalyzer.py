@@ -69,6 +69,9 @@ class NeuroAnalyzer(object):
         self.cell_type_dict  = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
         self.cell_type       = self.__get_celltypeID()
 
+        # creat lists or array with units duration, ratio, and mean waveform
+        self.__get_waveinfo()
+
         # set time after stimulus to start analyzing
         # time_after_stim + stim_start MUST BE LESS THAN stim_stop time
         self.t_after_stim    = 0.500
@@ -142,6 +145,19 @@ class NeuroAnalyzer(object):
                         depth_temp0 = depth_temp1
             depth.append(depth_temp0)
         return depth
+
+    def __get_waveinfo(self):
+        '''gets waveform duration, ratio, and mean waveform for each unit'''
+        duration = list()
+        ratio    = list()
+        waves    = list()
+        for spikes in self.neo_obj.segments[0].spiketrains:
+            duration.append(spikes.annotations['duration'])
+            ratio.append(spikes.annotations['ratio'])
+            waves.append(spikes.annotations['waveform'])
+        self.duration = duration
+        self.ratio    = ratio
+        self.waves    = np.asarray(waves).squeeze()
 
     def __get_celltypeID(self):
         '''
