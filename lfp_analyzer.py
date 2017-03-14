@@ -64,12 +64,14 @@ get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
 
 neuro.get_lfps()
 lfps = neuro.lfps
-contact = 20
+shank = 1
+contact = 15
+pos = 3
 
 stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
-lfp_nolight = lfps[0][5][stim_inds,     contact, :]
-lfp_s1light = lfps[0][5+9][stim_inds,   contact, :]
-lfp_m1light = lfps[0][5+9+9][stim_inds, contact, :]
+lfp_nolight = lfps[shank][pos][stim_inds,     contact, :]
+lfp_s1light = lfps[shank][pos+9][stim_inds,   contact, :]
+lfp_m1light = lfps[shank][pos+9+9][stim_inds, contact, :]
 
 f, frq_nolight = neuro.get_psd(lfp_nolight, 1500.)
 f, frq_s1light = neuro.get_psd(lfp_s1light, 1500.)
@@ -79,7 +81,7 @@ neuro.plot_freq(f, frq_s1light, color='r')
 neuro.plot_freq(f, frq_m1light, color='b')
 plt.xlim(0, 200)
 plt.legend(('no light', 's1 light', 'm1 light'))
-plt.title('M1 PSD')
+plt.title('{} PSD'.format(neuro.region_dict[shank]))
 
 plt.show()
 

@@ -4,11 +4,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+# remove gride lines
 sns.set_style("whitegrid", {'axes.grid' : False})
 get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
 
 # create multipage PDF of unit summaries
 neuro.get_burst_isi()
+
 with PdfPages(fid + '_unit_summaries.pdf') as pdf:
     for unit_index in range(neuro.num_units):
 
@@ -81,7 +83,7 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         omi_s1light = (meanr_abs[neuro.control_pos:neuro.control_pos+9] - meanr_abs[:neuro.control_pos]) / \
                 (meanr_abs[neuro.control_pos:neuro.control_pos+9] + meanr_abs[:neuro.control_pos])
         omi_m1light = (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] - meanr_abs[:neuro.control_pos]) / \
-                (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] + meanr_abs[:neuro.control_pos])
+        (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] + meanr_abs[:neuro.control_pos])
         ax[1][2].plot(np.arange(1,10), omi_s1light, '-ro', np.arange(1,10), omi_m1light, '-bo')
         ax[1][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
         ax[1][2].set_xlim(0, 10)
@@ -119,7 +121,8 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         #ax[1][0].hist2d(pre, post, bins=arange(0,0.3,0.001))
 
         # bottom right: mean waveform
-        ax[2][2].plot(neuro.waves[unit_index, :], 'k.')
+        ax[2][2].plot(np.arange(neuro.waves[unit_index, :].shape[0]), neuro.waves[unit_index, :], 'k')
+        ax[2][2].set_xlim(0, neuro.waves[unit_index, :].shape[0])
         ax[2][2].set_title('Mean waveform')
         ax[2][2].set_xlabel('dur: {}, ratio: {}'.format(\
                 neuro.duration[unit_index],\
@@ -129,6 +132,10 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         pdf.savefig()
         fig.clear()
         plt.close()
+
+
+
+
 
 #TODO: population analysis
 #TODO: population analysis
