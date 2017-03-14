@@ -65,12 +65,13 @@ class NeuroAnalyzer(object):
         # get the control position
         self.control_pos     = int(self.neo_obj.annotations['control_pos'])
 
-        # make dictionary of cell types and get cell type IDs
-        self.cell_type_dict  = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
-        self.cell_type       = self.__get_celltypeID()
-
         # creat lists or array with units duration, ratio, and mean waveform
         self.__get_waveinfo()
+
+        # make dictionary of cell types and get cell type IDs
+        self.cell_type_dict = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
+        self.cell_type      = self.__get_celltypeID()
+        self.cell_type_og   = self.cell_type
 
         # set time after stimulus to start analyzing
         # time_after_stim + stim_start MUST BE LESS THAN stim_stop time
@@ -99,6 +100,10 @@ class NeuroAnalyzer(object):
         # create region dictionary
         self.region_dict = {0:'M1', 1:'S1'}
 
+        # reclassify units using their mean OMI (assuming ChR2 is in PV
+        # cells). This is dependent on everything above!
+        self.reclassify_units()
+
     def __sort_units(self, neo_obj):
         '''
         Units are saved out of order in the neo object.
@@ -121,6 +126,8 @@ class NeuroAnalyzer(object):
             sorted_spiketrains = [seg.spiketrains[j] for j in spike_msr_sort_inds]
             for k, ordered_spiketrain in enumerate(sorted_spiketrains):
                 neo_obj.segments[i].spiketrains[k] = ordered_spiketrain
+
+        self.depths = depth
 
     def __get_shank_ids(self):
         '''
@@ -571,6 +578,50 @@ class NeuroAnalyzer(object):
 
         if self.wt_boolean:
             self.wt        = wt
+
+    def reclassify_units(self):
+        '''use OMI and wave duration to reclassify units'''
+
+        new_labels = list()
+        for index in range(len(self.cell_type_og)):
+            region   = int(self.shank_ids[index])
+            label    = self.cell_type[index]
+            ratio    = self.ratio[index]
+            duration = self.duration[index]
+
+            meanr     = np.array([np.mean(k[:, index]) for k in self.evk_rate])
+            meanr_abs = np.array([np.mean(k[:, index]) for k in self.abs_rate])
+            omi_s1light = (meanr_abs[self.control_pos:self.control_pos+9] - meanr_abs[:self.control_pos]) / \
+                    (meanr_abs[self.control_pos:self.control_pos+9] + meanr_abs[:self.control_pos])
+            omi_m1light = (meanr_abs[self.control_pos+9:self.control_pos+9+9] - meanr_abs[:self.control_pos]) / \
+                    (meanr_abs[self.control_pos+9:self.control_pos+9+9] + meanr_abs[:self.control_pos])
+
+            # reclassify M1 units
+
+            if label == 'MU':
+                new_labels.append('MU')
+
+            elif self.region_dict[region] == 'M1':
+
+                if omi_m1light.mean() < 0:# and duration > 0.36
+                    new_labels.append('RS')
+
+                elif omi_m1light.mean() > 0:# and duration < 0.34
+                    new_labels.append('FS')
+                else:
+                    new_labels.append(label)
+
+            elif self.region_dict[region] == 'S1':
+
+                if omi_s1light.mean() < 0:# and duration > 0.36:
+                    new_labels.append('RS')
+
+                elif omi_s1light.mean() > 0:# and duration < 0.34:
+                    new_labels.append('FS')
+                else:
+                    new_labels.append(label)
+
+        self.cell_type = new_labels
 
     def get_lfps(self, kind='run_boolean'):
         lfps = [list() for x in range(len(self.shank_names))]
