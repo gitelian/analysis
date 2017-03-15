@@ -13,6 +13,7 @@ import scipy.signal
 from neo.io import NeoHdf5IO
 import quantities as pq
 import icsd
+import ranksurprise
 # for LDA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 # for t-distributed stochastic neighbor embedding
@@ -934,7 +935,7 @@ class NeuroAnalyzer(object):
                         fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
                     plot_count = 0
 
-    def plot_raster(self, unit_ind=0, trial_type=0, burst=True):
+    def plot_raster(self, unit_ind=0, trial_type=0, axis=None, burst=True):
         '''
         Makes a raster plot for the given unit index and trial type.
         If called alone it will plot a raster to the current axis. This function
@@ -948,13 +949,17 @@ class NeuroAnalyzer(object):
             self.rates()
 
         print('Making raster for unit {} and trial_type {}'.format(unit_ind, trial_type))
-        ax = plt.gca()
+        if axis == None:
+            ax = plt.gca()
+        else:
+            ax = axis
+
         count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
 
         for trial in range(count_mat.shape[1]):
             trial_inds = np.where(count_mat[:, trial] > 0)[0]
             spike_times = self._bins[trial_inds]
-            plt.vlines(spike_times, trial, trial+1, color='k')
+            ax.vlines(spike_times, trial, trial+1, color='k')
 
             if burst:
                 burst_times = list()
@@ -965,11 +970,11 @@ class NeuroAnalyzer(object):
                         burst_times.extend(data[start[k]:(start[k]+length[k])])
 
                     if len(burst_times) > 0:
-                        plt.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed')
+                        ax.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed', linewidth=0.5)
 
-        plt.hlines(trial+1, 0, 1.5, color='k')
-        plt.xlim(self._bins[0], self._bins[-1])
-        plt.ylim(0, trial+1)
+        ax.hlines(trial+1, 0, 1.5, color='k')
+        ax.set_xlim(self._bins[0], self._bins[-1])
+        ax.set_ylim(0, trial+1)
 
         return ax
 

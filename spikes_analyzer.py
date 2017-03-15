@@ -19,8 +19,8 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         meanr_abs = np.array([np.mean(k[:, unit_index]) for k in neuro.abs_rate])
         best_contact = np.argmax(meanr[0:8])
 
-        fig, ax = plt.subplots(3, 3, figsize=(10,8))
-        fig.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.32, hspace=0.45)
+        fig, ax = plt.subplots(4, 3, figsize=(10,8))
+        fig.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.36, hspace=0.60)
         fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}'.format(\
                 neuro.region_dict[neuro.shank_ids[unit_index]], \
                 neuro.neo_obj.segments[0].spiketrains[unit_index].annotations['depth'], \
@@ -57,27 +57,21 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[0][2].set_xlabel('bar position')
         ax[0][2].set_title('evoked tc')
 
-        # middle left: ISI distributions best contact
-        bins = np.arange(0, 0.100, 0.001);
-        a, _=np.histogram(neuro.isi_list[best_contact][unit_index][:,0], bins=bins, density=True)
-        b, _=np.histogram(neuro.isi_list[best_contact+9][unit_index][:,0], bins=bins, density=True)
-        c, _=np.histogram(neuro.isi_list[best_contact+9+9][unit_index][:,0], bins=bins, density=True)
-        ax[1][0].plot(bins[:-1], a, 'k', bins[:-1], b, 'r', bins[:-1], c, 'b')
-        ax[1][0].set_xlim(-0.005, 0.100)
-        ax[1][0].vlines(0.0015, ax[1][0].get_ylim()[0], ax[1][0].get_ylim()[1], colors='k', linestyles='dashed')
-        ax[1][0].set_xlabel('ISI (s)')
-        ax[1][0].set_title('ISI distribution')
+        # middle left: raster during no light and best contact
+        neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact, axis=ax[1][0])
+        ax[1][0].set_xlim(0, 2)
+        ax[1][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[1][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[1][0].set_xlabel('time (s)')
+        ax[1][0].set_ylabel('trial')
 
-        # middle middle: ISI distributions control position
-        bins = np.arange(0, 0.100, 0.001);
-        aa, _=np.histogram(neuro.isi_list[neuro.control_pos-1][unit_index][:,0], bins=bins, density=True)
-        bb, _=np.histogram(neuro.isi_list[neuro.control_pos-1+9][unit_index][:,0], bins=bins, density=True)
-        cc, _=np.histogram(neuro.isi_list[neuro.control_pos-1+9+9][unit_index][:,0], bins=bins, density=True)
-        ax[1][1].plot(bins[:-1], aa, 'k', bins[:-1], bb, 'r', bins[:-1], cc, 'b')
-        ax[1][1].set_xlim(-0.005, 0.100)
-        ax[1][1].vlines(0.0015, ax[1][1].get_ylim()[0], ax[1][1].get_ylim()[1], colors='k', linestyles='dashed')
-        ax[1][1].set_xlabel('ISI (s)')
-        ax[1][1].set_title('ISI distribution')
+        # middle middle: raster during no light and control position
+        neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1, axis=ax[1][1])
+        ax[1][1].set_xlim(0, 2)
+        ax[1][1].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[1][1].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[1][1].set_xlabel('time (s)')
+        ax[1][1].set_ylabel('trial')
 
         # middle right: OMI tuning curves
         omi_s1light = (meanr_abs[neuro.control_pos:neuro.control_pos+9] - meanr_abs[:neuro.control_pos]) / \
@@ -92,31 +86,21 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[1][2].set_ylabel('OMI')
         ax[1][2].set_title('OMI tc')
 
-        # bottom left: bursty ISI plot best position
-        a_pre  = neuro.bisi_list[best_contact][unit_index][:, 0]
-        a_post = neuro.bisi_list[best_contact][unit_index][:, 1]
-        #b_pre  = neuro.bisi_list[best_contact+9][unit_index][:, 0]
-        #b_post = neuro.bisi_list[best_contact+9][unit_index][:, 1]
-        #c_pre  = neuro.bisi_list[best_contact+9+9][unit_index][:, 0]
-        #c_post = neuro.bisi_list[best_contact+9+9][unit_index][:, 1]
-        ax[2][0].plot(a_pre, a_post, 'k.', alpha=0.3, ms=5)
-        #ax[2][0].plot(b_pre, b_post, 'r.', alpha=0.3, ms=5)
-        #ax[2][0].plot(c_pre, c_post, 'b.', alpha=0.3, ms=5)
-        ax[2][0].set_xlim(0, 0.100)
-        ax[2][0].set_ylim(0, 0.100)
-        ax[2][0].set_xlabel('pre ISI (s)')
-        ax[2][0].set_ylabel('post ISI (s)')
-        ax[2][0].set_title('Burst ISI distribution')
+        # bottom left: raster for best contact and S1 light
+        neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9, axis=ax[2][0])
+        ax[2][0].set_xlim(0, 2)
+        ax[2][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[2][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[2][0].set_xlabel('time (s)')
+        ax[2][0].set_ylabel('trial')
 
         # bottom middle: bursty ISI plot control position
-        aa_pre  = neuro.bisi_list[neuro.control_pos-1][unit_index][:, 0]
-        aa_post = neuro.bisi_list[neuro.control_pos-1][unit_index][:, 1]
-        ax[2][1].plot(aa_pre, aa_post, 'k.', alpha=0.3, ms=5)
-        ax[2][1].set_xlim(0, 0.100)
-        ax[2][1].set_ylim(0, 0.100)
-        ax[2][1].set_xlabel('pre ISI (s)')
-        ax[2][1].set_ylabel('post ISI (s)')
-        ax[2][1].set_title('Burst ISI distribution')
+        neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1+9, axis=ax[2][1])
+        ax[2][1].set_xlim(0, 2)
+        ax[2][1].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[2][1].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[2][1].set_xlabel('time (s)')
+        ax[2][1].set_ylabel('trial')
 
         #ax[1][0].hist2d(pre, post, bins=arange(0,0.3,0.001))
 
@@ -128,6 +112,21 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
                 neuro.duration[unit_index],\
                 neuro.ratio[unit_index]))
 
+        # bottom bottom left: raster for best contact and S1 light
+        neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9+9, axis=ax[3][0])
+        ax[3][0].set_xlim(0, 2)
+        ax[3][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[3][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[3][0].set_xlabel('time (s)')
+        ax[3][0].set_ylabel('trial')
+
+        # bottom bottom middle: bursty ISI plot control position
+        neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, axis=ax[3][1])
+        ax[3][1].set_xlim(0, 2)
+        ax[3][1].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[3][1].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        ax[3][1].set_xlabel('time (s)')
+        ax[3][1].set_ylabel('trial')
 
         pdf.savefig()
         fig.clear()
