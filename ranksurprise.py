@@ -1,54 +1,54 @@
-# ranksurprise.py --- 
-# 
+﻿# ranksurprise.py ---
+#
 # Filename: ranksurprise.py
 # Description: Rank-surprise (RS) algorithm for burst identification.
 # Author: Subhasis Ray
-# Maintainer: 
+# Maintainer:
 # Created: Thu Dec 13 15:03:05 2012 (+0530)
-# Version: 
+# Version:
 # Last-Updated: Wed Dec 19 17:31:45 2012 (+0530)
 #           By: subha
 #     Update #: 418
-# URL: 
-# Keywords: 
-# Compatibility: 
-# 
-# 
+# URL:
+# Keywords:
+# Compatibility:
+#
+#
 
-# Commentary: 
-# 
+# Commentary:
+#
 # Implements rank surprise algorithm of burst detection/identification
 # in a spike train.
 #
 # Reference: Gourevitch, B. & Eggermont, J. J. A nonparametric
 # approach for detection of bursts in spike trains. Journal of
 # Neuroscience Methods 160, 349–358 (2007).
-# 
+#
 # This is a Python adaptation of the matlab code available in the
 # supplementary material of the above paper.
-# 
+#
 # This code requires numpy and scipy modules for python.
 
 # Change log:
-# 
-# 
-# 
-# 
+#
+#
+#
+#
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
 # published by the Free Software Foundation; either version 3, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street, Fifth
 # Floor, Boston, MA 02110-1301, USA.
-# 
+#
 # When redistributing the code preserve the reference and the credits.
 
 # Code:
@@ -143,18 +143,19 @@ def burst(spiketimes, limit=None, RSalpha=-np.log(0.01)):
                     l1 = np.log(u - t1 * N - t2)
                     ss = np.sum(l1, axis=0)
                     l2 = log_fac[np.r_[0, k[1:]-1]]
-                    l3 = log_fac[q - k - 1]                                  
+                    l3 = log_fac[q - k - 1]
                     fac1 = np.exp(ss - l2 - l3 - q * np.log(N))
                     fac2 = alternate[:length_k]
                     prob =  np.dot(fac1, fac2)
                 else:
                     # Approximate Gaussian distribution
-                    prob = normal.cdf((u - q * (N + 1) / 2) / np.sqrt(q * (N**2 - 1) / 12))
+                    #prob = normal.cdf((u - q * (N + 1) / 2) / np.sqrt(q * (N**2 - 1) / 12))
+                    prob = norm.cdf((u - q * (N + 1) / 2) / np.sqrt(q * (N**2 - 1) / 12))
                 RS = - np.log(prob)
                 # archive results for each subsequence [RSstatistic beginning length]
                 if RS > RSalpha:
                     subseq_RS.append((np.r_[RS, i, q]))
-        # vet results archive to extract most significant bursts                    
+        # vet results archive to extract most significant bursts
         if len(subseq_RS) > 0:
             # sort RS for all subsequences
             subseq_RS = sorted(subseq_RS, key=itemgetter(0), reverse=True)
@@ -166,7 +167,7 @@ def burst(spiketimes, limit=None, RSalpha=-np.log(0.01)):
                 archive_burst_start.append(n_j+current_burst[1])
                 # remove most surprising burst from the set
                 # subseq_RS=subseq_RS(2:end,:);
-                # keep only other bursts non-overlapping with this burst 
+                # keep only other bursts non-overlapping with this burst
                 subseq_RS = [row for row in subseq_RS[1:] \
                                  if ((row[1] + row[2] - 1) < current_burst[1]) or \
                                  (row[1] > (current_burst[1] + current_burst[2] - 1))]
@@ -203,9 +204,26 @@ def val2rank(values):
 #     print start
 #     print length
 #     print RS
-#     plt.plot(data[start], np.ones(len(start)), 'gx')
-#     plt.plot(data[start+length-1], np.ones(len(start)), 'rx')
-#     plt.show()
 
-# 
+
+
+
+# for each spike train do this
+# start indicates the begining of the burst and length indicates how many
+# spikes are apart of that burst.
+spikes_bool = neuro.binned_spikes[1][:, 15, 1].astype(bool)
+data = neuro.bins_t[spikes_bool]
+start, length, RS = burst(data, limit=50e-3, RSalpha=0.1)
+plt.figure()
+plt.vlines(data, 0, 1, 'k')
+plt.vlines(data[start], 0, 1, 'r')
+plt.vlines(data[start+length-1], 0, 1, 'g', linestyles='dashed')
+
+
+
+
+
+
+
+#
 # ranksurprise.py ends here
