@@ -934,7 +934,7 @@ class NeuroAnalyzer(object):
                         fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
                     plot_count = 0
 
-    def plot_raster(self, unit_ind=0, trial_type=0):
+    def plot_raster(self, unit_ind=0, trial_type=0, burst=True):
         '''
         Makes a raster plot for the given unit index and trial type.
         If called alone it will plot a raster to the current axis. This function
@@ -955,6 +955,18 @@ class NeuroAnalyzer(object):
             trial_inds = np.where(count_mat[:, trial] > 0)[0]
             spike_times = self._bins[trial_inds]
             plt.vlines(spike_times, trial, trial+1, color='k')
+
+            if burst:
+                burst_times = list()
+                data = spike_times
+                if len(data) > 3:
+                    start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
+                    for k in range(len(start)):
+                        burst_times.extend(data[start[k]:(start[k]+length[k])])
+
+                    if len(burst_times) > 0:
+                        plt.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed')
+
         plt.hlines(trial+1, 0, 1.5, color='k')
         plt.xlim(self._bins[0], self._bins[-1])
         plt.ylim(0, trial+1)
@@ -996,7 +1008,7 @@ class NeuroAnalyzer(object):
 
         return ax
 
-    def plot_all_rasters(self, unit_ind=0):
+    def plot_all_rasters(self, unit_ind=0, burst=True):
         '''
         Plots all rasters for a given unit with subplots.
         Each positions is a row and each manipulation is a column.
@@ -1008,7 +1020,7 @@ class NeuroAnalyzer(object):
         for manip in range(num_manipulations):
             for trial in range(self.control_pos):
                 plt.subplot(self.control_pos, num_manipulations, subplt_indices[trial, manip]+1)
-                self.plot_raster(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip))
+                self.plot_raster(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip), burst=burst)
 
     def plot_all_psths(self, unit_ind=0, error='sem'):
         '''

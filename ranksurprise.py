@@ -211,13 +211,13 @@ def val2rank(values):
 # for each spike train do this
 # start indicates the begining of the burst and length indicates how many
 # spikes are apart of that burst.
-spikes_bool = neuro.binned_spikes[1][:, 15, 1].astype(bool)
-data = neuro.bins_t[spikes_bool]
-start, length, RS = burst(data, limit=50e-3, RSalpha=0.1)
-plt.figure()
-plt.vlines(data, 0, 1, 'k')
-plt.vlines(data[start], 0, 1, 'r')
-plt.vlines(data[start+length-1], 0, 1, 'g', linestyles='dashed')
+#spikes_bool = neuro.binned_spikes[1][:, 15, 1].astype(bool)
+#data = neuro.bins_t[spikes_bool]
+#start, length, RS = burst(data, limit=50e-3, RSalpha=0.1)
+#plt.figure()
+#plt.vlines(data, 0, 1, 'k')
+#plt.vlines(data[start], 0, 1, 'r')
+#plt.vlines(data[start+length-1], 0, 1, 'g', linestyles='dashed')
 
 
 
