@@ -8,6 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 sns.set_style("whitegrid", {'axes.grid' : False})
 get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
 
+fid = sys.argv[1]
 # create multipage PDF of unit summaries
 
 with PdfPages(fid + '_unit_summaries.pdf') as pdf:

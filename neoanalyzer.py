@@ -284,6 +284,7 @@ class NeuroAnalyzer(object):
         print('\n-----__trim_lfp-----')
 
         chan_per_shank = list()
+        lfp_boolean = False
         for anlg in self.neo_obj.segments[0].analogsignalarrays:
             if 'LFPs' in anlg.name:
                 # get the sampling rate
