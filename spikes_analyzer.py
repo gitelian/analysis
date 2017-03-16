@@ -9,7 +9,6 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
 
 # create multipage PDF of unit summaries
-neuro.get_burst_isi()
 
 with PdfPages(fid + '_unit_summaries.pdf') as pdf:
     for unit_index in range(neuro.num_units):
@@ -32,11 +31,13 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9, error='sem', color='r')
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9+9, error='sem', color='b')
         ax[0][0].set_xlim(0, 2)
+        ax[0][0].set_ylim(0.5, ax[0][0].get_ylim()[1])
         ax[0][0].hlines(0, 0, 2, colors='k', linestyles='dashed')
         ax[0][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[0][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[0][0].set_xlabel('time (s)')
         ax[0][0].set_ylabel('firing rate (Hz)')
+        ax[0][0].set_yscale("log")
         ax[0][0].set_title('best contact')
 
         # top middle: control PSTH
@@ -44,10 +45,12 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9, error='sem', color='r')
         neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, error='sem', color='b')
         ax[0][1].set_xlim(0, 2)
+        ax[0][1].set_ylim(0.5, ax[0][0].get_ylim()[1])
         ax[0][1].vlines(0.5, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='m', linestyles='dashed')
         ax[0][1].vlines(1.5, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='m', linestyles='dashed')
         ax[0][1].hlines(0, 0, 2, colors='k', linestyles='dashed')
         ax[0][1].set_xlabel('time (s)')
+        ax[0][1].set_yscale("log")
         ax[0][1].set_title('no contact')
 
         # top right: evoked tuning curves

@@ -93,7 +93,7 @@ class NeuroAnalyzer(object):
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to each segment
-        self.classify_whisking_trials(threshold='user')
+        #self.classify_whisking_trials(threshold='user')
 
         # calculate rates, psths, whisking array, etc.
         self.rates()
