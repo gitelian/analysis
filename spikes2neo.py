@@ -72,9 +72,7 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
             # for whatever reason some .run files don't work with the above
             # code! instead of being a nxnothing vector it is a 1xn
             # vector...this appears to screw things up.
-            data = [mat[element][:].T for element in mat[variable_name][1]]
-        else:
-            warn('could not load run_cell!!!')
+            data = [mat[element][:].T for element in mat[variable_name][0]]
 
     elif variable_name == 'lfp':
         data = list()
@@ -531,8 +529,10 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1295']
+    fids = ['FID1329']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+#    fid = 'FID' + sys.argv[1]
+#    manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
     data_dir = '/media/greg/data/neuro/'
 
     neo_fname = '/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5'
