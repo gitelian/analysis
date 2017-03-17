@@ -12,8 +12,10 @@ import matplotlib as mpl
 import scipy.signal
 from neo.io import NeoHdf5IO
 import quantities as pq
+#import 3rd party code found on github
 import icsd
 import ranksurprise
+import dunn
 # for LDA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 # for t-distributed stochastic neighbor embedding
@@ -825,6 +827,28 @@ class NeuroAnalyzer(object):
                         (np.sqrt(x.shape[0]) - 1))
 
         self.selectivity = sel_mat
+
+    def get_sensory_drive(self):
+        '''determine which units are sensory driven'''
+        if hasattr(self, 'abs_count') is False:
+            self.rates()
+        control_pos = self.control_pos - 1
+        driven = list()
+        # compare only no light positions with control/no contact position
+        to_compare = [ (k, control_pos) for k in range(control_pos)]
+        for unit in range(self.num_units):
+            groups = list()
+            for k in range(control_pos + 1):
+                # append all rates
+                groups.append(self.abs_count[k][:, unit])
+            # test for sensory drive
+            H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
+            if reject.any():
+                driven.append(True)
+            else:
+                driven.append(False)
+
+        self.driven_units = driven
 
     def plot_tuning_curve(self, unit_ind=[], kind='abs_count', axis=None):
         '''

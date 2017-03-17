@@ -216,6 +216,7 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
                 depth = get_depth(best_chan,exp_info)
                 dur   = duration
                 ratio = wave_ratio
+                #print('duration:!!! {}'.format(duration))
 
                 # spike_measures columns order: fid, electrode, unit_id,
                 # depth, unit_id (MU=1, SU=2), duration, ratio, MU/RS/FS/UC
@@ -327,6 +328,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
 
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
+    #'FID1295'
     update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/')
 

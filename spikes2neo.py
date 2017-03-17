@@ -485,6 +485,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                             # spike_measures columns order: fid [0], electrode [1], unit_id [2],
                             # depth [3], unit_id [4] (MU=1, SU=2), duration [5], ratio [6],
                             # MU/RS/FS/UC [7], mean waveform [8:240]
+                            #print('duration:!!! {}'.format(spk_msrs[unit_ind, 5]))
                             block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
                                     t_start=trial_times[trial_ind, 0] * pq.s,
                                     t_stop=trial_times[trial_ind, 1] * pq.s,
@@ -529,7 +530,7 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1329']
+    fids = ['FID1295']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 #    fid = 'FID' + sys.argv[1]
 #    manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))

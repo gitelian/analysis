@@ -31,27 +31,27 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact, error='sem', color='k')
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9, error='sem', color='r')
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9+9, error='sem', color='b')
-        ax[0][0].set_xlim(0, 2)
-        ax[0][0].set_ylim(0.5, ax[0][0].get_ylim()[1])
+        ax[0][0].set_xlim(-0.5, 2)
+        #ax[0][0].set_ylim(0.5, ax[0][0].get_ylim()[1])
         ax[0][0].hlines(0, 0, 2, colors='k', linestyles='dashed')
         ax[0][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[0][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[0][0].set_xlabel('time (s)')
         ax[0][0].set_ylabel('firing rate (Hz)')
-        ax[0][0].set_yscale("log")
+        #ax[0][0].set_yscale("log")
         ax[0][0].set_title('best contact')
 
         # top middle: control PSTH
         neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1, error='sem', color='k')
         neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9, error='sem', color='r')
         neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, error='sem', color='b')
-        ax[0][1].set_xlim(0, 2)
-        ax[0][1].set_ylim(0.5, ax[0][0].get_ylim()[1])
+        ax[0][1].set_xlim(-0.5, 2)
+        #ax[0][1].set_ylim(0.5, ax[0][0].get_ylim()[1])
         ax[0][1].vlines(0.5, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='m', linestyles='dashed')
         ax[0][1].vlines(1.5, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='m', linestyles='dashed')
         ax[0][1].hlines(0, 0, 2, colors='k', linestyles='dashed')
         ax[0][1].set_xlabel('time (s)')
-        ax[0][1].set_yscale("log")
+        #ax[0][1].set_yscale("log")
         ax[0][1].set_title('no contact')
 
         # top right: evoked tuning curves
@@ -63,19 +63,19 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
         # middle left: raster during no light and best contact
         neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact, axis=ax[1][0])
-        ax[1][0].set_xlim(0, 2)
+        ax[1][0].set_xlim(-0.5, 2)
         ax[1][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[1][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[1][0].set_xlabel('time (s)')
-        ax[1][0].set_ylabel('trial')
+        ax[1][0].set_ylabel('no light trials')
 
         # middle middle: raster during no light and control position
         neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1, axis=ax[1][1])
-        ax[1][1].set_xlim(0, 2)
+        ax[1][1].set_xlim(-0.5, 2)
         ax[1][1].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[1][1].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[1][1].set_xlabel('time (s)')
-        ax[1][1].set_ylabel('trial')
+        ax[1][1].set_ylabel('no light trials')
 
         # middle right: OMI tuning curves
         omi_s1light = (meanr_abs[neuro.control_pos:neuro.control_pos+9] - meanr_abs[:neuro.control_pos]) / \
@@ -92,19 +92,19 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
         # bottom left: raster for best contact and S1 light
         neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9, axis=ax[2][0])
-        ax[2][0].set_xlim(0, 2)
+        ax[2][0].set_xlim(-0.5, 2)
         ax[2][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[2][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[2][0].set_xlabel('time (s)')
-        ax[2][0].set_ylabel('trial')
+        ax[2][0].set_ylabel('S1 light trials')
 
         # bottom middle: bursty ISI plot control position
         neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1+9, axis=ax[2][1])
-        ax[2][1].set_xlim(0, 2)
+        ax[2][1].set_xlim(-0.5, 2)
         ax[2][1].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[2][1].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[2][1].set_xlabel('time (s)')
-        ax[2][1].set_ylabel('trial')
+        ax[2][1].set_ylabel('S1 light trials')
 
         #ax[1][0].hist2d(pre, post, bins=arange(0,0.3,0.001))
 
@@ -118,19 +118,19 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
         # bottom bottom left: raster for best contact and S1 light
         neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9+9, axis=ax[3][0])
-        ax[3][0].set_xlim(0, 2)
+        ax[3][0].set_xlim(-0.5, 2)
         ax[3][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[3][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[3][0].set_xlabel('time (s)')
-        ax[3][0].set_ylabel('trial')
+        ax[3][0].set_ylabel('M1 light trials')
 
         # bottom bottom middle: bursty ISI plot control position
         neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, axis=ax[3][1])
-        ax[3][1].set_xlim(0, 2)
+        ax[3][1].set_xlim(-0.5, 2)
         ax[3][1].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[3][1].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
         ax[3][1].set_xlabel('time (s)')
-        ax[3][1].set_ylabel('trial')
+        ax[3][1].set_ylabel('M1 light trials')
 
         pdf.savefig()
         fig.clear()
@@ -145,6 +145,11 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # selectivity, center of mass, burstiness, OMI, decoder!!!
 # do this for best position and no contact position. Plot things overall and
 # then look at things as a function of depth.
+
+for experiment in experiments:
+    # neuro.sensory_drives() # write this to use KW and Dunn's to test for
+    # sensory driven activity and return a vector of length units with a 0 or a
+    # 1 to indicate not driven or driven.
 
 
 ## baseline firing rate analysis
