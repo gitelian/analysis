@@ -21,11 +21,12 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
         fig, ax = plt.subplots(4, 3, figsize=(10,8))
         fig.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.36, hspace=0.60)
-        fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}'.format(\
+        fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
                 neuro.region_dict[neuro.shank_ids[unit_index]], \
-                neuro.neo_obj.segments[0].spiketrains[unit_index].annotations['depth'], \
+                neuro.depths[unit_index], \
                 neuro.cell_type[unit_index], \
-                fid))
+                fid, \
+                neuro.driven_units[unit_index]))
 
         # top left: best contact PSTH
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact, error='sem', color='k')
@@ -146,41 +147,96 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # do this for best position and no contact position. Plot things overall and
 # then look at things as a function of depth.
 
-for experiment in experiments:
-    # neuro.sensory_drives() # write this to use KW and Dunn's to test for
-    # sensory driven activity and return a vector of length units with a 0 or a
-    # 1 to indicate not driven or driven.
+fids = ['1295', '1302', '1318', '1328']
+experiments = list()
+for fid in fids:
+    get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
+#    exp1 = block[0]
+#    neuro = NeuroAnalyzer(exp1)
+    # del neo objects to save memory
+    del neuro.neo_obj
+    del block
+    del exp1
+    del manager
+    experiments.append(neuro)
+
+# create arrays and lists for concatenating specified data from all experiments
+region      = np.empty((1, ))
+depths      = np.empty((1, ))
+cell_type   = list()
+driven      = np.empty((1, ))
+omi         = np.empty((1, 2))
+selectivity = np.empty((1, 3))
+preference  = np.empty((1, 3))
+
+for neuro in experiments:
+    # calculate measures that weren't calculated at init
+
+    # concatenate measures
+    cell_type.extend(neuro.cell_type)
+    region      = np.append(region, neuro.shank_ids)
+    depths      = np.append(depths, np.asarray(neuro.depths))
+    selectivity = np.append(selectivity, neuro.selectivity, axis=0)
+    driven      = np.append(driven, neuro.driven_units, axis=0)
+    omi         = np.append(omi, neuro.get_omi(), axis=0)
+    preference  = np.append(preference, neuro.preference, axis=0)
+
+cell_type = np.asarray(cell_type)
+region = region[1:,]
+depths = depths[1:,]
+driven = driven[1:,]
+omi    = omi[1:,]
+selectivity = selectivity[1:, :]
+preference  = preference[1:, :]
+
+##### select units #####
+npand   = np.logical_and
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+###### Plot selectivity #####
+bins = np.arange(0, 1, 0.05)
+fig, ax = plt.subplots(3, 1, figsize=(8,8))
+ax[0].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[0].set_title('M1, S1, no light')
+ax[1].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1].hist(selectivity[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[1].set_title('M1, S1 light')
+ax[2].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[2].hist(selectivity[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[2].set_title('S1, M1 light')
+
+##### Plot selectivity by depth
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
+ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
+ax.set_ylim(0, 1100)
+
+###### Plot preferred position #####
+bins = np.arange(-1.5, 1.5, 0.25)
+fig, ax = plt.subplots(3, 1, figsize=(8,8))
+ax[0].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[0].set_title('M1, S1, no light')
+ax[1].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1].hist(preference[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[1].set_title('M1, S1 light')
+ax[2].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[2].hist(preference[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[2].set_title('S1, M1 light')
 
 
-## baseline firing rate analysis
-#m1_rates = list()
-#s1_rates = list()
-#m1_sel   = list()
-#s1_sel   = list()
+# neuro.plot_tuning_curve(kind='evk_count')
+#import pickle
+## Saving the objects:
+#with open('four_experiments.pickle', 'w') as f:  # Python 3: open(..., 'wb')
+#    pickle.dump([experiments], f)
 #
-#for k in range(27):
-##for k in range(18):
-#    m1_temp = np.empty(1)
-#    s1_temp = np.empty(1)
-#    #for neuro in exps: #exps[2::]:
-#    for neuro in exps: #exps[2::]:
-#        rates_temp = neuro.abs_rate[k].mean(axis=0)
-#        #m1_inds = np.logical_and(neuro.shank_ids == 0, neuro.cell_type == 'RS')
-#        m1_inds = neuro.shank_ids == 0
-#        s1_inds = neuro.shank_ids == 1
-#        m1_temp = np.append(m1_temp, rates_temp[m1_inds])
-#        s1_temp = np.append(s1_temp, rates_temp[s1_inds])
-#
-#        if k == 0:
-#            neuro.get_selectivity()
-#            m1_sel.append(neuro.selectivity[m1_inds, :])
-#            s1_sel.append(neuro.selectivity[s1_inds, :])
-#    m1_rates.append(m1_temp)
-#    s1_rates.append(s1_temp)
-#
-##    m1_rates.append(rates_temp[m1_inds])
-##    s1_rates.append(rates_temp[s1_inds])
-#
+## Getting back the objects:
+#with open('four_experiments.pickle') as f:  # Python 3: open(..., 'rb')
+#    obj0, obj1, obj2 = pickle.load(f)
+
 #plt.figure()
 ## m1
 #plt.scatter(m1_rates[8], m1_rates[8+9], color='b')
@@ -202,38 +258,8 @@ for experiment in experiments:
 ## violin plot of spontaneous rates
 #pos = [1, 2]
 #violinplot([m1_rates[8], s1_rates[8]], pos, vert=True, widths=0.7,
-#
-## OMI for control position (diff over the sum)
-#m1_omi = (m1_rates[8+9] - m1_rates[8])/ (m1_rates[8+9] + m1_rates[8])
-#s1_omi = (s1_rates[8+9] - s1_rates[8])/ (s1_rates[8+9] + s1_rates[8])
-#violinplot([m1_omi, s1_omi], pos, vert=True, widths=0.7,
-#                              showextrema=True, showmedians=True)
-#
-## selectivity
-#
-#m1_temp = list()
-#s1_temp = list()
-#for k in m1_sel:
-#    m1_temp.extend(k[:, 0].ravel())
-#for k in s1_sel:
-#    s1_temp.extend(k[:, 0].ravel())
-#
-#plt.subplots(1,2)
-#plt.subplot(1,2,1)
-#plt.hist(m1_temp)
-#plt.subplot(1,2,2)
-#plt.hist(s1_temp)
 
 ###### Plot selectivity stuff #####
-#
-#neuro.get_selectivity()
-#m1_inds = np.where(neuro.shank_ids == 0)[0]
-#s1_inds = np.where(neuro.shank_ids == 1)[0]
-#m1_sel_nolight  = neuro.selectivity[m1_inds, 0]
-#m1_sel_s1light  = neuro.selectivity[m1_inds, 1]
-#s1_sel_nolight  = neuro.selectivity[s1_inds, 0]
-#s1_sel_s1light  = neuro.selectivity[s1_inds, 1]
-#
 ## m1 selectivity with and without s1 silencing
 #bins = np.arange(0, 1, 0.05)
 #plt.figure()

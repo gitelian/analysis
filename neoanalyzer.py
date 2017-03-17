@@ -107,6 +107,18 @@ class NeuroAnalyzer(object):
         # cells). This is dependent on everything above!
         self.reclassify_units()
 
+        # get selectivity for all units
+        self.get_selectivity()
+
+        # get preferred position for all units
+        self.get_preferred_position()
+
+        # get best contact for each unit
+        self.get_best_contact()
+
+        # kruskal wallis and dunn's test to ID sensory driven units
+        self.get_sensory_drive()
+
     def __sort_units(self, neo_obj):
         '''
         Units are saved out of order in the neo object.
@@ -811,22 +823,79 @@ class NeuroAnalyzer(object):
         self.isi_list  = isi_list
 
     def get_selectivity(self):
-        if hasattr(self, 'abs_count') is False:
+        if hasattr(self, 'abs_rate') is False:
             self.rates()
         control_pos = self.control_pos
         num_manipulations = self.stim_ids.shape[0]/control_pos
         sel_mat = np.zeros((self.num_units, num_manipulations))
 
         for manip in range(num_manipulations):
-            for unit in range(self.num_units):
-                meanr = [np.mean(k[:, unit]) for k in self.abs_count]
+            for unit_index in range(self.num_units):
+                meanr = [np.mean(k[:, unit_index]) for k in self.abs_rate]
+                # minus 1 to exclude no contact/control position
                 x = np.asarray(meanr[(manip*control_pos):((manip+1)*control_pos-1)])
-                # calculate selectivity for unit during manipulation
-                sel_mat[unit, manip] = \
+                # calculate selectivity for unit_index during manipulation
+                sel_mat[unit_index, manip] = \
                         1 - ((np.linalg.norm(x/np.max(x))- 1)/\
                         (np.sqrt(x.shape[0]) - 1))
 
         self.selectivity = sel_mat
+
+    def get_omi(self, pos=-1):
+        '''
+        calculates mean OMI or OMI at a specifie position. Returns a
+        unit X number of optogenetic manipulations
+        '''
+        if hasattr(self, 'abs_rate') is False:
+            self.rates()
+        control_pos = self.control_pos
+        num_manipulations = self.stim_ids.shape[0]/control_pos
+        omi_mat = np.zeros((self.num_units, num_manipulations-1))
+
+        for manip in range(num_manipulations - 1):
+            for unit_index in range(self.num_units):
+                meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
+                # NO minus 1, no contact/control position is INCLUDED
+                # (manip+1)*control_pos = (0+1)*9, (1+1)(9) = 18
+                omi_tc  = (meanr_abs[((manip+1)*control_pos):((manip+1+1)*control_pos)] - meanr_abs[:self.control_pos]) / \
+                                (meanr_abs[((manip+1)*control_pos):((manip+1+1)*control_pos)] + meanr_abs[:self.control_pos])
+                if pos == -1:
+                    omi_mat[unit_index, manip] = omi_tc.mean()
+                else:
+                    omi_mat[unit_index, manip] = omi_tc[pos]
+
+        return omi_mat
+
+    def get_preferred_position(self):
+        '''
+        calculated the preferred position. Returns a
+        unit X number of manipulations
+        '''
+        if hasattr(self, 'abs_rate') is False:
+            self.rates()
+        control_pos = self.control_pos
+        num_manipulations = self.stim_ids.shape[0]/control_pos
+        pref_mat = np.zeros((self.num_units, num_manipulations))
+        positions = range(control_pos-1)
+
+        for manip in range(num_manipulations):
+            for unit_index in range(self.num_units):
+                meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
+                weights = meanr_abs[(manip*control_pos):((manip+1)*control_pos-1)]
+                pref_mat[unit_index, manip] = np.sum(weights*positions)/np.sum(weights)
+
+        for region in self.shank_ids:
+            pref_mat[self.shank_ids == region, :] = pref_mat[self.shank_ids == region, :] - pref_mat[self.shank_ids == region, 0].mean()
+
+        self.preference = pref_mat
+
+    def get_best_contact(self):
+        '''calculates best contact for all units from evoked rate tuning curve'''
+        best_contact = np.zeros((self.num_units,))
+        for unit_index in range(self.num_units):
+            meanr = np.array([np.mean(k[:, unit_index]) for k in self.evk_rate])
+            best_contact[unit_index,] = np.argmax(meanr[:self.control_pos])
+        self.best_contact = best_contact
 
     def get_sensory_drive(self):
         '''determine which units are sensory driven'''
@@ -926,8 +995,9 @@ class NeuroAnalyzer(object):
                             fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
 
                 plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
-                        ' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
+                        ' depth: ' + str(self.depths[unit]) + \
                         '\ncell type: ' + str(self.cell_type[unit]))
+                        #' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
                 plt.plot([0, control_pos+1],[0,0],'--k')
                 plt.xlim(0, control_pos+1)
                 plt.ylim(plt.ylim()[0]-1, plt.ylim()[1]+1)
@@ -1152,25 +1222,27 @@ class NeuroAnalyzer(object):
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
-sns.set_style("whitegrid", {'axes.grid' : False})
 
-if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
-    data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-elif os.path.isdir('/media/greg/data/neuro/neo/'):
-    data_dir = '/media/greg/data/neuro/neo/'
+if __name__ == "__main__":
+    sns.set_style("whitegrid", {'axes.grid' : False})
 
-#manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
-print(sys.argv)
-fid = 'FID' + sys.argv[1]
-manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
-#manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
-print('Loading...')
-block = manager.read()
-print('...Loading Complete!')
-manager.close()
+    if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
+        data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+    elif os.path.isdir('/media/greg/data/neuro/neo/'):
+        data_dir = '/media/greg/data/neuro/neo/'
 
-exp1 = block[0]
-neuro = NeuroAnalyzer(exp1)
+    #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
+    print(sys.argv)
+    fid = 'FID' + sys.argv[1]
+    manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
+    #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
+    print('Loading...')
+    block = manager.read()
+    print('...Loading Complete!')
+    manager.close()
+
+    exp1 = block[0]
+    neuro = NeuroAnalyzer(exp1)
 
 ##### SCRATCH SPACE #####
 ##### SCRATCH SPACE #####
