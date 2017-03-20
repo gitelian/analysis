@@ -836,6 +836,7 @@ class NeuroAnalyzer(object):
         driven = list()
         # compare only no light positions with control/no contact position
         to_compare = [ (k, control_pos) for k in range(control_pos)]
+
         for unit in range(self.num_units):
             groups = list()
             for k in range(control_pos + 1):
@@ -843,6 +844,7 @@ class NeuroAnalyzer(object):
                 groups.append(self.abs_count[k][:, unit])
             # test for sensory drive
             H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
+
             if reject.any():
                 driven.append(True)
             else:
