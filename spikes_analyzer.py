@@ -141,13 +141,14 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
 
 
-#TODO: population analysis
-#TODO: population analysis
+##### population analysis #####
+##### population analysis #####
+
 # selectivity, center of mass, burstiness, OMI, decoder!!!
 # do this for best position and no contact position. Plot things overall and
 # then look at things as a function of depth.
 
-fids = ['1295', '1302', '1318', '1328']
+fids = ['1295', '1302', '1318', '1328', '1329']
 experiments = list()
 for fid in fids:
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
@@ -191,30 +192,83 @@ preference  = preference[1:, :]
 
 ##### select units #####
 npand   = np.logical_and
-m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+#m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
+#s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
 
 ###### Plot selectivity #####
-bins = np.arange(0, 1, 0.05)
-fig, ax = plt.subplots(3, 1, figsize=(8,8))
-ax[0].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[0].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[0].set_title('M1, S1, no light')
-ax[1].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[1].hist(selectivity[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[1].set_title('M1, S1 light')
-ax[2].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[2].hist(selectivity[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[2].set_title('S1, M1 light')
 
-##### Plot selectivity by depth
-fig, ax = plt.subplots(1, 1, figsize=(8,8))
-ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
-ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
-ax.set_ylim(0, 1100)
+## RS
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+bins = np.arange(0, 1, 0.05)
+fig, ax = plt.subplots(3, 3, figsize=(16,9))
+fig.suptitle('selectivity', fontsize=20)
+ax[0][0].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0][0].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[0][0].set_title('RS units M1: {} units, S1: {} units, no light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][0].legend(['M1', 'S1'])
+ax[1][0].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1][0].hist(selectivity[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[1][0].set_title('M1 units, S1 light')
+ax[1][0].legend(['M1', 'S1 silencing'])
+ax[2][0].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[2][0].hist(selectivity[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[2][0].set_title('S1 units, M1 light')
+ax[2][0].legend(['M1 silencing', 'S1'])
+
+## FS
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+ax[0][1].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0][1].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[0][1].set_title('FS units M1: {} units, S1: {} units, no light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][1].legend(['M1', 'S1'])
+ax[1][1].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1][1].hist(selectivity[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[1][1].set_title('M1 units, S1 light')
+ax[1][1].legend(['M1', 'S1 silencing'])
+ax[2][1].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[2][1].hist(selectivity[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[2][1].set_title('S1 units, M1 light')
+ax[2][1].legend(['M1 silencing', 'S1'])
+
+## MU
+m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
+ax[0][2].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0][2].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[0][2].set_title('MUA M1: {} units, S1: {} units, no light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][2].legend(['M1', 'S1'])
+ax[1][2].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1][2].hist(selectivity[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[1][2].set_title('M1, S1 light')
+ax[1][2].legend(['M1', 'S1 silencing'])
+ax[2][2].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[2][2].hist(selectivity[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[2][2].set_title('S1, M1 light')
+ax[2][2].legend(['M1 silencing', 'S1'])
+
+## set ylim to the max ylim of all subplots
+ylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = col.get_ylim()[1]
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+for row in ax:
+    for col in row:
+        col.set_ylim(0, ylim_max)
+
+###### Plot selectivity by depth
+#fig, ax = plt.subplots(1, 1, figsize=(8,8))
+#ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
+#ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
+#ax.set_ylim(0, 1100)
+
 
 ###### Plot preferred position #####
-bins = np.arange(-1.5, 1.5, 0.25)
+
+bins = np.arange(-1.5, 1.5, 0.10)
 fig, ax = plt.subplots(3, 1, figsize=(8,8))
 ax[0].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
 ax[0].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
@@ -226,16 +280,72 @@ ax[2].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color
 ax[2].hist(preference[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
 ax[2].set_title('S1, M1 light')
 
+###### Plot preferred position #####
 
-# neuro.plot_tuning_curve(kind='evk_count')
-#import pickle
-## Saving the objects:
-#with open('four_experiments.pickle', 'w') as f:  # Python 3: open(..., 'wb')
-#    pickle.dump([experiments], f)
-#
-## Getting back the objects:
-#with open('four_experiments.pickle') as f:  # Python 3: open(..., 'rb')
-#    obj0, obj1, obj2 = pickle.load(f)
+## RS
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+bins = np.arange(-1.0, 1.0, 0.10)
+fig, ax = plt.subplots(3, 3, figsize=(16,9))
+fig.suptitle('preferred position', fontsize=20)
+ax[0][0].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0][0].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[0][0].set_title('RS units M1: {} units, S1: {} units, no light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][0].legend(['M1', 'S1'])
+ax[1][0].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1][0].hist(preference[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[1][0].set_title('M1 units, S1 light')
+ax[1][0].legend(['M1', 'S1 silencing'])
+ax[2][0].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[2][0].hist(preference[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[2][0].set_title('S1 units, M1 light')
+ax[2][0].legend(['M1 silencing', 'S1'])
+
+## FS
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+ax[0][1].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0][1].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[0][1].set_title('FS units M1: {} units, S1: {} units, no light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][1].legend(['M1', 'S1'])
+ax[1][1].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1][1].hist(preference[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[1][1].set_title('M1 units, S1 light')
+ax[1][1].legend(['M1', 'S1 silencing'])
+ax[2][1].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[2][1].hist(preference[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[2][1].set_title('S1 units, M1 light')
+ax[2][1].legend(['M1 silencing', 'S1'])
+
+## MU
+m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
+ax[0][2].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0][2].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[0][2].set_title('MUA M1: {} units, S1: {} units, no light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][2].legend(['M1', 'S1'])
+ax[1][2].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1][2].hist(preference[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[1][2].set_title('M1, S1 light')
+ax[1][2].legend(['M1', 'S1 silencing'])
+ax[2][2].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[2][2].hist(preference[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[2][2].set_title('S1, M1 light')
+ax[2][2].legend(['M1 silencing', 'S1'])
+
+## set ylim to the max ylim of all subplots
+ylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = col.get_ylim()[1]
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+for row in ax:
+    for col in row:
+        col.set_ylim(0, ylim_max)
+
+# make scatter plot of M1 firing rate for best contact positions with and
+# without S1 silencing.
 
 #plt.figure()
 ## m1
