@@ -1056,7 +1056,7 @@ class NeuroAnalyzer(object):
         for trial in range(count_mat.shape[1]):
             trial_inds = np.where(count_mat[:, trial] > 0)[0]
             spike_times = self._bins[trial_inds]
-            ax.vlines(spike_times, trial, trial+1, color='k')
+            ax.vlines(spike_times, trial, trial+1, color='k', linewidth=1.0)
 
             if burst:
                 burst_times = list()
@@ -1069,7 +1069,7 @@ class NeuroAnalyzer(object):
                     if len(burst_times) > 0:
                         ax.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed', linewidth=0.5)
 
-        ax.hlines(trial+1, 0, 1.5, color='k')
+        #ax.hlines(trial+1, 0, 1.5, color='k')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+1)
 
