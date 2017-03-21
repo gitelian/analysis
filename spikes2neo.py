@@ -72,7 +72,7 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
             # for whatever reason some .run files don't work with the above
             # code! instead of being a nxnothing vector it is a 1xn
             # vector...this appears to screw things up.
-            data = [mat[element][:].T for element in mat[variable_name][0]]
+            data = [mat[element][:][0].T for element in mat[variable_name][0]]
 
     elif variable_name == 'lfp':
         data = list()
