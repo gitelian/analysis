@@ -137,10 +137,6 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         fig.clear()
         plt.close()
 
-
-
-
-
 ##### population analysis #####
 ##### population analysis #####
 
@@ -265,20 +261,6 @@ for row in ax:
 #ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
 #ax.set_ylim(0, 1100)
 
-
-###### Plot preferred position #####
-
-bins = np.arange(-1.5, 1.5, 0.10)
-fig, ax = plt.subplots(3, 1, figsize=(8,8))
-ax[0].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[0].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[0].set_title('M1, S1, no light')
-ax[1].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[1].hist(preference[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[1].set_title('M1, S1 light')
-ax[2].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[2].hist(preference[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[2].set_title('S1, M1 light')
 
 ###### Plot preferred position #####
 
