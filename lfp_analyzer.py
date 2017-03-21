@@ -90,7 +90,7 @@ plt.show()
 
 
 
-shank = 1
+shank = 0
 lfps_mat = lfps[shank][5]
 num_chan = neuro.chan_per_shank[shank]
 edist = 25.0 # microns
@@ -103,7 +103,7 @@ for k in range(lfps_mat.shape[2]):
     csd[:, :, k] = csd_temp
 
 # compute iCSD for first condition
-shank = 0
+shank = 1
 pos = 5
 lfps_mat = lfps[shank][pos]
 num_chan = neuro.chan_per_shank[shank]
@@ -127,10 +127,11 @@ for k in range(lfps_mat.shape[2]):
     csd1[:, :, k] = csd_temp
 
 #plot iCSD signal smoothed
+scale = 1
 fig, axes = plt.subplots(2,1, figsize=(8,8))
 ax = axes[0]
-im = ax.imshow(np.array(csd0.mean(axis=2)), origin='lower', vmin=-abs(csd0.mean(axis=2)).max(), \
-        vmax=abs(csd0.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest', \
+im = ax.imshow(np.array(csd0.mean(axis=2)), origin='lower', vmin=-abs(csd0.mean(axis=2)).max()*scale, \
+        vmax=abs(csd0.mean(axis=2)).max()*scale, cmap='jet_r', interpolation='nearest', \
         extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
 ax.axis(ax.axis('tight'))
 cb = plt.colorbar(im, ax=ax)
@@ -140,8 +141,8 @@ ax.set_xlim(-0.1, 1.3)
 
 #plot iCSD signal smoothed
 ax = axes[1]
-im = ax.imshow(np.array(csd1.mean(axis=2)), origin='lower', vmin=-abs(csd1.mean(axis=2)).max(), \
-        vmax=abs(csd1.mean(axis=2)).max(), cmap='jet_r', interpolation='nearest', \
+im = ax.imshow(np.array(csd1.mean(axis=2)), origin='lower', vmin=-abs(csd1.mean(axis=2)).max()*scale, \
+        vmax=abs(csd1.mean(axis=2)).max()*scale, cmap='jet_r', interpolation='nearest', \
         extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
 ax.axis(ax.axis('tight'))
 #ax.axis(sharex=axes[0])
