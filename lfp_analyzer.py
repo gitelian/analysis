@@ -65,7 +65,7 @@ get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
 neuro.get_lfps()
 lfps = neuro.lfps
 shank = 1
-contact = 15
+contact = 10
 pos = 3
 
 stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
@@ -76,6 +76,7 @@ lfp_m1light = lfps[shank][pos+9+9][stim_inds, contact, :]
 f, frq_nolight = neuro.get_psd(lfp_nolight, 1500.)
 f, frq_s1light = neuro.get_psd(lfp_s1light, 1500.)
 f, frq_m1light = neuro.get_psd(lfp_m1light, 1500.)
+plt.figure()
 neuro.plot_freq(f, frq_nolight, color='k')
 neuro.plot_freq(f, frq_s1light, color='r')
 neuro.plot_freq(f, frq_m1light, color='b')
@@ -85,26 +86,19 @@ plt.title('{} PSD'.format(neuro.region_dict[shank]))
 
 plt.show()
 
+
 ##### iCSD analysis #####
 ##### iCSD analysis #####
-
-
 
 shank = 0
-lfps_mat = lfps[shank][5]
+lfps_mat = lfps[shank][3]
 num_chan = neuro.chan_per_shank[shank]
 edist = 25.0 # microns
 chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
 
-for k in range(lfps_mat.shape[2]):
-    csd_temp = iCSD(lfps_mat[:, :, k].T)
-    if k == 0:
-        csd = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
-    csd[:, :, k] = csd_temp
-
 # compute iCSD for first condition
-shank = 1
-pos = 5
+shank = 0
+pos = 1
 lfps_mat = lfps[shank][pos]
 num_chan = neuro.chan_per_shank[shank]
 edist = 25.0 # microns
@@ -116,7 +110,7 @@ for k in range(lfps_mat.shape[2]):
     csd0[:, :, k] = csd_temp
 
 # compute iCSD for second condition
-lfps_mat = lfps[shank][pos+9+9]
+lfps_mat = lfps[shank][pos+9]
 num_chan = neuro.chan_per_shank[shank]
 edist = 25.0 # microns
 chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
@@ -127,7 +121,7 @@ for k in range(lfps_mat.shape[2]):
     csd1[:, :, k] = csd_temp
 
 #plot iCSD signal smoothed
-scale = 1
+scale = 0.90
 fig, axes = plt.subplots(2,1, figsize=(8,8))
 ax = axes[0]
 im = ax.imshow(np.array(csd0.mean(axis=2)), origin='lower', vmin=-abs(csd0.mean(axis=2)).max()*scale, \
@@ -137,7 +131,8 @@ ax.axis(ax.axis('tight'))
 cb = plt.colorbar(im, ax=ax)
 ax.set_ylabel('theoretical depth')
 ax.set_title('region: {0}, position {1}\nno light'.format(neuro.region_dict[shank], pos))
-ax.set_xlim(-0.1, 1.3)
+ax.set_xlim(-0.1, 1.0)
+#ax.set_xlim(-0.1, 0.250)
 
 #plot iCSD signal smoothed
 ax = axes[1]
@@ -145,11 +140,53 @@ im = ax.imshow(np.array(csd1.mean(axis=2)), origin='lower', vmin=-abs(csd1.mean(
         vmax=abs(csd1.mean(axis=2)).max()*scale, cmap='jet_r', interpolation='nearest', \
         extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
 ax.axis(ax.axis('tight'))
-#ax.axis(sharex=axes[0])
+ax.axis(sharex=axes[0])
 ax.set_title('light')
 ax.axis(sharex=True)
 cb = plt.colorbar(im, ax=ax)
 ax.set_xlabel('time (s)')
 ax.set_ylabel('theoretical depth')
-ax.set_xlim(-0.1, 1.3)
+ax.set_xlim(-0.1, 1.0)
+#ax.set_xlim(-0.1, 0.250)
+
+
+##### calculate all positions
+shank = 1
+num_chan = neuro.chan_per_shank[shank]
+edist = 25.0 # microns
+chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
+csd = list()
+for pos in range(9):
+    lfps_mat = lfps[shank][pos+9+9]
+    print('\n\n##### WORKING ON CONDITION: {} #####'.format(pos))
+    for k in range(lfps_mat.shape[2]):
+        csd_temp = iCSD(lfps_mat[:, :, k].T)
+        if k == 0:
+            csd0 = np.zeros((csd_temp.shape[0], csd_temp.shape[1], lfps_mat.shape[2]))
+        csd0[:, :, k] = csd_temp
+    csd.append(csd0)
+
+
+##### plot all positions
+scale = 0.90
+fig, axes = plt.subplots(9,1, figsize=(8,8))
+for pos in range(9):
+    ax = axes[pos]
+#    im = ax.imshow(np.array(csd[pos].mean(axis=2)), origin='lower', vmin=-abs(csd[pos].mean(axis=2)).max()*scale, \
+#            vmax=abs(csd[pos].mean(axis=2)).max()*scale, cmap='jet_r', interpolation='nearest', \
+#            extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
+    im = ax.imshow(np.array(csd[pos].mean(axis=2)), origin='lower', vmin=-35000, \
+            vmax=35000, cmap='jet_r', interpolation='nearest', \
+            extent=(neuro.lfp_t[0], neuro.lfp_t[-1], chan_depth[-1], chan_depth[0]))
+    ax.axis(ax.axis('tight'))
+    cb = plt.colorbar(im, ax=ax)
+    ax.set_ylabel('theoretical depth')
+    ax.set_title('position {}'.format(pos))
+    ax.set_xlim(-0.1, 1.0)
+
+
+
+
+
+
 
