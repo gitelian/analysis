@@ -956,6 +956,39 @@ class NeuroAnalyzer(object):
 
         return burst_rate_mat
 
+    def get_spike_rates_per_bin(self, bins=[0, 0.5, 1.0, 1.5], unit_ind=0, trial_type=0):
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'binned_spikes') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Computing burst rate for unit {} and trial_type {}'.format(unit_ind, trial_type))
+
+        bins = np.asarray(bins)
+        dt = np.diff(bins)[0]
+
+        count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
+        rates_per_bin = np.zeros((count_mat.shape[1], bins.shape[0]-1))
+        for trial in range(count_mat.shape[1]):
+            trial_inds = np.where(count_mat[:, trial] > 0)[0]
+            spike_times = self._bins[trial_inds]
+            counts = np.histogram(spike_times, bins=bins)[0]
+            rates  = counts/dt
+            rates_per_bin[trial, :] = rates
+
+        return rates_per_bin
+
+    def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
+        '''compute adaptation ratio for a given unit and bins'''
+        bins = np.asarray(bins)
+        ratios = np.zeros((1, self.stim_ids.shape[0], bins.shape[0]-1))
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = np.mean(self.get_spike_rates_per_bin(bins=bins, unit_ind=unit_ind, trial_type=cond), axis=0)
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = ratios[0, cond, :]/float(ratios[0, cond, 0])
+
+        return ratios
+
     def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
         '''
         make_simple_tuning_curve allows one to specify what type of tuning
