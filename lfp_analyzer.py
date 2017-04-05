@@ -98,7 +98,7 @@ chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist,
 
 # compute iCSD for first condition
 shank = 0
-pos = 1
+pos = 5
 lfps_mat = lfps[shank][pos]
 num_chan = neuro.chan_per_shank[shank]
 edist = 25.0 # microns
