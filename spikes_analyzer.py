@@ -583,6 +583,7 @@ ax[2][0].hist(burst_rate[s1_inds, s1_best_pos +9+9, 0], bins=bins, edgecolor='No
 
 
 
+#### changes in m1 or s1 with s1 silencing and m1 silencing respectively at best position
 fig, ax = plt.subplots(2,2)
 # m1 bursts S1 light
 # paired plot
@@ -602,11 +603,11 @@ ax[0][0].set_xlim(-1.5, 2.5)
 
 # s1 bursts M1 light
 # paired plot
-ax[1][0].scatter(np.zeros(sum(m1_inds)), burst_rate[m1_inds, m1_best_pos, 0], c='r')
-ax[1][0].scatter(np.ones(sum(m1_inds)), burst_rate[m1_inds, m1_best_pos+9, 0], c='r')
+ax[1][0].scatter(np.zeros(sum(s1_inds)), burst_rate[s1_inds, s1_best_pos, 0], c='r')
+ax[1][0].scatter(np.ones(sum(s1_inds)), burst_rate[s1_inds, s1_best_pos+9+9, 0], c='r')
 # plotting the lines
-for i in range(sum(m1_inds)):
-        ax[1][0].plot( [0,1], [burst_rate[m1_inds, m1_best_pos, 0][i], burst_rate[m1_inds, m1_best_pos+9, 0][i]], 'r')
+for i in range(sum(s1_inds)):
+        ax[1][0].plot( [0,1], [burst_rate[s1_inds, s1_best_pos, 0][i], burst_rate[s1_inds, s1_best_pos+9+9, 0][i]], 'r')
         ax[1][0].set_xticks([0,1], ['before', 'after'])
 
 #ax[1][0].hist(burst_rate[s1_inds, s1_best_pos, 0], bins=np.arange(0, 20, 1), alpha=0.5)
@@ -625,6 +626,49 @@ s1_diff = burst_rate[s1_inds, s1_best_pos+9+9, 0] - burst_rate[s1_inds, s1_best_
 ax[1][1].hist(s1_diff, bins=np.arange(-10, 10, 2), alpha=0.5)
 ax[1][1].set_xlim(-10, 10)
 
+
+#### changes in m1 or s1 with s1 silencing and m1 silencing respectively at no contact position
+fig, ax = plt.subplots(2,2)
+# m1 bursts S1 light
+# paired plot
+ax[0][0].scatter(np.zeros(sum(m1_inds)), burst_rate[m1_inds, 8, 0], c='k')
+ax[0][0].scatter(np.ones(sum(m1_inds)), burst_rate[m1_inds, 8+9, 0], c='k')
+# plotting the lines
+for i in range(sum(m1_inds)):
+        ax[0][0].plot( [0,1], [burst_rate[m1_inds, 8, 0][i], burst_rate[m1_inds, 8+9, 0][i]], 'k')
+        ax[0][0].set_xticks([0,1], ['before', 'after'])
+
+# plots histograms
+#ax[0][0].hist(burst_rate[m1_inds, 8, 0], bins=np.arange(0, 20, 1), alpha=0.5)
+#ax[0][0].hist(burst_rate[m1_inds, 8+9, 0], bins=np.arange(0, 20, 1), alpha=0.5)
+stat, pval = sp.stats.wilcoxon(burst_rate[m1_inds, 8, 0], burst_rate[m1_inds, 8+9, 0])
+ax[0][0].set_title('wilcoxon signed rank test p-val: {0:.5f}'.format(pval))
+ax[0][0].set_xlim(-1.5, 2.5)
+
+# s1 bursts M1 light
+# paired plot
+ax[1][0].scatter(np.zeros(sum(s1_inds)), burst_rate[s1_inds, 8, 0], c='r')
+ax[1][0].scatter(np.ones(sum(s1_inds)), burst_rate[s1_inds, 8+9+9, 0], c='r')
+# plotting the lines
+for i in range(sum(s1_inds)):
+        ax[1][0].plot( [0,1], [burst_rate[s1_inds, 8, 0][i], burst_rate[s1_inds, 8+9+9, 0][i]], 'r')
+        ax[1][0].set_xticks([0,1], ['before', 'after'])
+
+#ax[1][0].hist(burst_rate[s1_inds, 8, 0], bins=np.arange(0, 20, 1), alpha=0.5)
+#ax[1][0].hist(burst_rate[s1_inds, 8+9+9, 0], bins=np.arange(0, 20, 1), alpha=0.5)
+stat, pval = sp.stats.wilcoxon(burst_rate[s1_inds, 8, 0], burst_rate[s1_inds, 8+9+9, 0])
+ax[1][0].set_title('wilcoxon signed rank test: {0:.5f}'.format(pval))
+ax[1][0].set_xlim(-1.5, 2.5)
+
+# m1 burst difference distribution S1 light
+m1_diff = burst_rate[m1_inds, 8+9, 0] - burst_rate[m1_inds, 8, 0]
+ax[0][1].hist(m1_diff, bins=np.arange(-10, 10, 2), alpha=0.5)
+ax[0][1].set_xlim(-10, 10)
+
+# s1 burst difference distribution S1 light
+s1_diff = burst_rate[s1_inds, 8+9+9, 0] - burst_rate[s1_inds, 8, 0]
+ax[1][1].hist(s1_diff, bins=np.arange(-10, 10, 2), alpha=0.5)
+ax[1][1].set_xlim(-10, 10)
 
 
 
