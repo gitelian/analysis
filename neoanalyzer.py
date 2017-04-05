@@ -921,7 +921,7 @@ class NeuroAnalyzer(object):
 
         self.driven_units = driven
 
-    def plot_tuning_curve(self, unit_ind=[], kind='abs_count', axis=None):
+    def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
         '''
         make_simple_tuning_curve allows one to specify what type of tuning
         curve to plot as well as which unit for a single tuning curve or all
@@ -950,7 +950,7 @@ class NeuroAnalyzer(object):
         line_color = ['k','r','b']
 
         # if tuning curves from one unit will be plotted on a given axis
-        if unit_ind:
+        if unit_ind != None:
 
             if axis == None:
                 ax = plt.gca()
@@ -1072,6 +1072,55 @@ class NeuroAnalyzer(object):
         #ax.hlines(trial+1, 0, 1.5, color='k')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+1)
+
+        return ax
+        
+    def plot_raster_all_conditions(self, unit_ind=0, num_trials=None, offset=5, axis=None, burst=True):
+        '''
+        Makes a raster plot for the given unit index and trial type.
+        If called alone it will plot a raster to the current axis. This function
+        is called by plot_all_rasters and returns an axis handle to the current
+        subplot. This allows plot_all_rasters to plot rasters in the appropriate
+        subplots.
+        '''
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'binned_spikes') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Making raster for unit {}'.format(unit_ind))
+        if axis == None:
+            ax = plt.gca()
+        else:
+            ax = axis
+
+        min_trials = np.min(self.num_good_trials)
+        if num_trials != None and num_trials < min_trials:
+            min_trials = num_trials
+
+        for trial_type in range(self.stim_ids.shape[0]):
+            count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
+            shift = offset*trial_type+min_trials*trial_type
+
+            for trial in range(min_trials):
+                trial_inds = np.where(count_mat[:, trial] > 0)[0]
+                spike_times = self._bins[trial_inds]
+                ax.vlines(spike_times, trial+shift, trial+1+shift, color='k', linewidth=1.0)
+
+                # if burst:
+                #     burst_times = list()
+                #     data = spike_times
+                #     if len(data) > 3:
+                #         start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
+                #         for k in range(len(start)):
+                #             burst_times.extend(data[start[k]:(start[k]+length[k])])
+
+                #         if len(burst_times) > 0:
+                #             ax.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed', linewidth=0.5)
+
+                #ax.hlines(trial+1, 0, 1.5, color='k')
+        ax.set_xlim(self._bins[0], self._bins[-1])
+        ax.set_ylim(0, trial+shift+1)
 
         return ax
 
