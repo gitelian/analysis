@@ -921,6 +921,41 @@ class NeuroAnalyzer(object):
 
         self.driven_units = driven
 
+    def get_burst_rate(self, unit_ind=0, trial_type=0, start_time=0.5, stop_time=1.5):
+        '''
+        '''
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'binned_spikes') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Computing burst rate for unit {} and trial_type {}'.format(unit_ind, trial_type))
+
+        count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
+        burst_rate_mat = np.zeros((count_mat.shape[1],))
+
+        for trial in range(count_mat.shape[1]):
+            trial_inds = np.where(count_mat[:, trial] > 0)[0]
+            spike_times = self._bins[trial_inds]
+
+            burst_times = list()
+            data = spike_times
+            if len(data) > 3:
+                start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
+                for k in range(len(start)):
+                    burst_times.extend(data[start[k]:(start[k]+length[k])])
+
+                if len(burst_times) > 0:
+                    num_bursts = np.sum(np.logical_and(np.asarray(burst_times) > start_time, \
+                            np.asarray(burst_times) < stop_time))
+                    analysis_time = stop_time - start_time
+                    burst_rate = num_bursts/analysis_time
+                else:
+                    burst_rate = 0
+                burst_rate_mat[trial] = burst_rate
+
+        return burst_rate_mat
+
     def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
         '''
         make_simple_tuning_curve allows one to specify what type of tuning
@@ -1074,8 +1109,8 @@ class NeuroAnalyzer(object):
         ax.set_ylim(0, trial+1)
 
         return ax
-        
-    def plot_raster_all_conditions(self, unit_ind=0, num_trials=None, offset=5, axis=None, burst=True):
+
+    def plot_raster_all_conditions(self, unit_ind=0, num_trials=None, offset=5, axis=None, burst=False):
         '''
         Makes a raster plot for the given unit index and trial type.
         If called alone it will plot a raster to the current axis. This function
@@ -1107,18 +1142,18 @@ class NeuroAnalyzer(object):
                 spike_times = self._bins[trial_inds]
                 ax.vlines(spike_times, trial+shift, trial+1+shift, color='k', linewidth=1.0)
 
-                # if burst:
-                #     burst_times = list()
-                #     data = spike_times
-                #     if len(data) > 3:
-                #         start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
-                #         for k in range(len(start)):
-                #             burst_times.extend(data[start[k]:(start[k]+length[k])])
+                if burst:
+                    burst_times = list()
+                    data = spike_times
+                    if len(data) > 3:
+                        start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
+                        for k in range(len(start)):
+                            burst_times.extend(data[start[k]:(start[k]+length[k])])
 
-                #         if len(burst_times) > 0:
-                #             ax.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed', linewidth=0.5)
+                        if len(burst_times) > 0:
+                            ax.vlines(burst_times, trial+shift, trial+1+shift, 'r', linestyles='dashed', linewidth=0.5)
 
-                #ax.hlines(trial+1, 0, 1.5, color='k')
+#                ax.hlines(trial+1, 0, 1.5, color='k')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+shift+1)
 
