@@ -167,6 +167,7 @@ selectivity = np.empty((1, 3))
 preference  = np.empty((1, 3))
 best_pos    = np.empty((1, ))
 abs_rate    = np.empty((1, 27, 2))
+burst_rate  = np.empty((1, 27, 2))
 
 for neuro in experiments:
     # calculate measures that weren't calculated at init
@@ -183,10 +184,22 @@ for neuro in experiments:
     best_pos    = np.append(best_pos, neuro.best_contact)
 
     for unit_index in range(neuro.num_units):
-        temp = np.empty((1, 27, 2))
+
+        # compute absolute rate (mean and sem)
+        temp = np.zeros((1, 27, 2))
         temp[0, :, 0] = np.array([np.mean(k[:, unit_index]) for k in neuro.abs_rate])[:]
         temp[0, :, 1] = np.array([sp.stats.sem(k[:, unit_index]) for k in neuro.abs_rate])
         abs_rate = np.append(abs_rate, temp, axis=0)
+
+        # compute burst rate for RS cells only (mean and sem)
+        temp = np.zeros((1, 27, 2))
+        if neuro.cell_type[unit_index] == 'RS':
+            for trial in range(27):
+                burst_rates = neuro.get_burst_rate(unit_ind=unit_index, trial_type=trial)
+                temp[0, trial, 0] = np.mean(burst_rates)
+                temp[0, trial, 1] = sp.stats.sem(burst_rates)
+        burst_rate = np.append(burst_rate, temp, axis=0)
+
 
 cell_type = np.asarray(cell_type)
 region = region[1:,]
@@ -195,8 +208,9 @@ driven = driven[1:,]
 omi    = omi[1:,]
 selectivity = selectivity[1:, :]
 preference  = preference[1:, :]
-abs_rate    = abs_rate[1:, :]
 best_pos    = best_pos[1:,]
+abs_rate    = abs_rate[1:, :]
+burst_rate  = burst_rate[1:, :]
 
 ##### select units #####
 npand   = np.logical_and
