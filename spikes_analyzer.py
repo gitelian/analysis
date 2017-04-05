@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+import scipy.io as sio
 
 # remove gride lines
 sns.set_style("whitegrid", {'axes.grid' : False})
@@ -216,6 +217,12 @@ burst_rate  = burst_rate[1:, :]
 npand   = np.logical_and
 #m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
 #s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
+
+##### save burst matrix #####
+a = dict()
+burst_path = '/Users/Greg/Documents/AdesnikLab/Data/burst.mat'
+a['burst_rate'] = burst_rate
+sio.savemat(burst_path, a)
 
 ###### Plot selectivity #####
 
@@ -553,15 +560,70 @@ ax[1][2].set_ylim(0, max_val)
 ax[1][2].plot([0, max_val], [0, max_val], 'b')
 ax[1][2].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 
+## plot burst rates
+
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+m1_best_pos = best_pos[m1_inds].astype(int)
+s1_best_pos = best_pos[s1_inds].astype(int)
+bins = np.arange(0, 100, 2)
+fig, ax = plt.subplots(3, 2, figsize=(16,9))
+
+## RS no light best position
+ax[0][0].hist(burst_rate[m1_inds, m1_best_pos, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0][0].hist(burst_rate[s1_inds, s1_best_pos, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+
+## RS S1 light best position
+ax[1][0].hist(burst_rate[m1_inds, m1_best_pos + 9, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1][0].hist(burst_rate[s1_inds, s1_best_pos + 9, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+
+## RS M1 light best position
+ax[2][0].hist(burst_rate[m1_inds, m1_best_pos +9+9, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[2][0].hist(burst_rate[s1_inds, s1_best_pos +9+9, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
 
 
 
+fig, ax = plt.subplots(2,2)
+# m1 bursts S1 light
+# paired plot
+ax[0][0].scatter(np.zeros(sum(m1_inds)), burst_rate[m1_inds, m1_best_pos, 0], c='k')
+ax[0][0].scatter(np.ones(sum(m1_inds)), burst_rate[m1_inds, m1_best_pos+9, 0], c='k')
+# plotting the lines
+for i in range(sum(m1_inds)):
+        ax[0][0].plot( [0,1], [burst_rate[m1_inds, m1_best_pos, 0][i], burst_rate[m1_inds, m1_best_pos+9, 0][i]], 'k')
+        ax[0][0].set_xticks([0,1], ['before', 'after'])
 
+# plots histograms
+#ax[0][0].hist(burst_rate[m1_inds, m1_best_pos, 0], bins=np.arange(0, 20, 1), alpha=0.5)
+#ax[0][0].hist(burst_rate[m1_inds, m1_best_pos+9, 0], bins=np.arange(0, 20, 1), alpha=0.5)
+stat, pval = sp.stats.wilcoxon(burst_rate[m1_inds, m1_best_pos, 0], burst_rate[m1_inds, m1_best_pos+9, 0])
+ax[0][0].set_title('wilcoxon signed rank test p-val: {0:.5f}'.format(pval))
+ax[0][0].set_xlim(-1.5, 2.5)
 
+# s1 bursts M1 light
+# paired plot
+ax[1][0].scatter(np.zeros(sum(m1_inds)), burst_rate[m1_inds, m1_best_pos, 0], c='r')
+ax[1][0].scatter(np.ones(sum(m1_inds)), burst_rate[m1_inds, m1_best_pos+9, 0], c='r')
+# plotting the lines
+for i in range(sum(m1_inds)):
+        ax[1][0].plot( [0,1], [burst_rate[m1_inds, m1_best_pos, 0][i], burst_rate[m1_inds, m1_best_pos+9, 0][i]], 'r')
+        ax[1][0].set_xticks([0,1], ['before', 'after'])
 
+#ax[1][0].hist(burst_rate[s1_inds, s1_best_pos, 0], bins=np.arange(0, 20, 1), alpha=0.5)
+#ax[1][0].hist(burst_rate[s1_inds, s1_best_pos+9+9, 0], bins=np.arange(0, 20, 1), alpha=0.5)
+stat, pval = sp.stats.wilcoxon(burst_rate[s1_inds, s1_best_pos, 0], burst_rate[s1_inds, s1_best_pos+9+9, 0])
+ax[1][0].set_title('wilcoxon signed rank test: {0:.5f}'.format(pval))
+ax[1][0].set_xlim(-1.5, 2.5)
 
+# m1 burst difference distribution S1 light
+m1_diff = burst_rate[m1_inds, m1_best_pos+9, 0] - burst_rate[m1_inds, m1_best_pos, 0]
+ax[0][1].hist(m1_diff, bins=np.arange(-10, 10, 2), alpha=0.5)
+ax[0][1].set_xlim(-10, 10)
 
-
+# s1 burst difference distribution S1 light
+s1_diff = burst_rate[s1_inds, s1_best_pos+9+9, 0] - burst_rate[s1_inds, s1_best_pos, 0]
+ax[1][1].hist(s1_diff, bins=np.arange(-10, 10, 2), alpha=0.5)
+ax[1][1].set_xlim(-10, 10)
 
 
 
