@@ -962,7 +962,7 @@ class NeuroAnalyzer(object):
             print('Spikes have not been binned! Binning data now.')
             self.rates()
 
-        print('Computing burst rate for unit {} and trial_type {}'.format(unit_ind, trial_type))
+        print('Computing spike rates per bin for unit {} and trial_type {}'.format(unit_ind, trial_type))
 
         bins = np.asarray(bins)
         dt = np.diff(bins)[0]
