@@ -169,7 +169,6 @@ preference  = np.empty((1, 3))
 best_pos    = np.empty((1, ))
 abs_rate    = np.empty((1, 27, 2))
 burst_rate  = np.empty((1, 27, 2))
-adapt_ratio = np.empty((1, 27, 2))
 
 for neuro in experiments:
     # calculate measures that weren't calculated at init
@@ -193,18 +192,14 @@ for neuro in experiments:
         temp[0, :, 1] = np.array([sp.stats.sem(k[:, unit_index]) for k in neuro.abs_rate])
         abs_rate = np.append(abs_rate, temp, axis=0)
 
-#        # compute burst rate for RS cells only (mean and sem)
-#        temp = np.zeros((1, 27, 2))
-#        if neuro.cell_type[unit_index] == 'RS':
-#            for trial in range(27):
-#                burst_rates = neuro.get_burst_rate(unit_ind=unit_index, trial_type=trial)
-#                temp[0, trial, 0] = np.mean(burst_rates)
-#                temp[0, trial, 1] = sp.stats.sem(burst_rates)
-#        burst_rate = np.append(burst_rate, temp, axis=0)
-
-        # compute adaptation ratio
-        adapt_ratio_temp = neuro.get_adaptation_ratio(unit_ind=unit_index)
-        adapt_ratio = np.append(adapt_ratio, adapt_ratio_temp, axis=0)
+        # compute burst rate for RS cells only (mean and sem)
+        temp = np.zeros((1, 27, 2))
+        if neuro.cell_type[unit_index] == 'RS':
+            for trial in range(27):
+                burst_rates = neuro.get_burst_rate(unit_ind=unit_index, trial_type=trial)
+                temp[0, trial, 0] = np.mean(burst_rates)
+                temp[0, trial, 1] = sp.stats.sem(burst_rates)
+        burst_rate = np.append(burst_rate, temp, axis=0)
 
 
 cell_type = np.asarray(cell_type)
@@ -217,7 +212,6 @@ preference  = preference[1:, :]
 best_pos    = best_pos[1:,]
 abs_rate    = abs_rate[1:, :]
 burst_rate  = burst_rate[1:, :]
-adapt_ratio = adapt_ratio[1:, :]
 
 ##### select units #####
 npand   = np.logical_and
@@ -566,11 +560,7 @@ ax[1][2].set_ylim(0, max_val)
 ax[1][2].plot([0, max_val], [0, max_val], 'b')
 ax[1][2].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 
-
-
 ## plot burst rates
-## plot burst rates
-
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 m1_best_pos = best_pos[m1_inds].astype(int)
@@ -594,6 +584,7 @@ ax[2][0].hist(burst_rate[s1_inds, s1_best_pos +9+9, 0], bins=bins, edgecolor='No
 
 #### changes in m1 or s1 with s1 silencing and m1 silencing respectively at best position
 #### changes in m1 or s1 with s1 silencing and m1 silencing respectively at best position
+
 fig, ax = plt.subplots(2,2)
 # m1 bursts S1 light
 # paired plot
@@ -635,7 +626,6 @@ ax[0][1].set_xlim(-10, 10)
 s1_diff = burst_rate[s1_inds, s1_best_pos+9+9, 0] - burst_rate[s1_inds, s1_best_pos, 0]
 ax[1][1].hist(s1_diff, bins=np.arange(-10, 10, 2), alpha=0.5)
 ax[1][1].set_xlim(-10, 10)
-
 
 
 #### changes in m1 or s1 with s1 silencing and m1 silencing respectively at no contact position
@@ -685,111 +675,6 @@ ax[1][1].set_xlim(-10, 10)
 
 
 
-##### changes in adaptation ratio in M1 with S1 silencing at best position
-##### changes in adaptation ratio in M1 with S1 silencing at best position
-
-m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-m1_best_pos = best_pos[m1_inds].astype(int)
-s1_best_pos = best_pos[s1_inds].astype(int)
-fig, ax = plt.subplots(2,2)
-
-fig.suptitle('Adaptation ratios', fontsize=20)
-# m1 adaptation S1 light
-# paired plot
-ax[0][0].scatter(np.zeros(sum(m1_inds)), adapt_ratio[m1_inds, m1_best_pos, 1], c='k')
-ax[0][0].scatter(np.ones(sum(m1_inds)), adapt_ratio[m1_inds, m1_best_pos+9, 1], c='k')
-# plotting the lines
-for i in range(sum(m1_inds)):
-        ax[0][0].plot( [0,1], [adapt_ratio[m1_inds, m1_best_pos, 1][i], adapt_ratio[m1_inds, m1_best_pos+9, 1][i]], 'k')
-        ax[0][0].set_xticks([0,1], ['before', 'after'])
-
-# plots histograms
-#ax[0][0].hist(burst_rate[m1_inds, 8, 0], bins=np.arange(0, 20, 1), alpha=0.5)
-#ax[0][0].hist(burst_rate[m1_inds, 8+9, 0], bins=np.arange(0, 20, 1), alpha=0.5)
-stat, pval = sp.stats.wilcoxon(adapt_ratio[m1_inds, m1_best_pos, 0], adapt_ratio[m1_inds, m1_best_pos+9, 1])
-ax[0][0].set_title('wilcoxon signed rank test p-val: {0:.5f}'.format(pval))
-ax[0][0].set_xlim(-1.5, 2.5)
-
-# s1 bursts M1 light
-# paired plot
-ax[1][0].scatter(np.zeros(sum(s1_inds)), adapt_ratio[s1_inds, s1_best_pos, 1], c='r')
-ax[1][0].scatter(np.ones(sum(s1_inds)), adapt_ratio[s1_inds, s1_best_pos+9+9, 1], c='r')
-# plotting the lines
-for i in range(sum(s1_inds)):
-        ax[1][0].plot( [0,1], [adapt_ratio[s1_inds, s1_best_pos, 1][i], adapt_ratio[s1_inds, s1_best_pos+9+9, 1][i]], 'r')
-        ax[1][0].set_xticks([0,1], ['before', 'after'])
-
-#ax[1][0].hist(adapt_ratio[s1_inds, 8, 0], bins=np.arange(0, 20, 1), alpha=0.5)
-#ax[1][0].hist(adapt_ratio[s1_inds, 8+9+9, 0], bins=np.arange(0, 20, 1), alpha=0.5)
-stat, pval = sp.stats.wilcoxon(adapt_ratio[s1_inds, s1_best_pos, 1], adapt_ratio[s1_inds, s1_best_pos+9+9, 1])
-ax[1][0].set_title('wilcoxon signed rank test: {0:.5f}'.format(pval))
-ax[1][0].set_xlim(-1.5, 2.5)
-
-# m1 burst difference distribution S1 light
-m1_diff = adapt_ratio[m1_inds, m1_best_pos+9, 1] - adapt_ratio[m1_inds, m1_best_pos, 1]
-ax[0][1].hist(m1_diff, bins=np.arange(-2, 2, 0.05), alpha=0.5)
-ax[0][1].set_xlim(-1, 1)
-
-# s1 burst difference distribution S1 light
-s1_diff = adapt_ratio[s1_inds, s1_best_pos+9+9, 1] - adapt_ratio[s1_inds, s1_best_pos, 1]
-ax[1][1].hist(s1_diff, bins=np.arange(-2, 2, 0.05), alpha=0.5)
-ax[1][1].set_xlim(-1, 1)
-
-
-
-##### changes in adaptation ratio in M1 with S1 silencing at no contact position
-##### changes in adaptation ratio in M1 with S1 silencing at no contact position
-
-m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-bins = np.arange(0, 100, 2)
-fig, ax = plt.subplots(2,2)
-
-fig.suptitle('Adaptation ratios', fontsize=20)
-# m1 adaptation S1 light
-# paired plot
-ax[0][0].scatter(np.zeros(sum(m1_inds)), adapt_ratio[m1_inds, 8, 1], c='k')
-ax[0][0].scatter(np.ones(sum(m1_inds)), adapt_ratio[m1_inds, 8+9, 1], c='k')
-# plotting the lines
-for i in range(sum(m1_inds)):
-        ax[0][0].plot( [0,1], [adapt_ratio[m1_inds, 8, 1][i], adapt_ratio[m1_inds, 8+9, 1][i]], 'k')
-        ax[0][0].set_xticks([0,1], ['before', 'after'])
-
-# plots histograms
-#ax[0][0].hist(burst_rate[m1_inds, 8, 0], bins=np.arange(0, 20, 1), alpha=0.5)
-#ax[0][0].hist(burst_rate[m1_inds, 8+9, 0], bins=np.arange(0, 20, 1), alpha=0.5)
-stat, pval = sp.stats.wilcoxon(adapt_ratio[m1_inds, 8, 0], adapt_ratio[m1_inds, 8+9, 1])
-ax[0][0].set_title('wilcoxon signed rank test p-val: {0:.5f}'.format(pval))
-ax[0][0].set_xlim(-1.5, 2.5)
-
-# s1 bursts M1 light
-# paired plot
-ax[1][0].scatter(np.zeros(sum(s1_inds)), adapt_ratio[s1_inds, 8, 1], c='r')
-ax[1][0].scatter(np.ones(sum(s1_inds)), adapt_ratio[s1_inds, 8+9+9, 1], c='r')
-# plotting the lines
-for i in range(sum(s1_inds)):
-        ax[1][0].plot( [0,1], [adapt_ratio[s1_inds, 8, 1][i], adapt_ratio[s1_inds, 8+9+9, 1][i]], 'r')
-        ax[1][0].set_xticks([0,1], ['before', 'after'])
-
-#ax[1][0].hist(adapt_ratio[s1_inds, 8, 0], bins=np.arange(0, 20, 1), alpha=0.5)
-#ax[1][0].hist(adapt_ratio[s1_inds, 8+9+9, 0], bins=np.arange(0, 20, 1), alpha=0.5)
-stat, pval = sp.stats.wilcoxon(adapt_ratio[s1_inds, 8, 1], adapt_ratio[s1_inds, 8+9+9, 1])
-ax[1][0].set_title('wilcoxon signed rank test: {0:.5f}'.format(pval))
-ax[1][0].set_xlim(-1.5, 2.5)
-
-# m1 burst difference distribution S1 light
-m1_diff = adapt_ratio[m1_inds, 8+9, 1] - adapt_ratio[m1_inds, 8, 1]
-ax[0][1].hist(m1_diff, bins=np.arange(-2, 2, 0.05), alpha=0.5)
-ax[0][1].set_xlim(-1, 1)
-
-# s1 burst difference distribution S1 light
-s1_diff = adapt_ratio[s1_inds, 8+9+9, 1] - adapt_ratio[s1_inds, 8, 1]
-ax[1][1].hist(s1_diff, bins=np.arange(-2, 2, 0.05), alpha=0.5)
-ax[1][1].set_xlim(-1, 1)
-
-
-
 ##### m1 and s1 adaptation during best contact position
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
@@ -802,6 +687,13 @@ fig.suptitle('Adaptation ratios', fontsize=20)
 # plots histograms
 ax.hist(adapt_ratio[m1_inds, m1_best_pos, 1], bins=np.arange(0, 2, 0.1), alpha=0.5, color='k')
 ax.hist(adapt_ratio[s1_inds, s1_best_pos+9, 1], bins=np.arange(0, 2, 0.1), alpha=0.5, color='r')
+
+
+
+
+
+
+
 
 
 
