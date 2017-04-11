@@ -1,6 +1,7 @@
 #!/bin/bash
 import os.path
 import sys
+import pandas as pd
 import warnings
 import scipy as sp
 import numpy as np
@@ -36,9 +37,10 @@ class NeuroAnalyzer(object):
     object. They point to the same place in memory. No copy is made.
     """
 
-    def __init__(self, neo_obj):
+    def __init__(self, neo_obj, fid):
 
         print('\n-----__init__-----')
+        self.fid = fid
         # segments can get out of the order they were created
         sorted_index_list = np.argsort([k.index for k in neo_obj.segments])
         neo_obj.segments  = [neo_obj.segments[k] for k in sorted_index_list]
@@ -95,7 +97,7 @@ class NeuroAnalyzer(object):
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to each segment
-        #self.classify_whisking_trials(threshold='user')
+        self.classify_whisking_trials(threshold='user')
 
         # calculate rates, psths, whisking array, etc.
         self.rates()
@@ -118,6 +120,32 @@ class NeuroAnalyzer(object):
 
         # kruskal wallis and dunn's test to ID sensory driven units
         self.get_sensory_drive()
+
+    def get_exp_details_info(self, key, data_dir_path='/media/greg/data/neuro/'):
+        ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
+        print('\n----- get_exp_details_info -----')
+        fid = int(self.fid[3::])
+        experiment_details_path = data_dir_path + 'experiment_details.csv'
+        print('Loading experiment details file for FID: ' + str(self.fid) + '\nkey: ' + key)
+        df_exp_det_regular_index = pd.read_csv(experiment_details_path,sep=',')
+        df_exp_det_fid_index = df_exp_det_regular_index.set_index('fid')
+
+        # check if experiment is in the experiment details csv file
+        # need this info to extract electrode depth
+
+        if fid not in df_exp_det_fid_index.index:
+            warn('fid' + str(fid) + ' not found in experiment details csv file.\n\
+                            Please update file and try again.')
+            return None
+
+        exp_info = df_exp_det_fid_index.loc[fid]
+
+        if key not in exp_info:
+            warn('key "' + key + '" not found in experiment details csv file.\n\
+                            Setting to None.')
+            return None
+        else:
+            return exp_info[key]
 
     def __sort_units(self, neo_obj):
         '''
@@ -196,33 +224,38 @@ class NeuroAnalyzer(object):
 
     def __find_min_times(self):
         print('\n-----finding minimum trial lengths----')
-        # iterate through all trials and find smallest baseline and smallest
-        # post-trial time
-        for k, seg in enumerate(self.neo_obj.segments):
-            # get baseline and stimulus period times for this trial
-            stim_start = seg.annotations['stim_times'][0] + self.t_after_stim
-            stim_stop  = seg.annotations['stim_times'][1]
-            base_start = seg.annotations['stim_times'][0] - (stim_stop - stim_start)
-            base_stop  = seg.annotations['stim_times'][0]
-            baseline_length = base_stop - base_start # time before stimulus
+#        # iterate through all trials and find smallest baseline and smallest
+#        # post-trial time
+#        for k, seg in enumerate(self.neo_obj.segments):
+#            # get baseline and stimulus period times for this trial
+#            stim_start = seg.annotations['stim_times'][0] + self.t_after_stim
+#            stim_stop  = seg.annotations['stim_times'][1]
+#            base_start = seg.annotations['stim_times'][0] - (stim_stop - stim_start)
+#            base_stop  = seg.annotations['stim_times'][0]
+#            baseline_length = base_stop - base_start # time before stimulus
+#
+#            # iterate through all units and find longest trial length
+#            temp_max = 0
+#            for unit, spike_train in enumerate(seg.spiketrains):
+#                if spike_train.t_stop > temp_max:
+#                    temp_max = np.asarray(spike_train.t_stop)
+#            # temp_max = temp_max - trial_start_time
+#            temp_max -= np.asarray(seg.annotations['stim_times'][0]) # time after stimulus
+#
+#            if k == 0:
+#                min_tbefore_stim = baseline_length
+#                min_tafter_stim = temp_max
+#
+#            if baseline_length < min_tbefore_stim:
+#                min_tbefore_stim = baseline_length
+#
+#            if temp_max < min_tafter_stim:
+#                min_tafter_stim = temp_max
 
-            # iterate through all units and find longest trial length
-            temp_max = 0
-            for unit, spike_train in enumerate(seg.spiketrains):
-                if spike_train.t_stop > temp_max:
-                    temp_max = np.asarray(spike_train.t_stop)
-            # temp_max = temp_max - trial_start_time
-            temp_max -= np.asarray(seg.annotations['stim_times'][0]) # time after stimulus
-
-            if k == 0:
-                min_tbefore_stim = baseline_length
-                min_tafter_stim = temp_max
-
-            if baseline_length < min_tbefore_stim:
-                min_tbefore_stim = baseline_length
-
-            if temp_max < min_tafter_stim:
-                min_tafter_stim = temp_max
+        # over writes dynamic baselines and trials. Now all trials will be the
+        # same length. This is what the trimming functions did anyway.
+        min_tbefore_stim = self.get_exp_details_info('latency')
+        min_tafter_stim  = self.get_exp_details_info('duration') - self.get_exp_details_info('latency')
 
         self.min_tbefore_stim = np.asarray(min_tbefore_stim)
         self.min_tafter_stim  = np.asarray(min_tafter_stim)
@@ -1361,7 +1394,7 @@ if __name__ == "__main__":
     manager.close()
 
     exp1 = block[0]
-    neuro = NeuroAnalyzer(exp1)
+    neuro = NeuroAnalyzer(exp1, fid)
 
 ##### SCRATCH SPACE #####
 ##### SCRATCH SPACE #####
