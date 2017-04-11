@@ -530,7 +530,7 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1295']
+    fids = ['FID1330']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 #    fid = 'FID' + sys.argv[1]
 #    manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
