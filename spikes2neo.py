@@ -530,7 +530,8 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1330']
+    fids = ['FID1329']
+    #fids = ['1295', '1302', '1318', '1328', '1329', '1330']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 #    fid = 'FID' + sys.argv[1]
 #    manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
@@ -565,8 +566,8 @@ if __name__ == "__main__":
         plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=True)
 
         # # Create running trial dictionary
-        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=1.25,\
-                t_after_stop=2.25, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=True)
+        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
+                t_after_stop=1.50, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=True)
 
         ## get control position
         control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
