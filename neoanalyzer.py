@@ -469,12 +469,21 @@ class NeuroAnalyzer(object):
         else:
             print('NO WHISKER TRACKING DATA FOUND!\nuse runspeed to classify trials')
 
-    def __make_alpha_kernel(self, resolution=0.025):
+    def __make_kernel(self, resolution=0.025, kind='square'):
         '''Build alpha kernel with specified 25msec (default) resolution'''
-        alpha = 1.0/resolution
-        tau   = np.arange(0,1/alpha*10, 0.001)
-        alpha_kernel = alpha**2*tau*np.exp(-alpha*tau)
-        return alpha_kernel
+        if kind == 'alpha':
+            alpha  = 1.0/resolution
+            tau    = np.arange(0,1/alpha*10, 0.001)
+            kernel = alpha**2*tau*np.exp(-alpha*tau)
+
+        elif kind == 'square':
+            dt = 1.0/resolution
+            num_samples_total = int(resolution/0.001*10)
+            num_samples_high  = int(resolution/0.001)
+            kernel = np.zeros((num_samples_total,))
+            kernel[0:num_samples_high] = dt
+
+        return kernel
 
     def get_protraction_times(self):
         # TODO TODO
@@ -546,7 +555,8 @@ class NeuroAnalyzer(object):
         # make bins for rasters and PSTHs
         bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
 #        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
-        alpha_kernel = self.__make_alpha_kernel()
+        kernel = self.__make_kernel(kind='square', resolution=0.100)
+#        kernel = self.__make_kernel(kind='alpha', resolution=0.050)
         self._bins = bins
         self.bins_t = bins[0:-1]
 
@@ -600,7 +610,7 @@ class NeuroAnalyzer(object):
 
                         # convolve binned spikes to make PSTH
                         psth[stim_ind][:, good_trial_ind, unit] =\
-                                np.convolve(counts, alpha_kernel)[:-alpha_kernel.shape[0]+1]
+                                np.convolve(counts, kernel)[:-kernel.shape[0]+1]
 
                         # calculate absolute and evoked counts
                         abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
@@ -1293,6 +1303,8 @@ class NeuroAnalyzer(object):
 
                 if plt.ylim()[1] > ymax:
                     ymax = plt.ylim()[1]
+        for trial in range(self.control_pos):
+            ax[trial].set_ylim(0, ymax)
         plt.show()
 
 ###############################################################################
