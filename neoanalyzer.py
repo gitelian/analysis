@@ -43,8 +43,10 @@ class NeuroAnalyzer(object):
         # specify where the data is
         if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
             data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+            self.exp_csv_dir = data_dir
         elif os.path.isdir('/media/greg/data/neuro/neo/'):
             data_dir = '/media/greg/data/neuro/neo/'
+            self.exp_csv_dir = '/media/greg/data/neuro/'
         self.data_dir = data_dir
 
         self.fid = fid
@@ -104,7 +106,7 @@ class NeuroAnalyzer(object):
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to each segment
-        self.classify_whisking_trials(threshold='user')
+        self.classify_whisking_trials(threshold='median')
 
         # calculate rates, psths, whisking array, etc.
         self.rates()
@@ -130,10 +132,9 @@ class NeuroAnalyzer(object):
 
     def get_exp_details_info(self, key):
         ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
-        data_dir_path = self.data_dir
         print('\n----- get_exp_details_info -----')
         fid = int(self.fid[3::])
-        experiment_details_path = data_dir_path + 'experiment_details.csv'
+        experiment_details_path = self.exp_csv_dir + 'experiment_details.csv'
         print('Loading experiment details file for FID: ' + str(self.fid) + '\nkey: ' + key)
         df_exp_det_regular_index = pd.read_csv(experiment_details_path,sep=',')
         df_exp_det_fid_index = df_exp_det_regular_index.set_index('fid')

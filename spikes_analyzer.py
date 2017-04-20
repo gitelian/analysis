@@ -144,9 +144,9 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # do this for best position and no contact position. Plot things overall and
 # then look at things as a function of depth.
 
-#fids = ['1295', '1302', '1318', '1328', '1329', '1330']
-fids = ['1302', '1318', '1330']
-fids = ['1330']
+fids = ['1295', '1302', '1318', '1328', '1329', '1330']
+#fids = ['1302', '1318', '1330']
+#fids = ['1330']
 experiments = list()
 for fid in fids:
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
@@ -915,8 +915,9 @@ neuro = experiments[0]
 
 unit_count = 0
 unit_type  = 'RS'
+fig_dir = os.path.expanduser('~/Documents/AdesnikLab/temp/')
 
-with PdfPages('all_RS_unit_summaries.pdf') as pdf:
+with PdfPages(fig_dir + 'all_RS_unit_summaries.pdf') as pdf:
     for neuro in experiments:
         for unit_index in range(neuro.num_units):
 
@@ -963,7 +964,7 @@ with PdfPages('all_RS_unit_summaries.pdf') as pdf:
                 ax7 = plt.subplot2grid((5,3), (3,0), colspan=2, rowspan=2)
                 ax8 = plt.subplot2grid((5,3), (3,2), colspan=1, rowspan=1)
                 ax9 = plt.subplot2grid((5,3), (4,2), colspan=1, rowspan=1)
-                #plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
+                plt.subplots_adjust(left=0.10, bottom=0.05, right=0.90, top=0.94, wspace=0.45, hspace=0.45)
 
                 # axis 1 (0,0) PSTH best position
                 neuro.plot_psth(axis=ax1, unit_ind=unit_index, trial_type=best_pos[unit_count], error='sem', color='k')
@@ -1040,16 +1041,20 @@ with PdfPages('all_RS_unit_summaries.pdf') as pdf:
                 ax7.set_title('Burst rate tc')
 
                 # axis 8 (3, 2) selectivity histogram
-                ax8.hist(selectivity[cell_type==unit_type, 0], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color='k')
-                ax8.hist(selectivity[cell_type==unit_type, offset/neuro.control_pos], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color=c)
-                ax8.arrow(selectivity[unit_index, 0], ax8.get_ylim()[1]+1,0, -1, head_width=0.05, head_length=0.2, color='k')
-                ax8.arrow(selectivity[unit_index, offset/neuro.control_pos], ax8.get_ylim()[1]+1,0, -1, head_width=0.05, head_length=0.2, color=c)
+#                ax8.hist(selectivity[cell_type==unit_type, 0], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color='k')
+#                ax8.hist(selectivity[cell_type==unit_type, offset/neuro.control_pos], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color=c)
+                ax8.hist(selectivity[npand(cell_type==unit_type, region == region[unit_count]), 0], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color='k')
+                ax8.hist(selectivity[npand(cell_type==unit_type, region == region[unit_count]), offset/neuro.control_pos], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color=c)
+#                ax8.arrow(selectivity[unit_index, 0], ax8.get_ylim()[1]+1,0, -1, head_width=0.05, head_length=0.2, color='k')
+#                ax8.arrow(selectivity[unit_index, offset/neuro.control_pos], ax8.get_ylim()[1]+1,0, -1, head_width=0.05, head_length=0.2, color=c)
+                ax8.arrow(neuro.selectivity[unit_index, 0], ax8.get_ylim()[1]+1,0, -1, head_width=0.05, head_length=0.2, color='k')
+                ax8.arrow(neuro.selectivity[unit_index, offset/neuro.control_pos], ax8.get_ylim()[1]+1,0, -1, head_width=0.05, head_length=0.2, color=c)
                 ax8.set_ylim(0, ax8.get_ylim()[1]+3)
                 ax8.set_title('selectivity')
 
                 # axis 9 (4, 2) OMI histogram
-                ax9.hist(omi[cell_type==unit_type, offset/neuro.control_pos - 1], bins=np.arange(-1, 1, 0.1), edgecolor='None', alpha=0.5, color=c)
-                ax9.arrow(omi[unit_index, offset/neuro.control_pos - 1], ax9.get_ylim()[1]+1,0, -1, head_width=0.1, head_length=0.4, color=c)
+                ax9.hist(omi[npand(cell_type==unit_type, region == region[unit_count]), offset/neuro.control_pos - 1], bins=np.arange(-1, 1, 0.1), edgecolor='None', alpha=0.5, color=c)
+                ax9.arrow(neuro.get_omi()[unit_index, offset/neuro.control_pos - 1], ax9.get_ylim()[1]+1,0, -1, head_width=0.1, head_length=0.4, color=c)
                 ax9.set_ylim(0, ax9.get_ylim()[1]+3)
                 ax9.set_xlim(-1, 1)
                 ax9.set_title('OMIs')
