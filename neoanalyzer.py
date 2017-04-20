@@ -40,6 +40,13 @@ class NeuroAnalyzer(object):
     def __init__(self, neo_obj, fid):
 
         print('\n-----__init__-----')
+        # specify where the data is
+        if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
+            data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+        elif os.path.isdir('/media/greg/data/neuro/neo/'):
+            data_dir = '/media/greg/data/neuro/neo/'
+        self.data_dir = data_dir
+
         self.fid = fid
         # segments can get out of the order they were created
         sorted_index_list = np.argsort([k.index for k in neo_obj.segments])
@@ -121,8 +128,9 @@ class NeuroAnalyzer(object):
         # kruskal wallis and dunn's test to ID sensory driven units
         self.get_sensory_drive()
 
-    def get_exp_details_info(self, key, data_dir_path='/media/greg/data/neuro/'):
+    def get_exp_details_info(self, key):
         ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
+        data_dir_path = self.data_dir
         print('\n----- get_exp_details_info -----')
         fid = int(self.fid[3::])
         experiment_details_path = data_dir_path + 'experiment_details.csv'

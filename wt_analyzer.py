@@ -7,7 +7,7 @@ from scipy.optimize import curve_fit
 
 #fids = ['1289', '1290', '1295', '1302']
 #fids = ['1295', '1302', '1328']
-fids = ['1328']
+fids = ['1330']
 exps = list()
 for fid in fids:
     #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
@@ -60,8 +60,8 @@ plt.show()
         ##### WHISKER TRACKING ANALYSIS #####
         ##### WHISKER TRACKING ANALYSIS #####
 
-def plot_setpoint(neuro, cond=0, color='k', error='sem'):
-    ax = plt.gca()
+def plot_setpoint(neuro, axis=axis, cond=0, color='k', error='sem'):
+    #ax = plt.gca()
     sp_temp = neuro.wt[cond][:, 1, :]
     mean_sp = np.mean(sp_temp, axis=1)
     se      = sp.stats.sem(sp_temp, axis=1)
@@ -72,20 +72,22 @@ def plot_setpoint(neuro, cond=0, color='k', error='sem'):
     elif error == 'sem':
         err = se
 
-    plt.plot(neuro.wtt, mean_sp, color)
-    plt.fill_between(neuro.wtt, mean_sp - err, mean_sp + err, facecolor=color, alpha=0.3)
-    return ax
+    axis.plot(neuro.wtt, mean_sp, color)
+    axis.fill_between(neuro.wtt, mean_sp - err, mean_sp + err, facecolor=color, alpha=0.3)
 
-for k in range(neuro.control_pos):
-    plt.figure()
-    plot_setpoint(neuro, cond=k, color='k')
-#    plot_setpoint(neuro, cond=k+9, color='r')
-    plot_setpoint(neuro, cond=k+9+9, color='b')
-    plt.xlim(-0.5, 2.0)
-    plt.xlabel('time (s)')
-    plt.ylabel('set-point (deg)')
-    plt.title('condition {}'.format(str(k)))
-    plt.show()
+fig, ax = plt.subplots(neuro.control_pos, 2)
+for i in range(2):
+    for k in range(neuro.control_pos):
+        axis = ax[k][i]
+        plot_setpoint(neuro, axis=axis, cond=k, color='k')
+        if i == 0:
+            plot_setpoint(neuro, axis=axis, cond=k+9, color='r')
+        else:
+            plot_setpoint(neuro, axis=axis, cond=k+9+9, color='b')
+        ax[k][i].set_xlim(-0.5, 2.0)
+        ax[k][i].set_xlabel('time (s)')
+        ax[k][i].set_ylabel('set-point (deg)')
+        ax[k][i].set_title('condition {}'.format(str(k)))
 
 ######################################################
 sp_diff = list()
@@ -112,7 +114,7 @@ frq_light   = list()
 for neuro in exps:
     neuro = exps[0]
     for k in range(9):
-        base_inds = np.logical_and(neuro.wtt > 0, neuro.wtt < 1.0)
+        base_inds = np.logical_and(neuro.wtt > -1.0, neuro.wtt < 0)
         stim_inds = np.logical_and(neuro.wtt > 0.5, neuro.wtt < 1.5)
         ##### set-point #####
         sp_nolight = np.nanmean(neuro.wt[k][stim_inds, 2, :], axis=1)
@@ -238,107 +240,6 @@ plot_freq(neuro, cond=8, color='k')
 #plot_freq(neuro, cond=8+9, color='r')
 plot_freq(neuro, cond=8+9+9, color='b')
 plt.xlim(0,40); plt.xlabel('frequency (Hz)')
-
-
-# baseline firing rate analysis
-m1_rates = list()
-s1_rates = list()
-m1_sel   = list()
-s1_sel   = list()
-
-for k in range(27):
-#for k in range(18):
-    m1_temp = np.empty(1)
-    s1_temp = np.empty(1)
-    #for neuro in exps: #exps[2::]:
-    for neuro in exps: #exps[2::]:
-        rates_temp = neuro.abs_rate[k].mean(axis=0)
-        #m1_inds = np.logical_and(neuro.shank_ids == 0, neuro.cell_type == 'RS')
-        m1_inds = neuro.shank_ids == 0
-        s1_inds = neuro.shank_ids == 1
-        m1_temp = np.append(m1_temp, rates_temp[m1_inds])
-        s1_temp = np.append(s1_temp, rates_temp[s1_inds])
-
-        if k == 0:
-            neuro.get_selectivity()
-            m1_sel.append(neuro.selectivity[m1_inds, :])
-            s1_sel.append(neuro.selectivity[s1_inds, :])
-    m1_rates.append(m1_temp)
-    s1_rates.append(s1_temp)
-
-#    m1_rates.append(rates_temp[m1_inds])
-#    s1_rates.append(rates_temp[s1_inds])
-
-plt.figure()
-# m1
-plt.scatter(m1_rates[8], m1_rates[8+9], color='b')
-# s1
-plt.scatter(s1_rates[8], s1_rates[8+9+9], color='r')
-# unity line
-plt.plot([0, 40], [0, 40], 'k')
-plt.xlim(0, 40); plt.ylim(0, 40)
-
-plt.figure()
-# m1
-plt.scatter(m1_rates[8], m1_rates[8+9+9], color='b')
-# s1
-plt.scatter(s1_rates[8], s1_rates[8+9], color='r')
-# unity line
-plt.plot([0, 100], [0, 100], 'k')
-plt.xlim(0, 100); plt.ylim(0, 100)
-
-# violin plot of spontaneous rates
-pos = [1, 2]
-violinplot([m1_rates[8], s1_rates[8]], pos, vert=True, widths=0.7,
-                              showextrema=True, showmedians=True)
-
-# OMI for control position (diff over the sum)
-m1_omi = (m1_rates[8+9] - m1_rates[8])/ (m1_rates[8+9] + m1_rates[8])
-s1_omi = (s1_rates[8+9] - s1_rates[8])/ (s1_rates[8+9] + s1_rates[8])
-violinplot([m1_omi, s1_omi], pos, vert=True, widths=0.7,
-                              showextrema=True, showmedians=True)
-
-# selectivity
-
-m1_temp = list()
-s1_temp = list()
-for k in m1_sel:
-    m1_temp.extend(k[:, 0].ravel())
-for k in s1_sel:
-    s1_temp.extend(k[:, 0].ravel())
-
-plt.subplots(1,2)
-plt.subplot(1,2,1)
-plt.hist(m1_temp)
-plt.subplot(1,2,2)
-plt.hist(s1_temp)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
