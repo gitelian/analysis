@@ -530,7 +530,7 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1329']
+    fids = ['FID1295']
     #fids = ['1295', '1302', '1318', '1328', '1329', '1330']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
 #    fid = 'FID' + sys.argv[1]
