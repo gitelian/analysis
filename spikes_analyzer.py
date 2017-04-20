@@ -146,6 +146,7 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
 #fids = ['1295', '1302', '1318', '1328', '1329', '1330']
 fids = ['1302', '1318', '1330']
+fids = ['1330']
 experiments = list()
 for fid in fids:
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
@@ -913,35 +914,39 @@ neuro = experiments[0]
 ##### REMOVE #####
 
 unit_count = 0
+unit_type  = 'RS'
+
 with PdfPages('all_RS_unit_summaries.pdf') as pdf:
     for neuro in experiments:
         for unit_index in range(neuro.num_units):
 
-            # M1
-            if region[unit_count] == 0:
-                offset = 9
-                c = 'r'
-            # S1
-            elif region[unit_count] == 1:
-                offset = 9+9
-                c = 'b'
-            max_evk_rate = np.max([np.max(evk_rate[unit_count, 0:neuro.control_pos, 0]),\
-                    np.max(evk_rate[unit_count, offset:neuro.control_pos+offset, 0])])
-            min_evk_rate = np.min([np.min(evk_rate[unit_count, 0:neuro.control_pos, 0]),\
-                    np.min(evk_rate[unit_count, offset:neuro.control_pos+offset, 0])])
-            burst_nolight = np.zeros((neuro.control_pos-1, 2))
-            burst_light = np.zeros((neuro.control_pos-1, 2))
-            for pos in range(neuro.control_pos-1):
-                temp_nolight = neuro.get_burst_rate(unit_ind=unit_index, trial_type=pos)
-                burst_nolight[pos, 0] = np.mean(temp_nolight)
-                burst_nolight[pos, 1] = sp.stats.sem(temp_nolight)
-
-                temp_light = neuro.get_burst_rate(unit_ind=unit_index, trial_type=pos+offset)
-                burst_light[pos, 0] = np.mean(temp_light)
-                burst_light[pos, 1] = sp.stats.sem(temp_light)
 
             # if unit matches criteria add it to PDF book
-            if cell_type[unit_count] == 'RS' and max_fr[unit_count] > 2 and depths[unit_count] > 0 and driven[unit_count] == 1:
+            if cell_type[unit_count] == unit_type and max_fr[unit_count] > 2 and depths[unit_count] > 40 and driven[unit_count] == 1:
+
+                # M1
+                if region[unit_count] == 0:
+                    offset = 9
+                    c = 'r'
+                # S1
+                elif region[unit_count] == 1:
+                    offset = 9+9
+                    c = 'b'
+                max_evk_rate = np.max([np.max(evk_rate[unit_count, 0:neuro.control_pos, 0]),\
+                        np.max(evk_rate[unit_count, offset:neuro.control_pos+offset, 0])])
+                min_evk_rate = np.min([np.min(evk_rate[unit_count, 0:neuro.control_pos, 0]),\
+                        np.min(evk_rate[unit_count, offset:neuro.control_pos+offset, 0])])
+                burst_nolight = np.zeros((neuro.control_pos-1, 2))
+                burst_light = np.zeros((neuro.control_pos-1, 2))
+                for pos in range(neuro.control_pos-1):
+                    temp_nolight = neuro.get_burst_rate(unit_ind=unit_index, trial_type=pos)
+                    burst_nolight[pos, 0] = np.mean(temp_nolight)
+                    burst_nolight[pos, 1] = sp.stats.sem(temp_nolight)
+
+                    temp_light = neuro.get_burst_rate(unit_ind=unit_index, trial_type=pos+offset)
+                    burst_light[pos, 0] = np.mean(temp_light)
+                    burst_light[pos, 1] = sp.stats.sem(temp_light)
+
                 # create figure and add to PDF book
                 fig = plt.figure(figsize=(12, 14))
                 fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}'.format(\
@@ -958,6 +963,7 @@ with PdfPages('all_RS_unit_summaries.pdf') as pdf:
                 ax7 = plt.subplot2grid((5,3), (3,0), colspan=2, rowspan=2)
                 ax8 = plt.subplot2grid((5,3), (3,2), colspan=1, rowspan=1)
                 ax9 = plt.subplot2grid((5,3), (4,2), colspan=1, rowspan=1)
+                #plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
 
                 # axis 1 (0,0) PSTH best position
                 neuro.plot_psth(axis=ax1, unit_ind=unit_index, trial_type=best_pos[unit_count], error='sem', color='k')
@@ -996,7 +1002,7 @@ with PdfPages('all_RS_unit_summaries.pdf') as pdf:
                 ax4.hlines(0, 0, 10, colors='k', linestyles='dashed')
                 ax4.set_xlabel('bar position')
                 ax4.set_title('evoked tc')
-                ax4.set_ylim(min_evk_rate*1.5, max_evk_rate*1.5)
+                ax4.set_ylim(min_evk_rate*1.5-2, max_evk_rate*1.5)
 
                 # axis 5 (1, 2), OMI tuning curves
                 omi_s1light = (abs_rate[unit_count, neuro.control_pos:neuro.control_pos+9, 0] - abs_rate[unit_count, :neuro.control_pos, 0]) / \
@@ -1015,9 +1021,9 @@ with PdfPages('all_RS_unit_summaries.pdf') as pdf:
                 ax6.plot(np.arange(neuro.waves[unit_index, :].shape[0]), neuro.waves[unit_index, :], 'k')
                 ax6.set_xlim(0, neuro.waves[unit_index, :].shape[0])
                 ax6.set_title('Mean waveform')
-                ax6.set_xlabel('dur: {}, ratio: {}'.format(\
-                        neuro.duration[unit_index],\
-                        neuro.ratio[unit_index]))
+#                ax6.set_xlabel('dur: {}, ratio: {}'.format(\
+#                        neuro.duration[unit_index],\
+#                        neuro.ratio[unit_index]))
 
                 # axis 7 (3, 0) burst rate tuning curve
                 ax7.errorbar(np.arange(1,neuro.control_pos),\
@@ -1034,23 +1040,25 @@ with PdfPages('all_RS_unit_summaries.pdf') as pdf:
                 ax7.set_title('Burst rate tc')
 
                 # axis 8 (3, 2) selectivity histogram
-                ax8.hist(selectivity[cell_type=='RS', 0], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color='k')
-                ax8.hist(selectivity[cell_type=='FS', 0], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color='r')
+                ax8.hist(selectivity[cell_type==unit_type, 0], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color='k')
+                ax8.hist(selectivity[cell_type==unit_type, offset/neuro.control_pos], bins=np.arange(0, 1, 0.05), edgecolor='None', alpha=0.5, color=c)
                 ax8.arrow(selectivity[unit_index, 0], ax8.get_ylim()[1]+1,0, -1, head_width=0.05, head_length=0.2, color='k')
+                ax8.arrow(selectivity[unit_index, offset/neuro.control_pos], ax8.get_ylim()[1]+1,0, -1, head_width=0.05, head_length=0.2, color=c)
                 ax8.set_ylim(0, ax8.get_ylim()[1]+3)
+                ax8.set_title('selectivity')
 
                 # axis 9 (4, 2) OMI histogram
-                ax9.hist(omi[cell_type=='RS', 0], bins=np.arange(-1, 1, 0.1), edgecolor='None', alpha=0.5, color='k')
-                ax9.hist(omi[cell_type=='FS', 0], bins=np.arange(-1, 1, 0.1), edgecolor='None', alpha=0.5, color='r')
-                ax9.arrow(omi[unit_index, 0], ax9.get_ylim()[1]+1,0, -1, head_width=0.1, head_length=0.4, color='k')
+                ax9.hist(omi[cell_type==unit_type, offset/neuro.control_pos - 1], bins=np.arange(-1, 1, 0.1), edgecolor='None', alpha=0.5, color=c)
+                ax9.arrow(omi[unit_index, offset/neuro.control_pos - 1], ax9.get_ylim()[1]+1,0, -1, head_width=0.1, head_length=0.4, color=c)
                 ax9.set_ylim(0, ax9.get_ylim()[1]+3)
                 ax9.set_xlim(-1, 1)
+                ax9.set_title('OMIs')
 
-                unit_count += 1
                 pdf.savefig()
-                fig.clear()
-                plt.close()
+#                fig.clear()
+                plt.close(fig)
 
+            unit_count += 1
 
 
 
