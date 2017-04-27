@@ -914,7 +914,7 @@ neuro = experiments[0]
 ##### REMOVE #####
 
 unit_count = 0
-unit_type  = 'RS'
+unit_type  = 'FS'
 fig_dir = os.path.expanduser('~/Documents/AdesnikLab/temp/')
 
 with PdfPages(fig_dir + 'all_RS_unit_summaries.pdf') as pdf:
@@ -923,7 +923,10 @@ with PdfPages(fig_dir + 'all_RS_unit_summaries.pdf') as pdf:
 
 
             # if unit matches criteria add it to PDF book
-            if cell_type[unit_count] == unit_type and max_fr[unit_count] > 2 and depths[unit_count] > 40 and driven[unit_count] == 1:
+            if cell_type[unit_count] == unit_type \
+                    and max_fr[unit_count] > 2 \
+                    and depths[unit_count] > 40 \
+                    and driven[unit_count] == 1:
 
                 # M1
                 if region[unit_count] == 0:
