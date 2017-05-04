@@ -322,6 +322,13 @@ def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.2
 
     return run_bool_list
 
+def get_running_times(trtime_list, stim_time_list):
+    '''subtracts of stimulus start time from each trial time'''
+    run_time_list = list()
+    for k, time in enumerate(trtime_list):
+        run_time_list.append(time - stim_time_list[k][0])
+    return run_time_list
+
 def get_exp_details_info(data_dir_path, fid, key):
     ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
     print('\n----- get_exp_details_info -----')
@@ -348,7 +355,7 @@ def get_exp_details_info(data_dir_path, fid, key):
         return exp_info[key]
 
 def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
-        wtrack_files, vel_list, run_bool_list, stim, stim_time_list):
+        wtrack_files, vel_list, run_bool_list, stim, stim_time_list, run_time_list):
     print('\n----- make_neo_block -----')
 
     ## Make neo block and segment objects
@@ -374,6 +381,13 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                 sampling_rate=6*pq.kHz,
                 name='run speed')
         block.segments[trial_ind].analogsignals.append(sig0)
+
+        sig1 = neo.AnalogSignal(
+                signal=run_time_list[trial_ind][:],
+                units=pq.s,
+                sampling_rate=6*pq.kHz,
+                name='run speed time')
+        block.segments[trial_ind].analogsignals.append(sig1)
         ##### How to access important metadata from analogsignals #####
         #     a = block.segments[0].analogsignals[::2][0]
         #     a.t_start, a.tstop, num_samples=len(a)
@@ -530,10 +544,10 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1295']
+    fids = ['FID1331']
     #fids = ['1295', '1302', '1318', '1328', '1329', '1330']
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-#    fid = 'FID' + sys.argv[1]
+    #fids = 'FID' + sys.argv[1]
 #    manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
     data_dir = '/media/greg/data/neuro/'
 
@@ -568,6 +582,7 @@ if __name__ == "__main__":
         # # Create running trial dictionary
         run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
                 t_after_stop=1.50, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=True)
+        run_time_list = get_running_times(trtime_list, stim_time_list)
 
         ## get control position
         control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
@@ -576,7 +591,7 @@ if __name__ == "__main__":
         block = neo.Block(name=fid, description='This is a neo block for experiment ' + fid, \
                 control_pos=control_pos) # create block for experiment
         block = make_neo_object(writer, data_dir, fid, lfp_files, spikes_files,\
-                wtrack_files, vel_list, run_bool_list, stim, stim_time_list)
+                wtrack_files, vel_list, run_bool_list, stim, stim_time_list, run_time_list)
     writer.close()
 
 
