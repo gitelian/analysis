@@ -476,7 +476,9 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
             fid_inds        = np.where(spk_msrs[:, 0] == fid_num)[0]
             e_inds          = np.where(spk_msrs[:, 1] == e_num)[0]
             exp_inds        = np.intersect1d(fid_inds, e_inds)
-            print('\nloading spikes from: ' + spike_fname)
+            shank_region    = get_exp_details_info(data_dir, fid_num, '{}_location'.format(e_name))
+
+            print('\nloading spikes from: {}\nREGION: {}'.format(spike_fname, shank_region))
             labels, assigns, trials, spiketimes, _, _,\
                     _, ids, nunit, unit_type, trial_times = load_spike_file(spike_path)
 
@@ -513,7 +515,8 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                                     waveform=spk_msrs[unit_ind, 8::],
                                     fid=fid_name,
                                     shank=e_name,
-                                    unit_id=unit))
+                                    unit_id=unit,
+                                    region=shank_region))
 
                         # if unit isn't in spike_measures file add spike times
                         # and which experiment and shank it came from and label
@@ -529,7 +532,8 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                                     cell_type=3,
                                     fid=fid_name,
                                     shank=e_name,
-                                    unit_id=unit))
+                                    unit_id=unit,
+                                    region=shank_region))
 
         # close writer object to stop adding blocks to the file
     writer.write(block)
@@ -544,20 +548,28 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1331']
-    #fids = ['1295', '1302', '1318', '1328', '1329', '1330']
+#    fids = ['FID1295']
+    fids = ['1295', '1302', '1318', '1328', '1329', '1330']
+    fids = ['FID' + fid for fid in fids]
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
     #fids = 'FID' + sys.argv[1]
 #    manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
     data_dir = '/media/greg/data/neuro/'
 
-    neo_fname = '/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5'
-    if os.path.exists(neo_fname):
-        print('!!! DELETING OLD NEO FILE !!!')
-        os.remove(neo_fname)
-    writer = NeoHdf5IO(neo_fname)
+#    # combine multiple experiments into one neo file
+#    neo_fname = '/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5'
+#    if os.path.exists(neo_fname):
+#        print('!!! DELETING OLD NEO FILE !!!')
+#        os.remove(neo_fname)
+#    writer = NeoHdf5IO(neo_fname)
 
     for fid in fids:
+        # create multiple independent neo files
+        neo_fname = '/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5'
+        if os.path.exists(neo_fname):
+            print('!!! DELETING OLD NEO FILE !!!')
+            os.remove(neo_fname)
+        writer = NeoHdf5IO(neo_fname)
         # get paths to run, whiser tracking, lfp, and spikes files if they
         # exist.
         # REMEMBER glob.glob returns a LIST of path strings you must
@@ -592,7 +604,8 @@ if __name__ == "__main__":
                 control_pos=control_pos) # create block for experiment
         block = make_neo_object(writer, data_dir, fid, lfp_files, spikes_files,\
                 wtrack_files, vel_list, run_bool_list, stim, stim_time_list, run_time_list)
-    writer.close()
+        writer.close()
+        print('\n ##### Closing file for {} #####'.format(fid))
 
 
 #how to get spike times: block.segments[0].spiketrains[0].tolist()
