@@ -116,19 +116,19 @@ class NeuroAnalyzer(object):
 
         # reclassify units using their mean OMI (assuming ChR2 is in PV
         # cells). This is dependent on everything above!
-        self.reclassify_units()
-
-        # get selectivity for all units
-        self.get_selectivity()
-
-        # get preferred position for all units
-        self.get_preferred_position()
-
-        # get best contact for each unit
-        self.get_best_contact()
-
-        # kruskal wallis and dunn's test to ID sensory driven units
-        self.get_sensory_drive()
+#        self.reclassify_units()
+#
+#        # get selectivity for all units
+#        self.get_selectivity()
+#
+#        # get preferred position for all units
+#        self.get_preferred_position()
+#
+#        # get best contact for each unit
+#        self.get_best_contact()
+#
+#        # kruskal wallis and dunn's test to ID sensory driven units
+#        self.get_sensory_drive()
 
     def get_exp_details_info(self, key):
         ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
@@ -392,6 +392,43 @@ class NeuroAnalyzer(object):
         else:
             print('NO LFP DATA FOUND!\nSetting lfp_boolean to False')
             self.lfp_boolean = lfp_boolean
+
+    def reclassify_run_trials(self, time_before_stimulus= -1,\
+            mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
+        '''
+        If the neo object is still associated with the NeuroAnalyzer class this
+        function uses the velocity data stored in the analogsignals array to
+        reclassify running trials as running or not running.
+
+        Two specified time windows are used to classify trials as running. One
+        region during the pre-stimulus/baseline period and one during the stimulus
+        period.
+
+        set_all_to_true will set all trials to true regardless of running data.
+
+        TODO: classify trials as not_running and use that classification to extract
+        data for those trials. This will allow for the analysis of non-running
+        trial. Right now trials classified as not running aren't analyzed.
+        '''
+
+        for count, trial in enumerate(self.neo_obj.segments):
+            for anlg_signals in trial.analogsignals:
+                if anlg_signals.name == 'run speed':
+                    run_speed = np.asarray(anlg_signals)
+                elif anlg_signals.name == 'run speed time':
+                    run_time = np.asarray(anlg_signals)
+
+            base_ind = np.logical_and( run_time > time_before_stimulus, run_time < 0)
+            wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < (self.min_tbefore_stim + self.t_after_stim) )
+
+#            vel = run_speed[stim_period_inds]
+            vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
+            if set_all_to_true == 0:
+                if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
+                    self.neo_obj.segments[count].annotations['run_boolean'] = True
+            elif set_all_to_true == 1:
+                self.neo_obj.segments[count].annotations['run_boolean'] = True
+
 
     def get_num_good_trials(self, kind='run_boolean'):
         '''
@@ -673,7 +710,6 @@ class NeuroAnalyzer(object):
 
                 if omi_m1light.mean() < 0:# and duration > 0.36
                     new_labels.append('RS')
-
                 elif omi_m1light.mean() > 0:# and duration < 0.34
                     new_labels.append('FS')
                 else:
@@ -1406,7 +1442,11 @@ if __name__ == "__main__":
 
     #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
     print(sys.argv)
-    fid = 'FID' + sys.argv[1]
+    try:
+        fid = 'FID' + sys.argv[1]
+    except:
+        print('no argument provided!')
+
     manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
     #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1302_neo_object.h5'))
     print('Loading...')
