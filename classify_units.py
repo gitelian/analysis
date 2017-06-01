@@ -13,6 +13,8 @@ from sklearn.cluster import KMeans
 from sklearn import mixture
 import itertools as it
 
+# 20170524: added a1x32_Poly2 probe info in get_depth()
+
 def load_spike_file(path):
     """
     Loads spikes file from specified path
@@ -56,9 +58,17 @@ def get_depth(best_chan, exp_info):
     probe     = exp_info['e1_probe']
 
     if probe == 'a1x16':
-        depth_vec = np.abs(np.arange(0,400,25)-tip_depth)
+        depth_vec = np.abs(np.arange(0,400,25) - tip_depth)
     elif probe == 'a1x32':
-        depth_vec = np.abs(np.arange(0,800,25)-tip_depth)
+        depth_vec = np.abs(np.arange(0,800,25) - tip_depth)
+    elif probe == 'a1x32-Poly2':
+        col01 = np.abs(np.arange(0, 800, 50) - tip_depth)
+        col02 = np.abs(np.arange(25, 800, 50) - tip_depth)
+        depth_vec = np.concatenate((col01, col02))
+    elif probe[0:4] == 'lbnl':
+        col01 = np.abs(np.arange(0, 800, 25) - tip_depth)
+        depth_vec = np.concatenate((col01, col01))
+        print('WARNING: depths may be off!')
 
     depth = depth_vec[best_chan]
     return depth
@@ -329,7 +339,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
     #'FID1295'
-    update_spikes_measures_mat(fid_list=['FID1331'], data_dir_path='/media/greg/data/neuro/')
+    update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/')
 
 

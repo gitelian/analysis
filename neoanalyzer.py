@@ -82,6 +82,10 @@ class NeuroAnalyzer(object):
         # creat lists or array with units duration, ratio, and mean waveform
         self.__get_waveinfo()
 
+        # reclassify units using their mean OMI (assuming ChR2 is in PV
+        # cells). This is dependent on everything above!
+        self.reclassify_units()
+
         # make dictionary of cell types and get cell type IDs
         self.cell_type_dict = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
         self.cell_type      = self.__get_celltypeID()
@@ -114,21 +118,18 @@ class NeuroAnalyzer(object):
         # create region dictionary
         self.region_dict = {0:'M1', 1:'S1'}
 
-        # reclassify units using their mean OMI (assuming ChR2 is in PV
-        # cells). This is dependent on everything above!
-#        self.reclassify_units()
-#
-#        # get selectivity for all units
-#        self.get_selectivity()
-#
-#        # get preferred position for all units
-#        self.get_preferred_position()
-#
-#        # get best contact for each unit
-#        self.get_best_contact()
-#
-#        # kruskal wallis and dunn's test to ID sensory driven units
-#        self.get_sensory_drive()
+
+        # get selectivity for all units
+        self.get_selectivity()
+
+        # get preferred position for all units
+        self.get_preferred_position()
+
+        # get best contact for each unit
+        self.get_best_contact()
+
+        # kruskal wallis and dunn's test to ID sensory driven units
+        self.get_sensory_drive()
 
     def get_exp_details_info(self, key):
         ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
@@ -207,16 +208,23 @@ class NeuroAnalyzer(object):
 
     def __get_waveinfo(self):
         '''gets waveform duration, ratio, and mean waveform for each unit'''
+
         duration = list()
         ratio    = list()
         waves    = list()
         for spikes in self.neo_obj.segments[0].spiketrains:
-            duration.append(spikes.annotations['duration'])
-            ratio.append(spikes.annotations['ratio'])
-            waves.append(spikes.annotations['waveform'])
-        self.duration = duration
-        self.ratio    = ratio
-        self.waves    = np.asarray(waves).squeeze()
+            if hasattr(spikes, 'annotations.duration') is True:
+                duration.append(spikes.annotations['duration'])
+                ratio.append(spikes.annotations['ratio'])
+                waves.append(spikes.annotations['waveform'])
+        if hasattr(spikes, 'annotations.duration') is True:
+            self.duration = duration
+            self.ratio    = ratio
+            self.waves    = np.asarray(waves).squeeze()
+        else:
+            self.duration = None
+            self.ratio    = None
+            self.waves    = None
 
     def __get_celltypeID(self):
         '''
@@ -688,44 +696,47 @@ class NeuroAnalyzer(object):
         '''use OMI and wave duration to reclassify units'''
 
         new_labels = list()
-        for index in range(len(self.cell_type_og)):
-            region   = int(self.shank_ids[index])
-            label    = self.cell_type[index]
-            ratio    = self.ratio[index]
-            duration = self.duration[index]
+        if hasattr(self, 'cell_type_og') is False:
+            print('no units were reclassified')
+        else:
+            for index in range(len(self.cell_type_og)):
+                region   = int(self.shank_ids[index])
+                label    = self.cell_type[index]
+                ratio    = self.ratio[index]
+                duration = self.duration[index]
 
-            meanr     = np.array([np.mean(k[:, index]) for k in self.evk_rate])
-            meanr_abs = np.array([np.mean(k[:, index]) for k in self.abs_rate])
-            omi_s1light = (meanr_abs[self.control_pos:self.control_pos+9] - meanr_abs[:self.control_pos]) / \
-                    (meanr_abs[self.control_pos:self.control_pos+9] + meanr_abs[:self.control_pos])
-            omi_m1light = (meanr_abs[self.control_pos+9:self.control_pos+9+9] - meanr_abs[:self.control_pos]) / \
-                    (meanr_abs[self.control_pos+9:self.control_pos+9+9] + meanr_abs[:self.control_pos])
+                meanr     = np.array([np.mean(k[:, index]) for k in self.evk_rate])
+                meanr_abs = np.array([np.mean(k[:, index]) for k in self.abs_rate])
+                omi_s1light = (meanr_abs[self.control_pos:self.control_pos+9] - meanr_abs[:self.control_pos]) / \
+                        (meanr_abs[self.control_pos:self.control_pos+9] + meanr_abs[:self.control_pos])
+                omi_m1light = (meanr_abs[self.control_pos+9:self.control_pos+9+9] - meanr_abs[:self.control_pos]) / \
+                        (meanr_abs[self.control_pos+9:self.control_pos+9+9] + meanr_abs[:self.control_pos])
 
-            # reclassify M1 units
+                # reclassify M1 units
 
-            if label == 'MU':
-                new_labels.append('MU')
+                if label == 'MU':
+                    new_labels.append('MU')
 
-            elif self.region_dict[region] == 'M1':
+                elif self.region_dict[region] == 'M1':
 
-                if omi_m1light.mean() < 0:# and duration > 0.36
-                    new_labels.append('RS')
-                elif omi_m1light.mean() > 0:# and duration < 0.34
-                    new_labels.append('FS')
-                else:
-                    new_labels.append(label)
+                    if omi_m1light.mean() < 0:# and duration > 0.36
+                        new_labels.append('RS')
+                    elif omi_m1light.mean() > 0:# and duration < 0.34
+                        new_labels.append('FS')
+                    else:
+                        new_labels.append(label)
 
-            elif self.region_dict[region] == 'S1':
+                elif self.region_dict[region] == 'S1':
 
-                if omi_s1light.mean() < 0:# and duration > 0.36:
-                    new_labels.append('RS')
+                    if omi_s1light.mean() < 0:# and duration > 0.36:
+                        new_labels.append('RS')
 
-                elif omi_s1light.mean() > 0:# and duration < 0.34:
-                    new_labels.append('FS')
-                else:
-                    new_labels.append(label)
+                    elif omi_s1light.mean() > 0:# and duration < 0.34:
+                        new_labels.append('FS')
+                    else:
+                        new_labels.append(label)
 
-        self.cell_type = new_labels
+            self.cell_type = new_labels
 
     def get_lfps(self, kind='run_boolean'):
         lfps = [list() for x in range(len(self.shank_names))]
