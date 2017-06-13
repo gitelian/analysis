@@ -9,7 +9,6 @@ import scipy.io as sio
 sns.set_style("whitegrid", {'axes.grid' : False})
 #get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
 
-fid = sys.argv[1]
 # create multipage PDF of unit summaries
 
 with PdfPages(fid + '_unit_summaries.pdf') as pdf:
@@ -31,54 +30,74 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
         # top left: best contact PSTH
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact, error='sem', color='k')
+        ## if opto:
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9, error='sem', color='r')
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact+9+9, error='sem', color='b')
         ax[0][0].set_xlim(-0.5, 2)
         #ax[0][0].set_ylim(0.5, ax[0][0].get_ylim()[1])
         ax[0][0].hlines(0,-0.5, 2, colors='k', linestyles='dashed')
-        ax[0][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
-        ax[0][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        # stimulus onset lines
+        ax[0][0].vlines(0.0, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='r', linewidth=1)
+        ax[0][0].vlines(1.51, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='r', linewidth=1)
+        # light onset lines
+        ax[0][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
+        ax[0][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
         ax[0][0].set_xlabel('time (s)')
         ax[0][0].set_ylabel('firing rate (Hz)')
         ax[0][0].set_title('best contact')
 
         # top middle: control PSTH
         neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1, error='sem', color='k')
-        neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9, error='sem', color='r')
-        neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, error='sem', color='b')
+#        neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9, error='sem', color='r')
+#        neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, error='sem', color='b')
         ax[0][1].set_xlim(-0.5, 2)
         #ax[0][1].set_ylim(0.5, ax[0][0].get_ylim()[1])
-        ax[0][1].vlines(0.5, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='m', linestyles='dashed')
-        ax[0][1].vlines(1.5, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='m', linestyles='dashed')
+        # stimulus onset lines
+        ax[0][1].vlines(0.00, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='r', linewidth=1)
+        ax[0][1].vlines(1.51, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='r', linewidth=1)
+        # light onset lines
+        ax[0][1].vlines(0.5, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
+        ax[0][1].vlines(1.5, ax[0][1].get_ylim()[0], ax[0][1].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
         ax[0][1].hlines(0,-0.5, 2, colors='k', linestyles='dashed')
         ax[0][1].set_xlabel('time (s)')
         #ax[0][1].set_yscale("log")
         ax[0][1].set_title('no contact')
 
         # top right: evoked tuning curves
-        neuro.plot_tuning_curve(unit_ind=unit_index, kind='evk_count', axis=ax[0][2])
+        #neuro.plot_tuning_curve(unit_ind=unit_index, kind='evk_count', axis=ax[0][2])
+        neuro.plot_tuning_curve(unit_ind=unit_index, kind='abs_count', axis=ax[0][2])
         ax[0][2].set_xlim(0, 10)
         ax[0][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
         ax[0][2].set_xlabel('bar position')
-        ax[0][2].set_title('evoked tc')
+        #ax[0][2].set_title('evoked tc')
+        ax[0][2].set_title('absolute tc')
 
         # middle left: raster during no light and best contact
-        neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact, axis=ax[1][0])
+        neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact, axis=ax[1][0], burst=False)
         ax[1][0].set_xlim(-0.5, 2)
-        ax[1][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
-        ax[1][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        # stimulus onset lines
+        ax[1][0].vlines(0.00, ax[1][0].get_ylim()[0], ax[1][0].get_ylim()[1], colors='r', linewidth=1)
+        ax[1][0].vlines(1.51, ax[1][0].get_ylim()[0], ax[1][0].get_ylim()[1], colors='r', linewidth=1)
+        # light onset lines
+        ax[1][0].vlines(0.5, ax[1][0].get_ylim()[0], ax[1][0].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
+        ax[1][0].vlines(1.5, ax[1][0].get_ylim()[0], ax[1][0].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
         ax[1][0].set_xlabel('time (s)')
         ax[1][0].set_ylabel('no light trials')
 
         # middle middle: raster during no light and control position
-        neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1, axis=ax[1][1])
+        neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1, axis=ax[1][1], burst=False)
         ax[1][1].set_xlim(-0.5, 2)
-        ax[1][1].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
-        ax[1][1].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        # stimulus onset lines
+        ax[1][1].vlines(0.00, ax[1][1].get_ylim()[0], ax[1][1].get_ylim()[1], colors='r', linewidth=1)
+        ax[1][1].vlines(1.51, ax[1][1].get_ylim()[0], ax[1][1].get_ylim()[1], colors='r', linewidth=1)
+        # light onset lines
+        ax[1][1].vlines(0.5, ax[1][1].get_ylim()[0], ax[1][1].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
+        ax[1][1].vlines(1.5, ax[1][1].get_ylim()[0], ax[1][1].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
         ax[1][1].set_xlabel('time (s)')
         ax[1][1].set_ylabel('no light trials')
 
         # middle right: OMI tuning curves
+       ## if opto:
         omi_s1light = (meanr_abs[neuro.control_pos:neuro.control_pos+9] - meanr_abs[:neuro.control_pos]) / \
                 (meanr_abs[neuro.control_pos:neuro.control_pos+9] + meanr_abs[:neuro.control_pos])
         omi_m1light = (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] - meanr_abs[:neuro.control_pos]) / \
@@ -92,22 +111,31 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[1][2].set_title('OMI tc')
 
         # bottom left: raster for best contact and S1 light
-        neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9, axis=ax[2][0])
+        neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9, axis=ax[2][0], burst=False)
         ax[2][0].set_xlim(-0.5, 2)
-        ax[2][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
-        ax[2][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        # stimulus onset lines
+        ax[2][0].vlines(0.00, ax[2][0].get_ylim()[0], ax[2][0].get_ylim()[1], colors='r', linewidth=1)
+        ax[2][0].vlines(1.51, ax[2][0].get_ylim()[0], ax[2][0].get_ylim()[1], colors='r', linewidth=1)
+        # light onset lines
+        ax[2][0].vlines(0.5, ax[2][0].get_ylim()[0], ax[2][0].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
+        ax[2][0].vlines(1.5, ax[2][0].get_ylim()[0], ax[2][0].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
         ax[2][0].set_xlabel('time (s)')
         ax[2][0].set_ylabel('S1 light trials')
 
-        # bottom middle: bursty ISI plot control position
-        neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1+9, axis=ax[2][1])
+        # bottom middle: bursty ISI plot control position and S1 light
+        neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1+9, axis=ax[2][1], burst=False)
         ax[2][1].set_xlim(-0.5, 2)
-        ax[2][1].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
-        ax[2][1].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        # stimulus onset lines
+        ax[2][1].vlines(0.00, ax[2][1].get_ylim()[0], ax[2][1].get_ylim()[1], colors='r', linewidth=1)
+        ax[2][1].vlines(1.51, ax[2][1].get_ylim()[0], ax[2][1].get_ylim()[1], colors='r', linewidth=1)
+        # light onset lines
+        ax[2][1].vlines(0.5, ax[2][1].get_ylim()[0], ax[2][1].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
+        ax[2][1].vlines(1.5, ax[2][1].get_ylim()[0], ax[2][1].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
         ax[2][1].set_xlabel('time (s)')
         ax[2][1].set_ylabel('S1 light trials')
 
         #ax[1][0].hist2d(pre, post, bins=arange(0,0.3,0.001))
+       ## END if opto:
 
         # bottom right: mean waveform
         ax[2][2].plot(np.arange(neuro.waves[unit_index, :].shape[0]), neuro.waves[unit_index, :], 'k')
@@ -118,20 +146,30 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
                 neuro.ratio[unit_index]))
 
         # bottom bottom left: raster for best contact and S1 light
-        neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9+9, axis=ax[3][0])
+       ## if opto:
+        neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9+9, axis=ax[3][0], burst=False)
         ax[3][0].set_xlim(-0.5, 2)
-        ax[3][0].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
-        ax[3][0].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        # stimulus onset lines
+        ax[3][0].vlines(0.00, ax[3][0].get_ylim()[0], ax[3][0].get_ylim()[1], colors='r', linewidth=1)
+        ax[3][0].vlines(1.51, ax[3][0].get_ylim()[0], ax[3][0].get_ylim()[1], colors='r', linewidth=1)
+        # light onset lines
+        ax[3][0].vlines(0.5, ax[3][0].get_ylim()[0], ax[3][0].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
+        ax[3][0].vlines(1.5, ax[3][0].get_ylim()[0], ax[3][0].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
         ax[3][0].set_xlabel('time (s)')
         ax[3][0].set_ylabel('M1 light trials')
 
         # bottom bottom middle: bursty ISI plot control position
-        neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, axis=ax[3][1])
+        neuro.plot_raster(unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, axis=ax[3][1], burst=False)
         ax[3][1].set_xlim(-0.5, 2)
-        ax[3][1].vlines(0.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
-        ax[3][1].vlines(1.5, ax[0][0].get_ylim()[0], ax[0][0].get_ylim()[1], colors='m', linestyles='dashed')
+        # stimulus onset lines
+        ax[3][1].vlines(0.00, ax[3][1].get_ylim()[0], ax[3][1].get_ylim()[1], colors='r', linewidth=1)
+        ax[3][1].vlines(1.51, ax[3][1].get_ylim()[0], ax[3][1].get_ylim()[1], colors='r', linewidth=1)
+        # light onset lines
+        ax[3][1].vlines(0.5, ax[3][1].get_ylim()[0], ax[3][1].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
+        ax[3][1].vlines(1.5, ax[3][1].get_ylim()[0], ax[3][1].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
         ax[3][1].set_xlabel('time (s)')
         ax[3][1].set_ylabel('M1 light trials')
+        ## END if opto:
 
         pdf.savefig()
         fig.clear()
