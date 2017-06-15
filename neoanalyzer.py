@@ -84,7 +84,7 @@ class NeuroAnalyzer(object):
 
         # reclassify units using their mean OMI (assuming ChR2 is in PV
         # cells). This is dependent on everything above!
-        self.reclassify_units()
+#        self.reclassify_units()
 
         # make dictionary of cell types and get cell type IDs
         self.cell_type_dict = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
@@ -117,7 +117,6 @@ class NeuroAnalyzer(object):
 
         # create region dictionary
         self.region_dict = {0:'M1', 1:'S1'}
-
 
         # get selectivity for all units
         self.get_selectivity()
@@ -213,11 +212,13 @@ class NeuroAnalyzer(object):
         ratio    = list()
         waves    = list()
         for spikes in self.neo_obj.segments[0].spiketrains:
-            if hasattr(spikes, 'annotations.duration') is True:
+            if spikes.annotations.has_key('duration') is True:
                 duration.append(spikes.annotations['duration'])
                 ratio.append(spikes.annotations['ratio'])
                 waves.append(spikes.annotations['waveform'])
-        if hasattr(spikes, 'annotations.duration') is True:
+
+        #if hasattr(spikes, 'annotations.duration') is True:
+        if spikes.annotations.has_key('duration') is True:
             self.duration = duration
             self.ratio    = ratio
             self.waves    = np.asarray(waves).squeeze()
@@ -539,25 +540,22 @@ class NeuroAnalyzer(object):
 
         return kernel
 
-    def get_protraction_times(self):
-        # TODO TODO
-        # CLEAN THIS UP
-        # WORK IN PROGRESS
-        # TODO TODO
-        #                    condition 1                    condition 2                     condition n
-        # [  [ [phase trial 1], [phase trial 2],...,[phase trial i]], [ [phase trial 1], [phs trial i]], ..., [condition ] ] ]
-        # phs[condition i][trial j][timestamp k]
-        phs_cond = list()
-        for cond in self.wt:
-            phs_trial = list()
-            for k in range(cond.shape[2]):
-                phs_timestamps = list()
-                phase = cond[:, 3, k]
-                # find zero crossings
-                zero_crossings = numpy.where(numpy.diff(numpy.sign(phase)))[0]
-                phs_trial.append(timestamps[zero_crossings])
-            phs_cond.append(phs_trial)
-        self.protraction_times = phs_cond
+    def get_protraction_times(self, pos, trial, analysis_window=[0.5, 1.5]):
+        '''
+        Calculates the protration times for a specified trial
+        time_window: start and end time of analysis window of interest (in seconds).
+        '''
+        phase             = self.wt[pos][:, 3, trial]
+        phs_crossing      = phase > 0
+        phs_crossing      = phs_crossing.astype(int)
+        protraction_inds  = np.where(np.diff(phs_crossing) > 0)[0] + 1
+        protraction_times = self.wtt[protraction_inds]
+
+        good_inds = np.logical_and(protraction_times > analysis_window[0],\
+                protraction_times < analysis_window[1])
+        timestamps = protraction_times[good_inds]
+
+        return timestamps
 
     def update_t_after_stim(self, t_after_stim):
         self.t_after_stim = t_after_stim
@@ -582,6 +580,8 @@ class NeuroAnalyzer(object):
         THAT IT IS AT LEAST AS LONG AS THE STIMULUS PERIOD TO BE ANALYZED
 
         kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
+
+        Recomputes whisker tracking data and adds it to self.wt
         '''
 
         print('\n-----computing rates----')
@@ -1077,6 +1077,32 @@ class NeuroAnalyzer(object):
 
         return rates_per_bin
 
+    def pta(self, cond=0, unit_ind=0, window=[-0.250, 0.250], dt=0.010, analysis_window=[0.5, 1.5]):
+        '''Create a protraction triggered average'''
+
+        bins        = np.arange(window[0], window[1], dt)
+        bin_counts = np.zeros((bins.shape[0] - 1, ))
+        num_trials  = 0.0
+
+        for trial_ind in range(self.num_good_trials[cond]):
+            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+            windowed_spike_times = np.logical_and(all_spike_times > analysis_window[0],\
+                    all_spike_times < analysis_window[1])
+            protraction_times = self.get_protraction_times(cond, trial_ind, analysis_window)
+
+            for p_time in protraction_times:
+                bin_counts += np.histogram(all_spike_times[windowed_spike_times] - p_time, bins)[0]
+                num_trials += 1
+
+        mean_spks_per_bin = bin_counts/num_trials
+        mean_fr_per_bin   = mean_spks_per_bin/dt
+
+        #plt.bar(bins[0:-1], mean_spks_per_bin, width=dt)
+        #average out the angle traces and overlay...???
+
+        return mean_spks_per_bin, bins, dt
+
+
     def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
         '''compute adaptation ratio for a given unit and bins'''
         bins = np.asarray(bins)
@@ -1470,6 +1496,18 @@ if __name__ == "__main__":
 
 ##### SCRATCH SPACE #####
 ##### SCRATCH SPACE #####
+
+
+fig, ax = subplots(3, 9)
+count = 0
+dt = 0.010
+for row in range(3):
+    for col in range(9):
+        spks_per_bin, bins, dt = neuro.pta(cond=count, unit_ind=uid, dt=dt)
+        ax[row][col].bar(bins[0:-1], spks_per_bin, width=dt, edgecolor='none')
+        count += 1
+
+
 
 #
 #plt.figure()
