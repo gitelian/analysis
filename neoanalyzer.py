@@ -130,6 +130,10 @@ class NeuroAnalyzer(object):
         # kruskal wallis and dunn's test to ID sensory driven units
         self.get_sensory_drive()
 
+        # reclassify running trials
+        #self.reclassify_run_trials(self, time_before_stimulus= -1,\
+        #            mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False)
+
     def get_exp_details_info(self, key):
         ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
         print('\n----- get_exp_details_info -----')
@@ -1498,12 +1502,14 @@ if __name__ == "__main__":
 ##### SCRATCH SPACE #####
 
 
+##### Protraction Triggered Histograms #####
+##### Protraction Triggered Histograms #####
 fig, ax = subplots(3, 9)
-count = 0
-dt = 0.010
+count   = 0
+dt      = 0.005
 for row in range(3):
     for col in range(9):
-        spks_per_bin, bins, dt = neuro.pta(cond=count, unit_ind=uid, dt=dt)
+        spks_per_bin, bins, dt = neuro.pta(cond=count, unit_ind=uid, window=[-0.1, 0.1],dt=dt)
         ax[row][col].bar(bins[0:-1], spks_per_bin, width=dt, edgecolor='none')
         count += 1
 

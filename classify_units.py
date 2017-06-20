@@ -161,8 +161,20 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
 
         print('Loading sorted spike mat file: ' + spikes_fname)
 
+        # check if experiment is in the spike_msr_mat. If it is delete all
+        # entries for a clean update.
+        exp_inds   = np.ravel(np.where(spike_msr_mat[:, 0] == fid)[0])
+        e_inds     = np.ravel(np.where(spike_msr_mat[:, 1] == e_num)[0])
+        exp_e_inds = np.intersect1d(exp_inds, e_inds)
+
+        if len(exp_e_inds) > 0:
+            print('\n----- deleting old unit entries for FID{} electrode {}-----'.format(fid, e_num))
+            spike_msr_mat = np.delete(spike_msr_mat, exp_e_inds, axis=0)
+
+
         # loads in matlab structure as python objects
         # makes syntax for getting data more similar to matlab's structure syntax
+        print('\n----- Loading units for FID{} -----'.format(fid))
         labels, assigns, trials, spike_times, waves, nsamp, nchan, ids, nunit, unit_type = load_spike_file(spikes_path)
 
         # Loop through units from sorted spike file
@@ -339,7 +351,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
     #'FID1295'
-    update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neuro/')
+    update_spikes_measures_mat(fid_list=['FID1337'], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/')
 
 
