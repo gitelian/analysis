@@ -48,8 +48,8 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
         # top middle: control PSTH
         neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1, error='sem', color='k')
-#        neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9, error='sem', color='r')
-#        neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, error='sem', color='b')
+        neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9, error='sem', color='r')
+        neuro.plot_psth(axis=ax[0][1], unit_ind=unit_index, trial_type=neuro.control_pos-1+9+9, error='sem', color='b')
         ax[0][1].set_xlim(-0.5, 2)
         #ax[0][1].set_ylim(0.5, ax[0][0].get_ylim()[1])
         # stimulus onset lines
@@ -64,12 +64,10 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[0][1].set_title('no contact')
 
         # top right: evoked tuning curves
-        #neuro.plot_tuning_curve(unit_ind=unit_index, kind='evk_count', axis=ax[0][2])
         neuro.plot_tuning_curve(unit_ind=unit_index, kind='abs_count', axis=ax[0][2])
         ax[0][2].set_xlim(0, 10)
         ax[0][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
         ax[0][2].set_xlabel('bar position')
-        #ax[0][2].set_title('evoked tc')
         ax[0][2].set_title('absolute tc')
 
         # middle left: raster during no light and best contact
@@ -96,21 +94,15 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[1][1].set_xlabel('time (s)')
         ax[1][1].set_ylabel('no light trials')
 
-        # middle right: OMI tuning curves
+        # middle right: evoked tuning curves
        ## if opto:
-        omi_s1light = (meanr_abs[neuro.control_pos:neuro.control_pos+9] - meanr_abs[:neuro.control_pos]) / \
-                (meanr_abs[neuro.control_pos:neuro.control_pos+9] + meanr_abs[:neuro.control_pos])
-        omi_m1light = (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] - meanr_abs[:neuro.control_pos]) / \
-        (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] + meanr_abs[:neuro.control_pos])
-        ax[1][2].plot(np.arange(1,10), omi_s1light, '-ro', np.arange(1,10), omi_m1light, '-bo')
-        ax[1][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
+        neuro.plot_tuning_curve(unit_ind=unit_index, kind='evk_count', axis=ax[1][2])
         ax[1][2].set_xlim(0, 10)
-        ax[1][2].set_ylim(-1, 1)
+        ax[1][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
         ax[1][2].set_xlabel('bar position')
-        ax[1][2].set_ylabel('OMI')
-        ax[1][2].set_title('OMI tc')
+        ax[1][2].set_title('evoked tc')
 
-        # bottom left: raster for best contact and S1 light
+# bottom left: raster for best contact and S1 light
         neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9, axis=ax[2][0], burst=False)
         ax[2][0].set_xlim(-0.5, 2)
         # stimulus onset lines
@@ -137,13 +129,18 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         #ax[1][0].hist2d(pre, post, bins=arange(0,0.3,0.001))
        ## END if opto:
 
-        # bottom right: mean waveform
-        ax[2][2].plot(np.arange(neuro.waves[unit_index, :].shape[0]), neuro.waves[unit_index, :], 'k')
-        ax[2][2].set_xlim(0, neuro.waves[unit_index, :].shape[0])
-        ax[2][2].set_title('Mean waveform')
-        ax[2][2].set_xlabel('dur: {}, ratio: {}'.format(\
-                neuro.duration[unit_index],\
-                neuro.ratio[unit_index]))
+        # bottom right: OMI tuning curves
+        omi_s1light = (meanr_abs[neuro.control_pos:neuro.control_pos+9] - meanr_abs[:neuro.control_pos]) / \
+                (meanr_abs[neuro.control_pos:neuro.control_pos+9] + meanr_abs[:neuro.control_pos])
+        omi_m1light = (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] - meanr_abs[:neuro.control_pos]) / \
+        (meanr_abs[neuro.control_pos+9:neuro.control_pos+9+9] + meanr_abs[:neuro.control_pos])
+        ax[2][2].plot(np.arange(1,10), omi_s1light, '-ro', np.arange(1,10), omi_m1light, '-bo')
+        ax[2][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
+        ax[2][2].set_xlim(0, 10)
+        ax[2][2].set_ylim(-1, 1)
+        ax[2][2].set_xlabel('bar position')
+        ax[2][2].set_ylabel('OMI')
+        ax[2][2].set_title('OMI tc')
 
         # bottom bottom left: raster for best contact and S1 light
        ## if opto:
@@ -169,6 +166,14 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[3][1].vlines(1.5, ax[3][1].get_ylim()[0], ax[3][1].get_ylim()[1], colors='m', linestyles='dashed', linewidth=1)
         ax[3][1].set_xlabel('time (s)')
         ax[3][1].set_ylabel('M1 light trials')
+
+        # bottom bottom right: mean waveform
+        ax[3][2].plot(np.arange(neuro.waves[unit_index, :].shape[0]), neuro.waves[unit_index, :], 'k')
+        ax[3][2].set_xlim(0, neuro.waves[unit_index, :].shape[0])
+        ax[3][2].set_title('Mean waveform')
+        ax[3][2].set_xlabel('dur: {}, ratio: {}'.format(\
+                neuro.duration[unit_index],\
+                neuro.ratio[unit_index]))
         ## END if opto:
 
         pdf.savefig()
@@ -182,9 +187,9 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # do this for best position and no contact position. Plot things overall and
 # then look at things as a function of depth.
 
-fids = ['1295', '1302', '1318', '1328', '1329', '1330']
+fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336']
 #fids = ['1302', '1318', '1330']
-#fids = ['1330']
+#fids = ['1336']
 experiments = list()
 for fid in fids:
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
@@ -290,6 +295,7 @@ burst_path = '/Users/Greg/Documents/AdesnikLab/Data/burst.mat'
 a['burst_rate'] = burst_rate
 sio.savemat(burst_path, a)
 
+
 ###### Plot selectivity #####
 
 ## RS
@@ -298,6 +304,9 @@ s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 bins = np.arange(0, 1, 0.05)
 fig, ax = plt.subplots(3, 3, figsize=(16,9))
 fig.suptitle('selectivity', fontsize=20)
+
+#hist(selectivity[npand(cell_type==unit_type, region == region[unit_count]), 0], bins=np.arange(0, 1, 0.05)
+
 ax[0][0].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
 ax[0][0].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
 ax[0][0].set_title('RS units M1: {} units, S1: {} units\nno light'.format(sum(m1_inds), sum(s1_inds)))
@@ -353,6 +362,41 @@ for row in ax:
 for row in ax:
     for col in row:
         col.set_ylim(0, ylim_max)
+
+###### Plot selectivity Scatter #####
+###### Plot selectivity Scatter #####
+
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9))
+fig.suptitle('selectivity paired', fontsize=20)
+
+ax[0][0].plot(selectivity[m1_inds, 0], selectivity[m1_inds, 1], 'ok')
+ax[0][0].set_title('M1 RS units')
+ax[0][0].set_xlabel('No Light')
+ax[0][0].set_ylabel('S1 Silencing')
+ax[0][0].plot([0, 1], [0, 1], 'k')
+
+ax[1][0].plot(selectivity[s1_inds, 0], selectivity[s1_inds, 2], 'or')
+ax[1][0].set_title('S1 RS units')
+ax[1][0].set_xlabel('No Light')
+ax[1][0].set_ylabel('M1 Silencing')
+ax[1][0].plot([0, 1], [0, 1], 'k')
+
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+ax[0][1].plot(selectivity[m1_inds, 0], selectivity[m1_inds, 1], 'ok')
+ax[0][1].set_title('M1 FS units')
+ax[0][1].set_xlabel('No Light')
+ax[0][1].set_ylabel('S1 Silencing')
+ax[0][1].plot([0, 1], [0, 1], 'k')
+
+ax[1][1].plot(selectivity[s1_inds, 0], selectivity[s1_inds, 2], 'or')
+ax[1][1].set_title('S1 FS units')
+ax[1][1].set_xlabel('No Light')
+ax[1][1].set_ylabel('M1 Silencing')
+ax[1][1].plot([0, 1], [0, 1], 'k')
 
 ###### Plot selectivity by depth
 #fig, ax = plt.subplots(1, 1, figsize=(8,8))
@@ -952,7 +996,7 @@ neuro = experiments[0]
 ##### REMOVE #####
 
 unit_count = 0
-unit_type  = 'FS'
+unit_type  = 'RS'
 fig_dir = os.path.expanduser('~/Documents/AdesnikLab/temp/')
 
 with PdfPages(fig_dir + 'all_RS_unit_summaries.pdf') as pdf:
@@ -999,7 +1043,7 @@ with PdfPages(fig_dir + 'all_RS_unit_summaries.pdf') as pdf:
                 ax1 = plt.subplot2grid((5,3), (0,0), colspan=1, rowspan=1)
                 ax2 = plt.subplot2grid((5,3), (0,1), colspan=1, rowspan=1)
                 ax3 = plt.subplot2grid((5,3), (0,2), colspan=1, rowspan=1)
-                ax4 = plt.subplot2grid((5,3), (1,0), colspan=2, rowspan=2)
+                = plt.subplot2grid((5,3), (1,0), colspan=2, rowspan=2)
                 ax5 = plt.subplot2grid((5,3), (1,2), colspan=1, rowspan=1)
                 ax6 = plt.subplot2grid((5,3), (2,2), colspan=1, rowspan=1)
                 ax7 = plt.subplot2grid((5,3), (3,0), colspan=2, rowspan=2)
@@ -1105,6 +1149,50 @@ with PdfPages(fig_dir + 'all_RS_unit_summaries.pdf') as pdf:
                 plt.close(fig)
 
             unit_count += 1
+
+
+
+
+##### SCRATCH #####
+##### SCRATCH #####
+
+pos      = 5
+trial    = 11
+unit_ind = 9
+
+plot(neuro.wtt, neuro.wt[pos][:, 0, trial], 'k',\
+        neuro.wtt, neuro.wt[pos][:, 1, trial], 'r')
+vlines(neuro.bins_t[neuro.binned_spikes[pos][:, unit_ind, trial]==1], 0, 80, 'k')
+
+
+# get protraction times for a trial
+phase = neuro.wt[pos][:, 3, trial]
+phs_crossing = phase > 0
+phs_crossing = phs_crossing.astype(int)
+protration_times     = np.where(np.diff(phs_crossing) > 0)[0] + 1
+
+#plot(phase)
+vlines(neuro.wtt[phs_diff], 0, 150, 'r')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
