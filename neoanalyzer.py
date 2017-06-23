@@ -998,7 +998,7 @@ class NeuroAnalyzer(object):
         for unit_index in range(self.num_units):
             meanr = np.array([np.mean(k[:, unit_index]) for k in self.evk_rate])
             best_contact[unit_index,] = np.argmax(meanr[:self.control_pos])
-        self.best_contact = best_contact
+        self.best_contact = best_contact.astype(int)
 
     def get_sensory_drive(self):
         '''determine which units are sensory driven'''
@@ -1081,30 +1081,55 @@ class NeuroAnalyzer(object):
 
         return rates_per_bin
 
-    def pta(self, cond=0, unit_ind=0, window=[-0.250, 0.250], dt=0.010, analysis_window=[0.5, 1.5]):
-        '''Create a protraction triggered average'''
+    def pta(self, cond=0, unit_ind=0, window=[-0.100, 0.100], dt=0.050, analysis_window=[0.5, 1.5]):
+        '''
+        Create a protraction triggered histogram/average
+        Returns: mean counts per bin, sem counts per bin, and bins
+        '''
 
-        bins        = np.arange(window[0], window[1], dt)
-        bin_counts = np.zeros((bins.shape[0] - 1, ))
-        num_trials  = 0.0
+        bins      = np.arange(window[0], window[1], dt)
+        count_mat = np.zeros((1, bins.shape[0] - 1)) # trials x bins
 
+        # iterate through all trials and count spikes
         for trial_ind in range(self.num_good_trials[cond]):
             all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
             windowed_spike_times = np.logical_and(all_spike_times > analysis_window[0],\
                     all_spike_times < analysis_window[1])
             protraction_times = self.get_protraction_times(cond, trial_ind, analysis_window)
 
+            # bin spikes for each protraction and add to count_mat
             for p_time in protraction_times:
-                bin_counts += np.histogram(all_spike_times[windowed_spike_times] - p_time, bins)[0]
-                num_trials += 1
+                temp_counts = np.histogram(all_spike_times[windowed_spike_times] - p_time, bins)[0].reshape(1, bins.shape[0]-1)
+                count_mat   = np.concatenate((count_mat, temp_counts), 0) # extend the number of rows
 
-        mean_spks_per_bin = bin_counts/num_trials
-        mean_fr_per_bin   = mean_spks_per_bin/dt
+        count_mat = count_mat[1::, :]
+        out1 = np.mean(count_mat, 0)/dt
+        out2 = sp.stats.sem(count_mat, 0)
+        out3 = bins
 
-        #plt.bar(bins[0:-1], mean_spks_per_bin, width=dt)
-        #average out the angle traces and overlay...???
+        return out1, out2, out3
 
-        return mean_spks_per_bin, bins, dt
+    def get_pta_depth(self, window=[-0.100, 0.100], dt=0.050, analysis_window=[0.5, 1.5]):
+        '''
+        Calculates modulation depth from protraction triggered averages
+        Here modulation depth is the coefficient of variation (std/mean)
+        '''
+        if hasattr(self, 'wt') is False:
+            print('no whisking data!')
+        control_pos = self.control_pos
+        num_conditions = self.stim_ids.shape[0]
+        mod_mat = np.zeros((self.num_units, num_conditions))
+
+        for unit_index in range(self.num_units):
+            print('working on unit: {}'.format(unit_index))
+            for cond in range(num_conditions):
+                    spks_bin, _, _ = self.pta(cond=cond, unit_ind=unit_index, window=window, dt=dt, analysis_window=analysis_window)
+                    meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
+                    #mod_depth = (np.max(spks_bin) - np.min(spks_bin)) / np.mean(spks_bin)
+                    mod_depth = np.std(spks_bin)/np.mean(spks_bin)
+                    mod_mat[unit_index, cond] = mod_depth
+
+        self.mod_index = mod_mat
 
 
     def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
@@ -1504,14 +1529,14 @@ if __name__ == "__main__":
 
 ##### Protraction Triggered Histograms #####
 ##### Protraction Triggered Histograms #####
-fig, ax = subplots(3, 9)
-count   = 0
-dt      = 0.005
-for row in range(3):
-    for col in range(9):
-        spks_per_bin, bins, dt = neuro.pta(cond=count, unit_ind=uid, window=[-0.1, 0.1],dt=dt)
-        ax[row][col].bar(bins[0:-1], spks_per_bin, width=dt, edgecolor='none')
-        count += 1
+#fig, ax = subplots(3, 9)
+#count   = 0
+#dt      = 0.005
+#for row in range(3):
+#    for col in range(9):
+#        spks_per_bin, sem, bins = neuro.pta(cond=count, unit_ind=uid, window=[-0.1, 0.1],dt=dt)
+#        ax[row][col].bar(bins[0:-1], spks_per_bin, width=dt, edgecolor='none')
+#        count += 1
 
 
 
