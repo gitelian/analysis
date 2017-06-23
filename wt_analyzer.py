@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 import scipy.signal
 import statsmodels.stats.multitest as smm
 from scipy.optimize import curve_fit
+import sys
+import seaborn as sns
+from matplotlib.backends.backend_pdf import PdfPages
+
+sns.set_style("whitegrid", {'axes.grid' : False})
 
 #fids = ['1289', '1290', '1295', '1302']
 #fids = ['1295', '1302', '1328']
@@ -206,6 +211,11 @@ plt.title('frq; num-sig: ' + str(np.sum(rej)))
 #    plt.title('run; num-sig: ' + str(np.sum(rej)))
 #
 
+
+######################################################
+##### single experiment whisking analysis #####
+######################################################
+
 def plot_freq(neuro, cond=0, color='k', error='sem'):
     base_inds = np.logical_and(neuro.wtt > 0, neuro.wtt < 1.0)
     stim_inds = np.logical_and(neuro.wtt > 0.5, neuro.wtt < 1.5)
@@ -240,6 +250,212 @@ plot_freq(neuro, cond=8, color='k')
 #plot_freq(neuro, cond=8+9, color='r')
 plot_freq(neuro, cond=8+9+9, color='b')
 plt.xlim(0,40); plt.xlabel('frequency (Hz)')
+
+
+
+
+
+
+
+###### Plot unit protraction summaries #####
+###### Plot unit protraction summaries #####
+# remove gride lines
+
+sns.set_style("whitegrid", {'axes.grid' : False})
+npand   = np.logical_and
+dt      = 0.005 # seconds
+window  = [-0.05, 0.05]
+#window  = [-0.75, 0.755]
+neuro.get_pta_depth()
+
+with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
+    for uid in range(neuro.num_units):
+        fig, ax = subplots(3, 3, figsize=(12,8))
+        fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
+                neuro.region_dict[neuro.shank_ids[uid]], \
+                neuro.depths[uid], \
+                neuro.cell_type[uid], \
+                fid, \
+                neuro.driven_units[uid]))
+
+        best_pos = int(neuro.best_contact[uid])
+#        best_pos = 3
+
+        # best position
+        spks_per_bin, sem, bins = neuro.pta(cond=best_pos, unit_ind=uid, window=window, dt=dt)
+        ax[0][0].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[0][0].set_title('Best Position\nMI: {}'.format(neuro.mod_index[uid, best_pos]))
+        ax[0][0].set_ylabel('Firing Rate (Hz)')
+        #ax[0][0].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        ### fit sine wave ###
+        plsq = fit_sinusoid(bins, spks_per_bin)
+        ax[0][0].plot(bins[:-1], peval(bins[:-1], plsq[0]), 'r')
+        ax[0][0].set_title('Amp: {0:.3f}, std: {1:.3f}'.format(plsq[0][0], np.std(spks_per_bin)))
+
+        # best position S0 silencing
+        spks_per_bin, sem, bins = neuro.pta(cond=best_pos+9, unit_ind=uid, window=window, dt=dt)
+        ax[1][0].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[1][0].set_title('S1 silencing')
+        ax[1][0].set_ylabel('Firing Rate (Hz)')
+        #ax[1][0].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        ### fit sine wave ###
+        plsq = fit_sinusoid(bins, spks_per_bin)
+        ax[1][0].plot(bins[:-1], peval(bins[:-1], plsq[0]), 'r')
+        ax[1][0].set_title('Amp: {0:.3f}, std: {1:.3f}'.format(plsq[0][0], np.std(spks_per_bin)))
+
+        # best position M1 silencing
+        spks_per_bin, sem, bins = neuro.pta(cond=best_pos+9+9, unit_ind=uid, window=window, dt=dt)
+        ax[2][0].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[2][0].set_title('M1 silencing')
+        ax[2][0].set_xlabel('Time from protraction (s)')
+        ax[2][0].set_ylabel('Firing Rate (Hz)')
+        #ax[2][0].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        ### fit sine wave ###
+        plsq = fit_sinusoid(bins, spks_per_bin)
+        ax[2][0].plot(bins[:-1], peval(bins[:-1], plsq[0]), 'r')
+        ax[2][0].set_title('Amp: {0:.3f}, std: {1:.3f}'.format(plsq[0][0], np.std(spks_per_bin)))
+
+        # no contact position
+        spks_per_bin, sem, bins = neuro.pta(cond=neuro.control_pos-1, unit_ind=uid, window=window, dt=dt)
+        ax[0][1].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[0][1].set_title('No Contact Position')
+        #ax[0][1].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        ### fit sine wave ###
+        plsq = fit_sinusoid(bins, spks_per_bin)
+        ax[0][1].plot(bins[:-1], peval(bins[:-1], plsq[0]), 'r')
+        ax[0][1].set_title('Amp: {0:.3f}, std: {1:.3f}'.format(plsq[0][0], np.std(spks_per_bin)))
+
+        # no contact position S1 silencing
+        spks_per_bin, sem, bins = neuro.pta(cond=neuro.control_pos-1+9, unit_ind=uid, window=window, dt=dt)
+        ax[1][1].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[1][1].set_title('S1 silencing')
+        #ax[1][1].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        ### fit sine wave ###
+        plsq = fit_sinusoid(bins, spks_per_bin)
+        ax[1][1].plot(bins[:-1], peval(bins[:-1], plsq[0]), 'r')
+        ax[1][1].set_title('Amp: {0:.3f}, std: {1:.3f}'.format(plsq[0][0], np.std(spks_per_bin)))
+
+        # no contact position M1 silencing
+        spks_per_bin, sem, bins = neuro.pta(cond=neuro.control_pos-1+9+9, unit_ind=uid, window=window, dt=dt)
+        ax[2][1].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[2][1].set_title('M1 silencing')
+        ax[2][1].set_xlabel('Time from protraction (s)')
+        #ax[2][1].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        ### fit sine wave ###
+        plsq = fit_sinusoid(bins, spks_per_bin)
+        ax[2][1].plot(bins[:-1], peval(bins[:-1], plsq[0]), 'r')
+        #ax[2][1].set_title('Amp: {0:.3f}, std: {0:.3f}'.format(plsq[0][0], np.std(spks_per_bin)))
+        ax[2][1].set_title('Amp: {0:.3f}, std: {1:.3f}'.format(34, 5))
+
+        ## set ylim to the max ylim of all subplots
+        ylim_max = 0
+        for row in ax:
+            for coli, col in enumerate(row):
+                if coli < 2:
+                    ylim_temp = col.get_ylim()[1]
+                    if ylim_temp > ylim_max:
+                        ylim_max = ylim_temp
+        for row in ax:
+            for coli, col in enumerate(row):
+                if coli < 2:
+                    col.set_ylim(0, ylim_max)
+
+        # top right: evoked tuning curves
+        neuro.plot_tuning_curve(unit_ind=uid, kind='abs_rate', axis=ax[0][2])
+        ax[0][2].set_xlim(0, 10)
+        ax[0][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
+#        ax[0][2].set_xlabel('bar position')
+        ax[0][2].set_title('absolute tc')
+
+        # top right: evoked tuning curves
+        neuro.plot_tuning_curve(unit_ind=uid, kind='evk_rate', axis=ax[1][2])
+        ax[1][2].set_xlim(0, 10)
+        ax[1][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
+#        ax[1][2].set_xlabel('bar position')
+        ax[1][2].set_title('evoked tc')
+
+        pdf.savefig()
+        fig.clear()
+        plt.close()
+
+#count   = 0
+#for row in range(3):
+#    for col in range(9):
+#        count += 1
+
+
+
+##### Fit sinusoid #####
+##### Fit sinusoid #####
+
+dt      = 0.005 # seconds
+window  = [-0.08, 0.08]
+y_meas, _, bins = neuro.pta(cond=int(neuro.best_contact[uid]), unit_ind=uid, window=window, dt=dt)
+
+from scipy.optimize import leastsq
+def residuals(p, y, x):
+    A, f, theta, D = p
+    err = y - ( A*sin(2*np.pi*f*x + theta) + D)
+#    err = y - A*sin(k*x + theta)
+    return err
+
+def peval(x, p):
+    return p[0]*sin(2*np.pi*p[1]*x + p[2]) + p[3]
+#    return p[0]*sin(p[1]*x + p[2])
+
+#p0 = np.std(y_meas), 0.0001, np.mean(y_meas)
+
+#x = arange(0, 6e-2, 6e-2 / 30)
+#A, k, theta = 10, 1.0 / 3e-2, pi / 6
+#y_true = A * sin(2 * pi * k * x + theta)
+#y_meas = y_true + 2*random.randn(len(x))
+#p0 = [8, 1 / 2.3e-2, pi / 3]
+
+
+# p0 = Amplitude, frequency (Hz), theta, DC offset
+def fit_sinusoid(bins, y_meas):
+    p0 = [2*np.std(y_meas), 20, 0, np.mean(y_meas)]
+    x = bins[:-1]
+    plsq = leastsq(residuals, p0, args=(y_meas, x))
+    return plsq
+plt.plot(x, peval(x, plsq[0]), x, y_meas, 'o')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
