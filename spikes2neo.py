@@ -548,7 +548,7 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1337']
+    fids = ['FID1335']
 #    fids = ['1295', '1302', '1318', '1328', '1329', '1330']
 #    fids = ['FID' + fid for fid in fids]
     #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
@@ -597,8 +597,12 @@ if __name__ == "__main__":
             print('continuing')
 
         # # Create running trial dictionary
+        # fast running
+#        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
+#                t_after_stop=1.50, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=True) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+        # slow but steady running
         run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
-                t_after_stop=1.50, mean_thresh=250, sigma_thresh=100, low_thresh=050, display=True) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+                t_after_stop=1.50, mean_thresh=100, sigma_thresh=100, low_thresh=050, display=True) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
         run_time_list = get_running_times(trtime_list, stim_time_list)
 
         ## get control position

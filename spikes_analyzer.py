@@ -189,7 +189,7 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
 fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336']
 #fids = ['1302', '1318', '1330']
-#fids = ['1336']
+fids = ['1335']
 experiments = list()
 for fid in fids:
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
