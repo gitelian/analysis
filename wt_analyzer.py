@@ -264,8 +264,8 @@ plt.xlim(0,40); plt.xlabel('frequency (Hz)')
 sns.set_style("whitegrid", {'axes.grid' : False})
 npand   = np.logical_and
 dt      = 0.005 # seconds
-window  = [-0.05, 0.05]
-#window  = [-0.75, 0.755]
+#window  = [-0.05, 0.05]
+window  = [-0.75, 0.755]
 neuro.get_pta_depth()
 
 with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
