@@ -199,7 +199,7 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
 
                 print('Working on: ' + 'FID' + str(fid) + ' unit: ' + str(unit_id))
                 spike_inds     = np.where(assigns == unit_id)[0]
-                wave_temp      = waves[spike_inds, :, :]
+                wave_temp      = np.float32(waves[spike_inds, :, :])
                 mean_wave_temp = np.mean(wave_temp,axis=0)
                 std_wave_temp  = np.std(wave_temp,axis=0)
                 wave_min       = np.min(mean_wave_temp,axis=0)
