@@ -1081,7 +1081,7 @@ class NeuroAnalyzer(object):
 
         return rates_per_bin
 
-    def pta(self, cond=0, unit_ind=0, window=[-0.100, 0.100], dt=0.050, analysis_window=[0.5, 1.5]):
+    def pta(self, cond=0, unit_ind=0, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
         '''
         Create a protraction triggered histogram/average
         Returns: mean counts per bin, sem counts per bin, and bins
@@ -1109,7 +1109,7 @@ class NeuroAnalyzer(object):
 
         return out1, out2, out3
 
-    def get_pta_depth(self, window=[-0.100, 0.100], dt=0.050, analysis_window=[0.5, 1.5]):
+    def get_pta_depth(self, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
         '''
         Calculates modulation depth from protraction triggered averages
         Here modulation depth is the coefficient of variation (std/mean)
@@ -1124,9 +1124,8 @@ class NeuroAnalyzer(object):
             print('working on unit: {}'.format(unit_index))
             for cond in range(num_conditions):
                     spks_bin, _, _ = self.pta(cond=cond, unit_ind=unit_index, window=window, dt=dt, analysis_window=analysis_window)
-                    meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
                     #mod_depth = (np.max(spks_bin) - np.min(spks_bin)) / np.mean(spks_bin)
-                    mod_depth = np.std(spks_bin)/np.mean(spks_bin)
+                    mod_depth = np.var(spks_bin)/np.mean(spks_bin)
                     mod_mat[unit_index, cond] = mod_depth
 
         self.mod_index = mod_mat
