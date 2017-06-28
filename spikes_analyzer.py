@@ -172,8 +172,6 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[3][2].set_xlim(0, neuro.waves[unit_index, :].shape[0])
         ax[3][2].set_title('Mean waveform')
         ax[3][2].set_xlabel('dur: {}, ratio: {}'.format(\
-                neuro.duration[unit_index],\
-                neuro.ratio[unit_index]))
         ## END if opto:
 
         pdf.savefig()
@@ -187,9 +185,10 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # do this for best position and no contact position. Plot things overall and
 # then look at things as a function of depth.
 
-fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336']
+fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336','1338', '1339']
+
 #fids = ['1302', '1318', '1330']
-fids = ['1335']
+#fids = ['1336', '1338', '1339']
 experiments = list()
 for fid in fids:
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
@@ -368,9 +367,12 @@ for row in ax:
 
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+m1_FS_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_FS_inds = npand(npand(region==1, driven==True), cell_type=='FS')
 
 fig, ax = plt.subplots(2, 2, figsize=(10,9))
-fig.suptitle('selectivity paired', fontsize=20)
+fig.suptitle('selectivity paired\nRS units M1: {}, S1: {}\nFS units: M1: {}, S1: {}'\
+        .format(sum(m1_inds), sum(s1_inds), sum(m1_FS_inds), sum(s1_FS_inds)), fontsize=16)
 
 ax[0][0].plot(selectivity[m1_inds, 0], selectivity[m1_inds, 1], 'ok')
 ax[0][0].set_title('M1 RS units')
@@ -405,71 +407,57 @@ ax[1][1].plot([0, 1], [0, 1], 'k')
 #ax.set_ylim(0, 1100)
 
 
-###### Plot preferred position #####
+###### Plot preferred position scatter #####
+###### Plot preferred position scatter #####
 
-## RS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-bins = np.arange(-1.0, 1.0, 0.10)
-fig, ax = plt.subplots(3, 3, figsize=(16,9))
-fig.suptitle('preferred position', fontsize=20)
-ax[0][0].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[0][0].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[0][0].set_title('RS units M1: {} units, S1: {} units\nno light'.format(sum(m1_inds), sum(s1_inds)))
-ax[0][0].legend(['M1', 'S1'])
-ax[1][0].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[1][0].hist(preference[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[1][0].set_title('M1 units, S1 light')
-ax[1][0].legend(['M1', 'S1 silencing'])
-ax[2][0].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[2][0].hist(preference[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[2][0].set_title('S1 units, M1 light')
-ax[2][0].legend(['M1 silencing', 'S1'])
+m1_FS_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_FS_inds = npand(npand(region==1, driven==True), cell_type=='FS')
 
-## FS
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
+fig.suptitle('preference paired\nRS units M1: {}, S1: {}\nFS units: M1: {}, S1: {}'\
+        .format(sum(m1_inds), sum(s1_inds), sum(m1_FS_inds), sum(s1_FS_inds)), fontsize=16)
+
+ax[0][0].plot(preference[m1_inds, 0], preference[m1_inds, 1], 'ok')
+ax[0][0].set_title('M1 RS units')
+ax[0][0].set_xlabel('No Light')
+ax[0][0].set_ylabel('S1 Silencing')
+#ax[0][0].plot([0, 1], [0, 1], 'k')
+
+ax[1][0].plot(preference[s1_inds, 0], preference[s1_inds, 2], 'or')
+ax[1][0].set_title('S1 RS units')
+ax[1][0].set_xlabel('No Light')
+ax[1][0].set_ylabel('M1 Silencing')
+
 m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
-ax[0][1].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[0][1].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[0][1].set_title('FS units M1: {} units, S1: {} units\nno light'.format(sum(m1_inds), sum(s1_inds)))
-ax[0][1].legend(['M1', 'S1'])
-ax[1][1].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[1][1].hist(preference[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[1][1].set_title('M1 units, S1 light')
-ax[1][1].legend(['M1', 'S1 silencing'])
-ax[2][1].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[2][1].hist(preference[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[2][1].set_title('S1 units, M1 light')
-ax[2][1].legend(['M1 silencing', 'S1'])
+ax[0][1].plot(preference[m1_inds, 0], preference[m1_inds, 1], 'ok')
+ax[0][1].set_title('M1 FS units')
+ax[0][1].set_xlabel('No Light')
+ax[0][1].set_ylabel('S1 Silencing')
 
-## MU
-m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
-ax[0][2].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[0][2].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[0][2].set_title('MUA M1: {} units, S1: {} units\nno light'.format(sum(m1_inds), sum(s1_inds)))
-ax[0][2].legend(['M1', 'S1'])
-ax[1][2].hist(preference[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[1][2].hist(preference[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[1][2].set_title('M1, S1 light')
-ax[1][2].legend(['M1', 'S1 silencing'])
-ax[2][2].hist(preference[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[2][2].hist(preference[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[2][2].set_title('S1, M1 light')
-ax[2][2].legend(['M1 silencing', 'S1'])
+ax[1][1].plot(preference[s1_inds, 0], preference[s1_inds, 2], 'or')
+ax[1][1].set_title('S1 FS units')
+ax[1][1].set_xlabel('No Light')
+ax[1][1].set_ylabel('M1 Silencing')
 
 ## set ylim to the max ylim of all subplots
 ylim_max = 0
+xlim_max = 0
 for row in ax:
     for col in row:
-        ylim_temp = col.get_ylim()[1]
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
         if ylim_temp > ylim_max:
             ylim_max = ylim_temp
+        if xlim_temp > xlim_max:
+            xlim_max = xlim_temp
 for row in ax:
     for col in row:
-        col.set_ylim(0, ylim_max)
-
-
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
 
 ##### plot OMI #####
 ##### plot OMI #####
@@ -599,16 +587,17 @@ ax[1][2].set_xlabel('Light Off\nfiring rate (Hz)')
 ##### plot driven rates best position #####
 
 ## RS top left
+print('FIX ME...SCATTER PLOT DOESN\'T MAKE SENSE HERE?')
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 m1_best_pos = best_pos[m1_inds].astype(int)
 s1_best_pos = best_pos[s1_inds].astype(int)
 fig, ax = plt.subplots(2, 3, figsize=(16,9))
 fig.suptitle('Driven Rates', fontsize=20)
-ax[0][0].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9, 0], \
-        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][0].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9, 0], \
-        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
+ax[0][0].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_pos+9, 0], \
+        xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
+ax[0][0].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9, 0], \
+        xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
 max_val = np.max([ax[0][0].get_xlim(), ax[0][0].get_ylim()])
 ax[0][0].set_xlim(0, max_val)
 ax[0][0].set_ylim(0, max_val)
@@ -617,10 +606,10 @@ ax[0][0].set_title('RS units M1: {} units, S1: {} units, \nS1 light'.format(sum(
 ax[0][0].set_ylabel('Light On\nfiring rate (Hz)')
 
 ## RS bottom left
-ax[1][0].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9+9, 0], \
-        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
-ax[1][0].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9+9, 0], \
-        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
+ax[1][0].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_pos+9+9, 0], \
+        xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
+ax[1][0].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9+9, 0], \
+        xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
 max_val = np.max([ax[1][0].get_xlim(), ax[1][0].get_ylim()])
 ax[1][0].set_xlim(0, max_val)
 ax[1][0].set_ylim(0, max_val)
@@ -634,10 +623,10 @@ m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
 m1_best_pos = best_pos[m1_inds].astype(int)
 s1_best_pos = best_pos[s1_inds].astype(int)
-ax[0][1].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9, 0], \
-        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][1].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9, 0], \
-        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
+ax[0][1].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_pos+9, 0], \
+        xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
+ax[0][1].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9, 0], \
+        xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
 max_val = np.max([ax[0][1].get_xlim(), ax[0][1].get_ylim()])
 ax[0][1].set_xlim(0, max_val)
 ax[0][1].set_ylim(0, max_val)
@@ -645,10 +634,10 @@ ax[0][1].plot([0, max_val], [0, max_val], 'b')
 ax[0][1].set_title('FS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
 
 ## FS bottom middle
-ax[1][1].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9+9, 0], \
-        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
-ax[1][1].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9+9, 0], \
-        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
+ax[1][1].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_pos+9+9, 0], \
+        xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
+ax[1][1].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9+9, 0], \
+        xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
 max_val = np.max([ax[1][1].get_xlim(), ax[1][1].get_ylim()])
 ax[1][1].set_xlim(0, max_val)
 ax[1][1].set_ylim(0, max_val)
@@ -661,10 +650,10 @@ m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
 m1_best_pos = best_pos[m1_inds].astype(int)
 s1_best_pos = best_pos[s1_inds].astype(int)
-ax[0][2].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9, 0], \
-        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][2].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9, 0], \
-        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
+ax[0][2].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_pos+9, 0], \
+        xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
+ax[0][2].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9, 0], \
+        xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
 max_val = np.max([ax[0][2].get_xlim(), ax[0][2].get_ylim()])
 ax[0][2].set_xlim(0, max_val)
 ax[0][2].set_ylim(0, max_val)
@@ -673,10 +662,10 @@ ax[0][2].set_title('MU units M1: {} units, S1: {} units, \nS1 light'.format(sum(
 ax[0][2].set_xlabel('Light Off\nfiring rate (Hz)')
 
 ## MU bottom right
-ax[1][2].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9+9, 0], \
-        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
-ax[1][2].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9+9, 0], \
-        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
+ax[1][2].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_pos+9+9, 0], \
+        xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
+ax[1][2].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9+9, 0], \
+        xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
 max_val = np.max([ax[1][2].get_xlim(), ax[1][2].get_ylim()])
 ax[1][2].set_xlim(0, max_val)
 ax[1][2].set_ylim(0, max_val)
