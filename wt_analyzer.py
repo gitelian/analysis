@@ -264,10 +264,10 @@ plt.xlim(0,40); plt.xlabel('frequency (Hz)')
 sns.set_style("whitegrid", {'axes.grid' : False})
 npand   = np.logical_and
 
+neuro.get_pta_depth()
 dt      = 0.005 # seconds
 window  = [-0.05, 0.05]
 #window  = [-0.75, 0.755]
-neuro.get_pta_depth()
 
 with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
     for uid in range(neuro.num_units):
@@ -354,7 +354,7 @@ with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
         #ax[2][1].set_title('Amp: {0:.3f}, std: {0:.3f}'.format(plsq[0][0], np.std(spks_per_bin)))
         ax[2][1].set_title('Amp: {0:.3f}, std: {1:.3f}'.format(34, 5))
 
-        ## set ylim to the max ylim of all subplots
+        ## set ylim to the max ylim of all PTA histogram subplots
         ylim_max = 0
         for row in ax:
             for coli, col in enumerate(row):
@@ -374,23 +374,26 @@ with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
 #        ax[0][2].set_xlabel('bar position')
         ax[0][2].set_title('absolute tc')
 
-        # top right: evoked tuning curves
+        # middle right: evoked tuning curves
         neuro.plot_tuning_curve(unit_ind=uid, kind='evk_rate', axis=ax[1][2])
         ax[1][2].set_xlim(0, 10)
         ax[1][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
 #        ax[1][2].set_xlabel('bar position')
         ax[1][2].set_title('evoked tc')
 
+        # bottom right: pta modulation depth tuning curve
+        print('CHECK THE PTA MODULATION DEPTH CODE')
+        ax[2][2].plot(np.arange(1,10), neuro.mod_index[uid, 0:9], '-ko',\
+                np.arange(1,10), neuro.mod_index[uid, 9:18], '-ro',\
+                np.arange(1,10), neuro.mod_index[uid, 18:27], '-bo')
+        ax[2][2].set_xlim(0, 10)
+        ax[2][2].hlines(0, 0, 10, colors='k', linestyles='dashed')
+#        ax[2][2].set_xlabel('bar position')
+        ax[2][2].set_title('protraction modulation depth (fano factor)')
+
         pdf.savefig()
         fig.clear()
         plt.close()
-
-#count   = 0
-#for row in range(3):
-#    for col in range(9):
-#        count += 1
-
-
 
 ##### Fit sinusoid #####
 ##### Fit sinusoid #####
@@ -403,23 +406,11 @@ from scipy.optimize import leastsq
 def residuals(p, y, x):
     A, f, theta, D = p
     err = y - ( A*sin(2*np.pi*f*x + theta) + D)
-#    err = y - A*sin(k*x + theta)
     return err
 
 def peval(x, p):
     return p[0]*sin(2*np.pi*p[1]*x + p[2]) + p[3]
-#    return p[0]*sin(p[1]*x + p[2])
 
-#p0 = np.std(y_meas), 0.0001, np.mean(y_meas)
-
-#x = arange(0, 6e-2, 6e-2 / 30)
-#A, k, theta = 10, 1.0 / 3e-2, pi / 6
-#y_true = A * sin(2 * pi * k * x + theta)
-#y_meas = y_true + 2*random.randn(len(x))
-#p0 = [8, 1 / 2.3e-2, pi / 3]
-
-
-# p0 = Amplitude, frequency (Hz), theta, DC offset
 def fit_sinusoid(bins, y_meas):
     p0 = [2*np.std(y_meas), 20, 0, np.mean(y_meas)]
     x = bins[:-1]
@@ -431,6 +422,123 @@ plt.plot(x, peval(x, plsq[0]), x, y_meas, 'o')
 
 
 
+###### Plot unit summaries for stimulation triggered averages #####
+###### Plot unit summaries for stimulation triggered averages #####
+
+# remove gride lines
+sns.set_style("whitegrid", {'axes.grid' : False})
+npand   = np.logical_and
+dt      = 0.005 # seconds
+window  = [-0.10, 0.10]
+stim_times = np.arange(0.5, 1.5, 0.050)
+
+with PdfPages(fid + '_unit_stimulation_locked_summaries.pdf') as pdf:
+    for uid in range(neuro.num_units):
+        fig, ax = subplots(4, 2, figsize=(10,8))
+        fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
+                neuro.region_dict[neuro.shank_ids[uid]], \
+                neuro.depths[uid], \
+                neuro.cell_type[uid], \
+                fid, \
+                neuro.driven_units[uid]))
+
+        best_pos = int(neuro.best_contact[uid])
+#        best_pos = 3
+
+        # best position
+        spks_per_bin, sem, bins = neuro.eta(stim_times, cond=best_pos, unit_ind=uid, window=window, dt=dt)
+        ax[0][0].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[0][0].set_ylabel('Firing Rate (Hz)')
+        #ax[0][0].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        # mean angle trace
+
+        # best position S0 silencing
+        spks_per_bin, sem, bins = neuro.eta(stim_times, cond=best_pos+9, unit_ind=uid, window=window, dt=dt)
+        ax[1][0].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[1][0].set_title('S1 silencing')
+        ax[1][0].set_ylabel('Firing Rate (Hz)')
+        #ax[1][0].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        # best position M1 silencing
+        spks_per_bin, sem, bins = neuro.eta(stim_times, cond=best_pos+9+9, unit_ind=uid, window=window, dt=dt)
+        ax[2][0].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[2][0].set_title('M1 silencing')
+        ax[2][0].set_xlabel('Time from protraction (s)')
+        ax[2][0].set_ylabel('Firing Rate (Hz)')
+        ax[2][0].vlines(0, ax[2][0].get_ylim()[0], ax[2][0].get_ylim()[1], color='r')
+        #ax[2][0].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        # no contact position
+        spks_per_bin, sem, bins = neuro.eta(stim_times, cond=neuro.control_pos-1, unit_ind=uid, window=window, dt=dt)
+        ax[0][1].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[0][1].set_title('No Contact Position')
+        #ax[0][1].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        # no contact position S1 silencing
+        spks_per_bin, sem, bins = neuro.eta(stim_times, cond=neuro.control_pos-1+9, unit_ind=uid, window=window, dt=dt)
+        ax[1][1].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[1][1].set_title('S1 silencing')
+        #ax[1][1].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        # no contact position M1 silencing
+        spks_per_bin, sem, bins = neuro.eta(stim_times, cond=neuro.control_pos-1+9+9, unit_ind=uid, window=window, dt=dt)
+        ax[2][1].bar(bins[:-1], spks_per_bin, width=dt, edgecolor='none')
+        ax[2][1].set_title('M1 silencing')
+        ax[2][1].set_xlabel('Time from protraction (s)')
+        #ax[2][1].errorbar(bins[:-1]+dt/2, spks_per_bin, yerr=sem*2.2, fmt='.', color='k')
+
+        ## set ylim to the max ylim of all ETA histogram subplots
+        ylim_max = 0
+        for rowi, row in enumerate(ax):
+            if rowi < 3:
+                for coli, col in enumerate(row):
+                    if coli < 2:
+                        ylim_temp = col.get_ylim()[1]
+                        if ylim_temp > ylim_max:
+                            ylim_max = ylim_temp
+        for rowi, row in enumerate(ax):
+            if rowi < 3:
+                for coli, col in enumerate(row):
+                    if coli < 2:
+                        col.set_ylim(0, ylim_max)
+                        col.vlines(0, 0, ylim_max, color='r')
+
+        # best position
+        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=best_pos, kind='angle')
+        ax[3][0].plot(trace_time, mean_trace, 'k')
+        ax[3][0].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='k', alpha=0.3)
+
+        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=best_pos+9, kind='angle')
+        ax[3][0].plot(trace_time, mean_trace, 'r')
+        ax[3][0].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='r', alpha=0.3)
+
+        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=best_pos+9+9, kind='angle')
+        ax[3][0].plot(trace_time, mean_trace, 'b')
+        ax[3][0].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='b', alpha=0.3)
+        ax[3][0].set_ylabel('angle (deg)')
+        ax[3][0].set_xlabel('time (s)')
+        ax[3][0].vlines([0, 0.010], ax[3][0].get_ylim()[0], ax[3][0].get_ylim()[1], 'b', linestyles='dashed')
+
+        # no contact position
+        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=neuro.control_pos-1, kind='angle')
+        ax[3][1].plot(trace_time, mean_trace, 'k')
+        ax[3][1].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='k', alpha=0.3)
+
+        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=neuro.control_pos-1+9, kind='angle')
+        ax[3][1].plot(trace_time, mean_trace, 'r')
+        ax[3][1].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='r', alpha=0.3)
+
+        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=neuro.control_pos-1+9+9, kind='angle')
+        ax[3][1].plot(trace_time, mean_trace, 'b')
+        ax[3][1].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='b', alpha=0.3)
+        ax[3][1].set_ylabel('angle (deg)')
+        ax[3][1].set_xlabel('time (s)')
+        ax[3][1].vlines([0, 0.010], ax[3][1].get_ylim()[0], ax[3][1].get_ylim()[1], 'b', linestyle='dashed')
+
+        pdf.savefig()
+        fig.clear()
+        plt.close()
 
 
 
@@ -440,10 +548,26 @@ plt.plot(x, peval(x, plsq[0]), x, y_meas, 'o')
 
 
 
+fig, ax = subplots(9, 1, sharex=True, sharey=True)
+for cond in range(9):
+    mean_trace, err, _ = neuro.eta_wt(stim_times, cond=cond, kind='angle')
+    ax[cond].plot(trace_time, mean_trace, 'k')
+    ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='k', alpha=0.3)
 
+    mean_trace, err, _ = neuro.eta_wt(stim_times, cond=cond+9, kind='angle')
+    ax[cond].plot(trace_time, mean_trace, 'r')
+    ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='r', alpha=0.3)
 
+    mean_trace, err, _ = neuro.eta_wt(stim_times, cond=cond+9+9, kind='angle')
+    ax[cond].plot(trace_time, mean_trace, 'b')
+    ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='b', alpha=0.3)
 
+    ax[cond].vlines([0, 0.010], ax[cond].get_ylim()[0], ax[cond].get_ylim()[1], 'b', linestyle='dashed')
+    ax[cond].set_title('Position: {}'.format(cond))
+    ax[cond].set_ylabel('firing rate (Hz)')
 
+    if cond == 8:
+        ax[cond].set_xlabel('time from stimulation (s)')
 
 
 
