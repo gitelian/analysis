@@ -142,8 +142,7 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[2][2].set_ylabel('OMI')
         ax[2][2].set_title('OMI tc')
 
-        # bottom bottom left: raster for best contact and S1 light
-       ## if opto:
+        # bottom bottom left: raster for best contact and S1 light ## if opto:
         neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9+9, axis=ax[3][0], burst=False)
         ax[3][0].set_xlim(-0.5, 2)
         # stimulus onset lines
@@ -466,7 +465,8 @@ for row in ax:
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 bins = np.arange(-1.0, 1.0, 0.10)
-fig, ax = plt.subplots(2, 3, figsize=(16,9))
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
 fig.suptitle('Mean OMI', fontsize=20)
 ax[0][0].hist(omi[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
 ax[0][0].hist(omi[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
@@ -489,26 +489,13 @@ ax[1][1].hist(omi[s1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r'
 ax[1][1].set_title('M1 light')
 ax[1][1].legend(['M1', 'S1'])
 
-## MU
-m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
-ax[0][2].hist(omi[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[0][2].hist(omi[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[0][2].set_title('MU units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
-ax[0][2].legend(['M1', 'S1'])
-ax[1][2].hist(omi[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[1][2].hist(omi[s1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[1][2].set_title('M1 light')
-ax[1][2].legend(['M1', 'S1'])
-
-
 ##### plot spontaneous rates #####
 ##### plot spontaneous rates #####
 
 ## RS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-fig, ax = plt.subplots(2, 3, figsize=(16,9))
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
 fig.suptitle('Spontaneous Rates', fontsize=20)
 ax[0][0].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9, 0], \
         xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='k', fmt='o', ecolor='k')
@@ -557,51 +544,39 @@ ax[1][1].plot([0, max_val], [0, max_val], 'b')
 ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
 
-## MU
-m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
-ax[0][2].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][2].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[0][1].get_xlim(), ax[0][1].get_ylim()])
-ax[0][2].set_xlim(0, max_val)
-ax[0][2].set_ylim(0, max_val)
-ax[0][2].plot([0, max_val], [0, max_val], 'b')
-ax[0][2].set_title('MU units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
 
-ax[1][2].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9+9, 1], c='k', fmt='o', ecolor='k')
-ax[1][2].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[1][1].get_xlim(), ax[1][1].get_ylim()])
-ax[1][2].set_xlim(0, max_val)
-ax[1][2].set_ylim(0, max_val)
-ax[1][2].plot([0, max_val], [0, max_val], 'b')
-ax[1][2].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
-ax[1][2].set_xlabel('Light Off\nfiring rate (Hz)')
-
-
+##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
+ylim_max = 0
+xlim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+        if xlim_temp > xlim_max:
+            xlim_max = xlim_temp
+for row in ax:
+    for col in row:
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
 
 ##### plot driven rates best position #####
 ##### plot driven rates best position #####
 
 ## RS top left
-print('FIX ME...SCATTER PLOT DOESN\'T MAKE SENSE HERE?')
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 m1_best_pos = best_pos[m1_inds].astype(int)
 s1_best_pos = best_pos[s1_inds].astype(int)
-fig, ax = plt.subplots(2, 3, figsize=(16,9))
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
 fig.suptitle('Driven Rates', fontsize=20)
 ax[0][0].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_pos+9, 0], \
         xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
 ax[0][0].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9, 0], \
         xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[0][0].get_xlim(), ax[0][0].get_ylim()])
-ax[0][0].set_xlim(0, max_val)
-ax[0][0].set_ylim(0, max_val)
-ax[0][0].plot([0, max_val], [0, max_val], 'b')
 ax[0][0].set_title('RS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[0][0].set_ylabel('Light On\nfiring rate (Hz)')
 
@@ -610,10 +585,6 @@ ax[1][0].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_p
         xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
 ax[1][0].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9+9, 0], \
         xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[1][0].get_xlim(), ax[1][0].get_ylim()])
-ax[1][0].set_xlim(0, max_val)
-ax[1][0].set_ylim(0, max_val)
-ax[1][0].plot([0, max_val], [0, max_val], 'b')
 ax[1][0].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[1][0].set_ylabel('Light On\nfiring rate (Hz)')
 ax[1][0].set_xlabel('Light Off\nfiring rate (Hz)')
@@ -627,10 +598,6 @@ ax[0][1].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_p
         xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
 ax[0][1].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9, 0], \
         xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[0][1].get_xlim(), ax[0][1].get_ylim()])
-ax[0][1].set_xlim(0, max_val)
-ax[0][1].set_ylim(0, max_val)
-ax[0][1].plot([0, max_val], [0, max_val], 'b')
 ax[0][1].set_title('FS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
 
 ## FS bottom middle
@@ -638,41 +605,23 @@ ax[1][1].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_p
         xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
 ax[1][1].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9+9, 0], \
         xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[1][1].get_xlim(), ax[1][1].get_ylim()])
-ax[1][1].set_xlim(0, max_val)
-ax[1][1].set_ylim(0, max_val)
-ax[1][1].plot([0, max_val], [0, max_val], 'b')
 ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
 
-## MU top right
-m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
-m1_best_pos = best_pos[m1_inds].astype(int)
-s1_best_pos = best_pos[s1_inds].astype(int)
-ax[0][2].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_pos+9, 0], \
-        xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][2].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9, 0], \
-        xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[0][2].get_xlim(), ax[0][2].get_ylim()])
-ax[0][2].set_xlim(0, max_val)
-ax[0][2].set_ylim(0, max_val)
-ax[0][2].plot([0, max_val], [0, max_val], 'b')
-ax[0][2].set_title('MU units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
-ax[0][2].set_xlabel('Light Off\nfiring rate (Hz)')
-
-## MU bottom right
-ax[1][2].errorbar(evk_rate[m1_inds, m1_best_pos, 0], evk_rate[m1_inds, m1_best_pos+9+9, 0], \
-        xerr=evk_rate[m1_inds, m1_best_pos, 1], yerr=evk_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
-ax[1][2].errorbar(evk_rate[s1_inds, s1_best_pos, 0], evk_rate[s1_inds, s1_best_pos+9+9, 0], \
-        xerr=evk_rate[s1_inds, s1_best_pos, 1], yerr=evk_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[1][2].get_xlim(), ax[1][2].get_ylim()])
-ax[1][2].set_xlim(0, max_val)
-ax[1][2].set_ylim(0, max_val)
-ax[1][2].plot([0, max_val], [0, max_val], 'b')
-ax[1][2].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
-ax[1][2].set_xlabel('Light Off\nfiring rate (Hz)')
-
+##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
+xylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
+        xylim_temp = np.max([xlim_temp, ylim_temp])
+        if xylim_temp > xylim_max:
+            xylim_max = xylim_temp
+for row in ax:
+    for col in row:
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([-xylim_max, xylim_max], [-xylim_max, xylim_max], 'k')
 
 
 ##### plot burst rates for RS units #####
@@ -1138,30 +1087,6 @@ with PdfPages(fig_dir + 'all_RS_unit_summaries.pdf') as pdf:
                 plt.close(fig)
 
             unit_count += 1
-
-
-
-
-##### SCRATCH #####
-##### SCRATCH #####
-
-pos      = 5
-trial    = 11
-unit_ind = 9
-
-plot(neuro.wtt, neuro.wt[pos][:, 0, trial], 'k',\
-        neuro.wtt, neuro.wt[pos][:, 1, trial], 'r')
-vlines(neuro.bins_t[neuro.binned_spikes[pos][:, unit_ind, trial]==1], 0, 80, 'k')
-
-
-# get protraction times for a trial
-phase = neuro.wt[pos][:, 3, trial]
-phs_crossing = phase > 0
-phs_crossing = phs_crossing.astype(int)
-protration_times     = np.where(np.diff(phs_crossing) > 0)[0] + 1
-
-#plot(phase)
-vlines(neuro.wtt[phs_diff], 0, 150, 'r')
 
 
 
