@@ -64,8 +64,7 @@ class NeuroAnalyzer(object):
         self.stim_ids        = np.sort(np.unique([k.annotations['trial_type'] for k in neo_obj.segments]))
 
         # find number of units
-        self.num_units       = len(self.neo_obj.segments[0].spiketrains)
-
+        self.num_units       = len(self.neo_obj.segments[0].spiketrains) 
         # find shank names (i.e. names of electrodes/recording sites, e.g.
         # 'e1', 'e2')
         self.shank_names     = np.sort(np.unique([k.annotations['shank'] for k in neo_obj.segments[0].spiketrains]))
@@ -90,6 +89,9 @@ class NeuroAnalyzer(object):
         self.cell_type_dict = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
         self.cell_type      = self.__get_celltypeID()
         self.cell_type_og   = self.cell_type
+
+        # made dictionary of whisker tracking information
+        self.wt_type_dict = {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity', 5:'whisking'}
 
         # set time after stimulus to start analyzing
         # time_after_stim + stim_start MUST BE LESS THAN stim_stop time
@@ -1109,6 +1111,71 @@ class NeuroAnalyzer(object):
 
         return out1, out2, out3
 
+    def eta(self, event_times, cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
+        '''
+        Create an event triggered histogram/average
+        Input: event times as a vector
+        TODO: event times as a matrix (i.e. a vector per specific trial)
+        Returns: mean counts per bin, sem counts per bin, and bins
+        '''
+
+        bins      = np.arange(window[0], window[1], dt)
+        count_mat = np.zeros((1, bins.shape[0] - 1)) # trials x bins
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(self.num_good_trials[cond]):
+            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+            windowed_spike_times = np.logical_and(all_spike_times > analysis_window[0],\
+                    all_spike_times < analysis_window[1])
+            protraction_times = self.get_protraction_times(cond, trial_ind, analysis_window)
+
+            # bin spikes for each protraction and add to count_mat
+            for e_time in event_times:
+                temp_counts = np.histogram(all_spike_times[windowed_spike_times] - e_time, bins)[0].reshape(1, bins.shape[0]-1)
+                count_mat   = np.concatenate((count_mat, temp_counts), 0) # extend the number of rows
+
+        count_mat = count_mat[1::, :]
+        out1 = np.mean(count_mat, 0)/dt
+        out2 = sp.stats.sem(count_mat, 0)
+        out3 = bins
+
+        return out1, out2, out3
+
+    def eta_wt(self, event_times, cond=0, kind='angle', window=[-0.050, 0.050]):
+#            cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
+        '''
+        Create an event triggered trace of a specified whisking parameter
+        Input: event times as a vector
+        TODO: event times as a matrix (i.e. a vector per specific trial)
+        Returns: mean trace, sem of traces, and the trace matrix (trials x window length)
+        '''
+        self.wt_type_dict = {'angle':0, 'set-point':1, 'amplitude':2, 'phase':3, 'velocity':4, 'whisking':5}
+
+        num_inds_pre  = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[0])))[0])
+        num_inds_post = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[1])))[0])
+        dt = self.wtt[1] - self.wtt[0]
+        trace_time = np.arange(-num_inds_pre, num_inds_post+1)*dt
+
+        # matrix size: trials x number of indices taken from interested trace
+        trace_mat = np.zeros((1, num_inds_pre + num_inds_post + 1))
+        kind_ind = self.wt_type_dict[kind]
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(self.num_good_trials[cond]):
+            for e_time in event_times:
+                trace_ind  = np.argmin(np.abs(self.wtt - e_time)) # find wt index closest to event time
+                trace_inds = np.arange(trace_ind - num_inds_pre, trace_ind + num_inds_post + 1)
+                trace_temp = self.wt[cond][trace_inds, kind_ind, trial_ind].reshape(1, trace_mat.shape[1])
+                trace_mat = np.concatenate((trace_mat, trace_temp))
+
+        trace_mat = trace_mat[1::, :]
+        out1 = np.mean(trace_mat, axis=0)
+        out2 = sp.stats.sem(trace_mat, axis=0)
+        out3 = trace_mat
+        out4 = trace_time
+
+        return out1, out2, out3
+
     def get_pta_depth(self, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
         '''
         Calculates modulation depth from protraction triggered averages
@@ -1185,10 +1252,10 @@ class NeuroAnalyzer(object):
                 ax.errorbar(pos[0:control_pos-1],\
                         meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
                         yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
-                        fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
+                        fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
                 # plot control position separately from stimulus positions
                 ax.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
-                        fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
+                        fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
         # if all tuning curves from all units are to be plotted
         else:
@@ -1212,10 +1279,10 @@ class NeuroAnalyzer(object):
                     plt.errorbar(pos[0:control_pos-1],\
                             meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
                             yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
-                            fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
+                            fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
                     # plot control position separately from stimulus positions
                     plt.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
-                            fmt=line_color[control_pos_count], marker='o', markersize=8.0, linewidth=2)
+                            fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
                 plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
                         ' depth: ' + str(self.depths[unit]) + \
