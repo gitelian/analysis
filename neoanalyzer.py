@@ -452,13 +452,19 @@ class NeuroAnalyzer(object):
         kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
         '''
         num_good_trials = list()
+        num_slow_trials  = list()
         for stim_id in self.stim_ids:
-            run_count = 0
+            run_count  = 0
+            slow_count = 0
             for trial in self.neo_obj.segments:
-                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
+                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind] == True:
                     run_count += 1
+                elif trial.annotations['trial_type'] == stim_id and trial.annotations[kind] == False:
+                    slow_count += 1
             num_good_trials.append(run_count)
+            num_slow_trials.append(slow_count)
         self.num_good_trials = num_good_trials
+        self.num_slow_trials = num_slow_trials
 
     def classify_whisking_trials(self, threshold='user'):
         '''
@@ -574,7 +580,7 @@ class NeuroAnalyzer(object):
                 if segment.annotations[key] == value]
         return stim_index
 
-    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean'):
+    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True):
         '''
         rates computes the absolute and evoked firing rate and counts for the
         specified stimulus period. The time to start analyzing after the stimulus
@@ -612,6 +618,12 @@ class NeuroAnalyzer(object):
             print('using running to find good trials')
             self.get_num_good_trials(kind='run_boolean')
 
+        if running == True:
+            num_trials = self.num_good_trials
+        elif running == False:
+            print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
+            num_trials = self.num_slow_trials
+
         # make bins for rasters and PSTHs
         bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
 #        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
@@ -621,7 +633,7 @@ class NeuroAnalyzer(object):
         self.bins_t = bins[0:-1]
 
         # preallocation loop
-        for k, trials_ran in enumerate(self.num_good_trials):
+        for k, trials_ran in enumerate(num_trials):
                 absolute_rate.append(np.zeros((trials_ran, self.num_units)))
                 evoked_rate.append(np.zeros((trials_ran, self.num_units)))
                 absolute_counts.append(np.zeros((trials_ran, self.num_units)))
@@ -636,7 +648,7 @@ class NeuroAnalyzer(object):
             good_trial_ind = 0
 
             for trial in self.neo_obj.segments:
-                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
+                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind] == running:
 
                     # organize whisker tracking data by trial type
                     if self.wt_boolean:
@@ -1111,6 +1123,38 @@ class NeuroAnalyzer(object):
 
         return out1, out2, out3
 
+    def get_pta_depth(self, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
+        '''
+        Calculates modulation depth from protraction triggered averages
+        Here modulation depth is the coefficient of variation (std/mean)
+        '''
+        if hasattr(self, 'wt') is False:
+            print('no whisking data!')
+        control_pos = self.control_pos
+        num_conditions = self.stim_ids.shape[0]
+        mod_mat = np.zeros((self.num_units, num_conditions))
+
+        for unit_index in range(self.num_units):
+            print('working on unit: {}'.format(unit_index))
+            for cond in range(num_conditions):
+                    spks_bin, _, _ = self.pta(cond=cond, unit_ind=unit_index, window=window, dt=dt, analysis_window=analysis_window)
+                    #mod_depth = (np.max(spks_bin) - np.min(spks_bin)) / np.mean(spks_bin)
+                    mod_depth = np.var(spks_bin)/np.mean(spks_bin)
+                    mod_mat[unit_index, cond] = mod_depth
+
+        self.mod_index = mod_mat
+
+    def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
+        '''compute adaptation ratio for a given unit and bins'''
+        bins = np.asarray(bins)
+        ratios = np.zeros((1, self.stim_ids.shape[0], bins.shape[0]-1))
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = np.mean(self.get_spike_rates_per_bin(bins=bins, unit_ind=unit_ind, trial_type=cond), axis=0)
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = ratios[0, cond, :]/float(ratios[0, cond, 0])
+
+        return ratios
+
     def eta(self, event_times, cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
         '''
         Create an event triggered histogram/average
@@ -1175,39 +1219,6 @@ class NeuroAnalyzer(object):
         out4 = trace_time
 
         return out1, out2, out3
-
-    def get_pta_depth(self, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
-        '''
-        Calculates modulation depth from protraction triggered averages
-        Here modulation depth is the coefficient of variation (std/mean)
-        '''
-        if hasattr(self, 'wt') is False:
-            print('no whisking data!')
-        control_pos = self.control_pos
-        num_conditions = self.stim_ids.shape[0]
-        mod_mat = np.zeros((self.num_units, num_conditions))
-
-        for unit_index in range(self.num_units):
-            print('working on unit: {}'.format(unit_index))
-            for cond in range(num_conditions):
-                    spks_bin, _, _ = self.pta(cond=cond, unit_ind=unit_index, window=window, dt=dt, analysis_window=analysis_window)
-                    #mod_depth = (np.max(spks_bin) - np.min(spks_bin)) / np.mean(spks_bin)
-                    mod_depth = np.var(spks_bin)/np.mean(spks_bin)
-                    mod_mat[unit_index, cond] = mod_depth
-
-        self.mod_index = mod_mat
-
-
-    def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
-        '''compute adaptation ratio for a given unit and bins'''
-        bins = np.asarray(bins)
-        ratios = np.zeros((1, self.stim_ids.shape[0], bins.shape[0]-1))
-        for cond in range(self.stim_ids.shape[0]):
-            ratios[0, cond, :] = np.mean(self.get_spike_rates_per_bin(bins=bins, unit_ind=unit_ind, trial_type=cond), axis=0)
-        for cond in range(self.stim_ids.shape[0]):
-            ratios[0, cond, :] = ratios[0, cond, :]/float(ratios[0, cond, 0])
-
-        return ratios
 
     def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
         '''
