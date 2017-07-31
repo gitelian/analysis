@@ -102,7 +102,7 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[1][2].set_xlabel('bar position')
         ax[1][2].set_title('evoked tc')
 
-# bottom left: raster for best contact and S1 light
+        # bottom left: raster for best contact and S1 light
         neuro.plot_raster(unit_ind=unit_index, trial_type=best_contact+9, axis=ax[2][0], burst=False)
         ax[2][0].set_xlim(-0.5, 2)
         # stimulus onset lines
@@ -170,7 +170,7 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         ax[3][2].plot(np.arange(neuro.waves[unit_index, :].shape[0]), neuro.waves[unit_index, :], 'k')
         ax[3][2].set_xlim(0, neuro.waves[unit_index, :].shape[0])
         ax[3][2].set_title('Mean waveform')
-        ax[3][2].set_xlabel('dur: {}, ratio: {}'.format(\
+        ax[3][2].set_xlabel('dur: {}, ratio: {}'.format(neuro.duration[unit_index], neuro.ratio[unit_index]))
         ## END if opto:
 
         pdf.savefig()
@@ -184,10 +184,12 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # do this for best position and no contact position. Plot things overall and
 # then look at things as a function of depth.
 
-fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336','1338', '1339']
+fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336','1338', '1339', '1340']
 
 #fids = ['1302', '1318', '1330']
 #fids = ['1336', '1338', '1339']
+# fid with good whisker tracking
+#fids = ['1330', '1336', '1338', '1339', '1340']
 experiments = list()
 for fid in fids:
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
@@ -284,14 +286,14 @@ npand   = np.logical_and
 #s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
 
 ##### loadt burst matrix #####
-burst_path = '/Users/Greg/Documents/AdesnikLab/Data/burst.mat'
-burst_rate = sio.loadmat(burst_path)['burst_rate']
-
-##### save burst matrix #####
-a = dict()
-burst_path = '/Users/Greg/Documents/AdesnikLab/Data/burst.mat'
-a['burst_rate'] = burst_rate
-sio.savemat(burst_path, a)
+#burst_path = '/Users/Greg/Documents/AdesnikLab/Data/burst.mat'
+#burst_rate = sio.loadmat(burst_path)['burst_rate']
+#
+###### save burst matrix #####
+#a = dict()
+#burst_path = '/Users/Greg/Documents/AdesnikLab/Data/burst.mat'
+#a['burst_rate'] = burst_rate
+#sio.savemat(burst_path, a)
 
 
 ###### Plot selectivity #####

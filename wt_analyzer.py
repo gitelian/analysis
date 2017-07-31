@@ -13,6 +13,8 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 #fids = ['1289', '1290', '1295', '1302']
 #fids = ['1295', '1302', '1328']
 fids = ['1330']
+# fid with good whisker tracking
+fids = ['1330', '1336', '1338', '1339', '1340']
 exps = list()
 for fid in fids:
     #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
@@ -21,14 +23,11 @@ for fid in fids:
     exps.append(neuro)
 # neuro.plot_tuning_curve(kind='evk_count')
 
-neuro = exps[0]
-fail()
 # plot all set-point traces
 plot(neuro.wtt, neuro.wt[6+9][:,1,:])
 
-neuro.plot_tuning_curve(kind='evk_count')
-
-# LDA analysis
+#### LDA analysis #####
+#### LDA analysis #####
 trode = 2
 
 plt.figure()
@@ -48,9 +47,7 @@ plt.legend(loc='best')
 X, y = neuro.make_design_matrix('evk_count', trode=trode)
 #trial_inds = np.logical_and(y>=9, y<17) # no control position
 trial_inds = np.logical_and(y>=18, y<26) # no control position
-X_r0 = X[trial_inds, :]
-y_r0 = y[trial_inds]
-X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+X_r0 = X[trial_inds, :] y_r0 = y[trial_inds] X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
 color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
 plt.subplot(1,2,2)
 for k in range(len(np.unique(y_r0))):
@@ -80,19 +77,20 @@ def plot_setpoint(neuro, axis=axis, cond=0, color='k', error='sem'):
     axis.plot(neuro.wtt, mean_sp, color)
     axis.fill_between(neuro.wtt, mean_sp - err, mean_sp + err, facecolor=color, alpha=0.3)
 
-fig, ax = plt.subplots(neuro.control_pos, 2)
-for i in range(2):
-    for k in range(neuro.control_pos):
-        axis = ax[k][i]
-        plot_setpoint(neuro, axis=axis, cond=k, color='k')
-        if i == 0:
-            plot_setpoint(neuro, axis=axis, cond=k+9, color='r')
-        else:
-            plot_setpoint(neuro, axis=axis, cond=k+9+9, color='b')
-        ax[k][i].set_xlim(-0.5, 2.0)
-        ax[k][i].set_xlabel('time (s)')
-        ax[k][i].set_ylabel('set-point (deg)')
-        ax[k][i].set_title('condition {}'.format(str(k)))
+for neuro in exps:
+    fig, ax = plt.subplots(neuro.control_pos, 2)
+    for i in range(2):
+        for k in range(neuro.control_pos):
+            axis = ax[k][i]
+            plot_setpoint(neuro, axis=axis, cond=k, color='k')
+            if i == 0:
+                plot_setpoint(neuro, axis=axis, cond=k+9, color='r')
+            else:
+                plot_setpoint(neuro, axis=axis, cond=k+9+9, color='b')
+            ax[k][i].set_xlim(-0.5, 2.0)
+            ax[k][i].set_xlabel('time (s)')
+            ax[k][i].set_ylabel('set-point (deg)')
+            ax[k][i].set_title('condition {}'.format(str(k)))
 
 ######################################################
 sp_diff = list()
@@ -117,13 +115,13 @@ frq_nolight = list()
 frq_light   = list()
 
 for neuro in exps:
-    neuro = exps[0]
+#    neuro = exps[0]
     for k in range(9):
         base_inds = np.logical_and(neuro.wtt > -1.0, neuro.wtt < 0)
         stim_inds = np.logical_and(neuro.wtt > 0.5, neuro.wtt < 1.5)
         ##### set-point #####
-        sp_nolight = np.nanmean(neuro.wt[k][stim_inds, 2, :], axis=1)
-        sp_light   = np.nanmean(neuro.wt[k+9][stim_inds, 2, :], axis=1) # s1 silencin
+        sp_nolight = np.nanmean(neuro.wt[k][stim_inds, 1, :], axis=1)
+        sp_light   = np.nanmean(neuro.wt[k+9][stim_inds, 1, :], axis=1) # s1 silencin
         sp_diff.append(np.nanmean(sp_light) - np.nanmean(sp_nolight))
         t, p = sp.stats.ttest_ind(sp_light, sp_nolight)
         sp_t.append(t); sp_p.append(p)
@@ -188,13 +186,13 @@ plt.subplots(1, 3)
 
 # set-point
 plt.subplot(1, 3, 1)
-plt.hist(sp_diff, bins=np.arange(-20,20,2), align='left')
+plt.hist(sp_diff, bins=np.arange(-20,20,1), align='left')
 rej, pval_corr = smm.multipletests(sp_p, alpha=0.05, method='sh')[:2]
 plt.title('set-point; num-sig: ' + str(np.sum(rej)))
 
 # velocity
 plt.subplot(1, 3, 2)
-plt.hist(vel_diff, bins=np.arange(-400,400,50), align='left')
+plt.hist(vel_diff, bins=np.arange(-100,100,1), align='left')
 rej, pval_corr = smm.multipletests(vel_p, alpha=0.05, method='sh')[:2]
 plt.title('vel; num-sig: ' + str(np.sum(rej)))
 
@@ -252,11 +250,6 @@ plot_freq(neuro, cond=8+9+9, color='b')
 plt.xlim(0,40); plt.xlabel('frequency (Hz)')
 
 
-
-
-
-
-
 ###### Plot unit protraction summaries #####
 ###### Plot unit protraction summaries #####
 
@@ -266,7 +259,7 @@ npand   = np.logical_and
 
 neuro.get_pta_depth()
 dt      = 0.005 # seconds
-window  = [-0.05, 0.05]
+window  = [-0.06, 0.06]
 #window  = [-0.75, 0.755]
 
 with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
@@ -429,7 +422,7 @@ plt.plot(x, peval(x, plsq[0]), x, y_meas, 'o')
 sns.set_style("whitegrid", {'axes.grid' : False})
 npand   = np.logical_and
 dt      = 0.005 # seconds
-window  = [-0.10, 0.10]
+window  = [-0.06, 0.06]
 stim_times = np.arange(0.5, 1.5, 0.050)
 
 with PdfPages(fid + '_unit_stimulation_locked_summaries.pdf') as pdf:
@@ -505,15 +498,15 @@ with PdfPages(fid + '_unit_stimulation_locked_summaries.pdf') as pdf:
                         col.vlines(0, 0, ylim_max, color='r')
 
         # best position
-        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=best_pos, kind='angle')
+        mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=best_pos, kind='angle')
         ax[3][0].plot(trace_time, mean_trace, 'k')
         ax[3][0].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='k', alpha=0.3)
 
-        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=best_pos+9, kind='angle')
+        mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=best_pos+9, kind='angle')
         ax[3][0].plot(trace_time, mean_trace, 'r')
         ax[3][0].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='r', alpha=0.3)
 
-        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=best_pos+9+9, kind='angle')
+        mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=best_pos+9+9, kind='angle')
         ax[3][0].plot(trace_time, mean_trace, 'b')
         ax[3][0].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='b', alpha=0.3)
         ax[3][0].set_ylabel('angle (deg)')
@@ -521,15 +514,15 @@ with PdfPages(fid + '_unit_stimulation_locked_summaries.pdf') as pdf:
         ax[3][0].vlines([0, 0.010], ax[3][0].get_ylim()[0], ax[3][0].get_ylim()[1], 'b', linestyles='dashed')
 
         # no contact position
-        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=neuro.control_pos-1, kind='angle')
+        mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=neuro.control_pos-1, kind='angle')
         ax[3][1].plot(trace_time, mean_trace, 'k')
         ax[3][1].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='k', alpha=0.3)
 
-        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=neuro.control_pos-1+9, kind='angle')
+        mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=neuro.control_pos-1+9, kind='angle')
         ax[3][1].plot(trace_time, mean_trace, 'r')
         ax[3][1].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='r', alpha=0.3)
 
-        mean_trace, err, _ = neuro.eta_wt(stim_times, cond=neuro.control_pos-1+9+9, kind='angle')
+        mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=neuro.control_pos-1+9+9, kind='angle')
         ax[3][1].plot(trace_time, mean_trace, 'b')
         ax[3][1].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='b', alpha=0.3)
         ax[3][1].set_ylabel('angle (deg)')
@@ -540,25 +533,18 @@ with PdfPages(fid + '_unit_stimulation_locked_summaries.pdf') as pdf:
         fig.clear()
         plt.close()
 
-
-
-
-
-
-
-
-
+# plot average whisker traces (angle) aligned to light onset
 fig, ax = subplots(9, 1, sharex=True, sharey=True)
 for cond in range(9):
-    mean_trace, err, _ = neuro.eta_wt(stim_times, cond=cond, kind='angle')
+    mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=cond, kind='angle')
     ax[cond].plot(trace_time, mean_trace, 'k')
     ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='k', alpha=0.3)
 
-    mean_trace, err, _ = neuro.eta_wt(stim_times, cond=cond+9, kind='angle')
+    mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=cond+9, kind='angle')
     ax[cond].plot(trace_time, mean_trace, 'r')
     ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='r', alpha=0.3)
 
-    mean_trace, err, _ = neuro.eta_wt(stim_times, cond=cond+9+9, kind='angle')
+    mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=cond+9+9, kind='angle')
     ax[cond].plot(trace_time, mean_trace, 'b')
     ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='b', alpha=0.3)
 

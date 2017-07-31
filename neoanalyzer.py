@@ -452,19 +452,26 @@ class NeuroAnalyzer(object):
         kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
         '''
         num_good_trials = list()
-        num_slow_trials  = list()
+        num_slow_trials = list()
+        num_all_trials  = list()
         for stim_id in self.stim_ids:
             run_count  = 0
             slow_count = 0
+            all_count  = 0
             for trial in self.neo_obj.segments:
                 if trial.annotations['trial_type'] == stim_id and trial.annotations[kind] == True:
                     run_count += 1
                 elif trial.annotations['trial_type'] == stim_id and trial.annotations[kind] == False:
                     slow_count += 1
+
+                if trial.annotations['trial_type'] == stim_id:
+                    all_count += 1
             num_good_trials.append(run_count)
             num_slow_trials.append(slow_count)
+            num_all_trials.append(all_count)
         self.num_good_trials = num_good_trials
         self.num_slow_trials = num_slow_trials
+        self.num_all_trials  = num_all_trials
 
     def classify_whisking_trials(self, threshold='user'):
         '''
@@ -580,7 +587,7 @@ class NeuroAnalyzer(object):
                 if segment.annotations[key] == value]
         return stim_index
 
-    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True):
+    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True, all_trials=False):
         '''
         rates computes the absolute and evoked firing rate and counts for the
         specified stimulus period. The time to start analyzing after the stimulus
@@ -624,10 +631,16 @@ class NeuroAnalyzer(object):
             print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
             num_trials = self.num_slow_trials
 
+        if all_trials == True:
+            print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
+            print('USING ALL RUNNING TRIALS')
+            num_trials = self.num_all_trials
+
         # make bins for rasters and PSTHs
         bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
 #        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
-        kernel = self.__make_kernel(kind='square', resolution=0.100)
+#        kernel = self.__make_kernel(kind='square', resolution=0.100)
+        kernel = self.__make_kernel(kind='square', resolution=0.025)
 #        kernel = self.__make_kernel(kind='alpha', resolution=0.050)
         self._bins = bins
         self.bins_t = bins[0:-1]
@@ -648,7 +661,8 @@ class NeuroAnalyzer(object):
             good_trial_ind = 0
 
             for trial in self.neo_obj.segments:
-                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind] == running:
+                if trial.annotations['trial_type'] == stim_id and (trial.annotations[kind] == running or \
+                        all_trials == True):
 
                     # organize whisker tracking data by trial type
                     if self.wt_boolean:
@@ -1218,7 +1232,7 @@ class NeuroAnalyzer(object):
         out3 = trace_mat
         out4 = trace_time
 
-        return out1, out2, out3
+        return out1, out2, out3, out4
 
     def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
         '''
