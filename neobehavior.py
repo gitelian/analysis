@@ -41,12 +41,13 @@ class NeuroAnalyzer(object):
 
         print('\n-----__init__-----')
         # specify where the data is
-        if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
-            data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-            self.exp_csv_dir = data_dir
-        elif os.path.isdir('/media/greg/data/behavior/neobehavior/'):
-            data_dir = '/media/greg/data/behavior/neobehavior/'
-            self.exp_csv_dir = '/media/greg/data/behavior/'
+#        if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
+#            data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+#            self.exp_csv_dir = data_dir
+#        elif os.path.isdir('/media/greg/data/behavior/neobehavior/'):
+#            data_dir = '/media/greg/data/behavior/neobehavior/'
+#            self.exp_csv_dir = '/media/greg/data/behavior/'
+        self.exp_csv_dir = '/media/greg/data/behavior/'
         self.data_dir = data_dir
 
         self.fid = fid
@@ -290,10 +291,12 @@ class NeuroAnalyzer(object):
 
 #            vel = run_speed[stim_period_inds]
             vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
-            if set_all_to_true == 0:
+            if set_all_to_true == False:
                 if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
                     self.neo_obj.segments[count].annotations['run_boolean'] = True
-            elif set_all_to_true == 1:
+                else:
+                    self.neo_obj.segments[count].annotations['run_boolean'] = False
+            elif set_all_to_true == True:
                 self.neo_obj.segments[count].annotations['run_boolean'] = True
 
 
@@ -528,8 +531,10 @@ class NeuroAnalyzer(object):
 
         return f, frq_mat_temp
 
-    def plot_freq(self, f, frq_mat_temp, color='k', error='sem'):
-        ax = plt.gca()
+    def plot_freq(self, f, frq_mat_temp, axis=None, color='k', error='sem'):
+        if axis == None:
+            axis = plt.gca()
+
         mean_frq = np.mean(frq_mat_temp, axis=1)
         se       = sp.stats.sem(frq_mat_temp, axis=1)
 
@@ -539,10 +544,9 @@ class NeuroAnalyzer(object):
         elif error == 'sem':
             err = se
 
-        plt.plot(f, mean_frq, color)
-        plt.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
-        ax.set_yscale('log')
-        return ax
+        axis.plot(f, mean_frq, color=color)
+        axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
+        #axis.set_yscale('log')
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
@@ -550,10 +554,11 @@ class NeuroAnalyzer(object):
 if __name__ == "__main__":
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-    if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
-        data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-    elif os.path.isdir('/media/greg/data/behavior/neobehavior/'):
-        data_dir = '/media/greg/data/behavior/neobehavior/'
+#    if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
+#        data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+#    elif os.path.isdir('/media/greg/data/behavior/neobehavior/'):
+#        data_dir = '/media/greg/data/behavior/neobehavior/'
+    data_dir = '/media/greg/data/behavior/neobehavior/'
 
     #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
     print(sys.argv)
@@ -569,8 +574,8 @@ if __name__ == "__main__":
     print('...Loading Complete!')
     manager.close()
 
-    exp1 = block[0]
-    neuro = NeuroAnalyzer(exp1, fid)
+    exp1  = block[0]
+    whisk = NeuroAnalyzer(exp1, fid)
 
 ##### SCRATCH SPACE #####
 ##### SCRATCH SPACE #####
