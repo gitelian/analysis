@@ -441,6 +441,8 @@ class NeuroAnalyzer(object):
             if set_all_to_true == 0:
                 if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
                     self.neo_obj.segments[count].annotations['run_boolean'] = True
+                else:
+                    self.neo_obj.segments[count].annotations['run_boolean'] = False
             elif set_all_to_true == 1:
                 self.neo_obj.segments[count].annotations['run_boolean'] = True
 
@@ -805,8 +807,10 @@ class NeuroAnalyzer(object):
 
         return f, frq_mat_temp
 
-    def plot_freq(self, f, frq_mat_temp, color='k', error='sem'):
-        ax = plt.gca()
+    def plot_freq(self, f, frq_mat_temp, axis=None, color='k', error='sem'):
+        if axis == None:
+            axis = plt.gca()
+
         mean_frq = np.mean(frq_mat_temp, axis=1)
         se       = sp.stats.sem(frq_mat_temp, axis=1)
 
@@ -816,10 +820,9 @@ class NeuroAnalyzer(object):
         elif error == 'sem':
             err = se
 
-        plt.plot(f, mean_frq, color)
-        plt.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
-        ax.set_yscale('log')
-        return ax
+        axis.plot(f, mean_frq, color=color)
+        axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
+        #axis.set_yscale('log')
 
     def make_design_matrix(self, rate_type='evk_count', trode=None, trim_trials=True):
         '''make design matrix for classification and regressions'''

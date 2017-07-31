@@ -9,6 +9,8 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mpl
 
+whisk.reclassify_run_trials(mean_thresh=100)
+whisk.wt_organize(running=False)
 # general useful things
 sns.set_style("whitegrid", {'axes.grid' : False})
 npand   = np.logical_and
@@ -80,7 +82,7 @@ xlow, xhigh = 0, 30  # frequency (xaxis lims)
 
 cmap = mpl.cm.viridis
 cmap = mpl.cm.hot
-fig, ax = subplots(1, 2, sharex=True, sharey=True)
+fig, ax = subplots(1, 2, figsize=(8,4), sharex=True, sharey=True)
 
 # add annotations
 ax[0].set_title('S1 stimulation')
@@ -94,7 +96,7 @@ for stim in range(num_stims):
     ax[0].set_xlim([xlow, xhigh])
 
     # compute and plot PSD for M1
-    f, frq_mat_temp = whisk.get_psd(whisk.wt[m1_stim_inds[stim]][:, 0, :], 500.0)
+    f, frq_mat_temp = whisk.get_psd(whisk.wt[m1_stim_inds[stim]][stim_time_inds, 0, :], 500.0)
     whisk.plot_freq(f, frq_mat_temp, axis=ax[1], color=cmap(stim / float(num_stims)))
     ax[1].set_ylim([ylow, yhigh])
     ax[1].set_xlim([xlow, xhigh])
