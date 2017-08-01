@@ -1117,6 +1117,8 @@ class NeuroAnalyzer(object):
         Create a protraction triggered histogram/average
         Returns: mean counts per bin, sem counts per bin, and bins
         '''
+        if hasattr(self, 'wt') is False:
+            print('no whisking data!')
 
         bins      = np.arange(window[0], window[1], dt)
         count_mat = np.zeros((1, bins.shape[0] - 1)) # trials x bins
@@ -1160,6 +1162,42 @@ class NeuroAnalyzer(object):
                     mod_mat[unit_index, cond] = mod_depth
 
         self.mod_index = mod_mat
+
+    def sta_wt(self, cond=0, unit_ind=0, analysis_window=[0.5, 1.5]):
+        '''
+        Create a spike triggered array
+        Returns: array (total spikes for specified unit x values) where each
+        entry is the whisker tracking value (e.g. angle, phase, set-point) when
+        the specified unit spiked.
+
+        The second array is all the whisker tracking values that occurred
+        during the analysis window for all analyzed trials
+        '''
+
+        st_vals = np.zeros((1, 5))
+        all_vals    = np.zeros((1, 5))
+        stim_inds   = np.logical_and(self.wtt >= analysis_window[0], self.wtt <= analysis_window[1])
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(self.num_good_trials[cond]):
+            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+            windowed_spike_times = np.logical_and(all_spike_times > analysis_window[0],\
+                    all_spike_times < analysis_window[1])
+
+            # iterate through all spike times and measure specified whisker
+            # parameter
+            for stime in windowed_spike_times:
+                wt_index = np.argmin(np.abs(stime - self.wtt))
+                temp_st_vals = self.wt[cond][wt_index, 0:5, trial_ind].reshape(1, 5)
+                st_vals = np.concatenate((st_vals, temp_st_vals), axis=0)
+
+            # add all whisker tracking values in analysis window to matrix
+            all_vals = np.concatenate((all_vals, self.wt[cond][stim_inds, 0:5, trial_ind]), axis=0)
+
+        st_vals = st_vals[1::, :]
+        all_vals    = all_vals[1::, :]
+
+        return st_vals, all_vals
 
     def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
         '''compute adaptation ratio for a given unit and bins'''
