@@ -149,14 +149,14 @@ class NeuroAnalyzer(object):
         # need this info to extract electrode depth
 
         if fid not in df_exp_det_fid_index.index:
-            warn('fid' + str(fid) + ' not found in experiment details csv file.\n\
+            warnings.warn('fid' + str(fid) + ' not found in experiment details csv file.\n\
                             Please update file and try again.')
             return None
 
         exp_info = df_exp_det_fid_index.loc[fid]
 
         if key not in exp_info:
-            warn('key "' + key + '" not found in experiment details csv file.\n\
+            warnings.warn('key "' + key + '" not found in experiment details csv file.\n\
                             Setting to None.')
             return None
         else:

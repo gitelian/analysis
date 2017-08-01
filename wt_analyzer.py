@@ -672,3 +672,73 @@ for cond in range(9):
 
 
 
+##### plot spike triggered averages #####
+##### plot spike triggered averages #####
+
+# 1 x 3 subplots (control, S1 silencing, M1 silencing)
+sns.set_style("whitegrid", {'axes.grid' : False})
+npand   = np.logical_and
+dt      = 5 # seconds, phase, degrees
+window  = [90, 180] # seconds, phase, degree, etc
+bins    = np.arange(window[0], window[1], dt)
+wt_type = 0 # {0: 'angle',1: 'set-point',2: 'amplitude',3: 'phase',4: 'velocity'}
+
+# ADD THIS TO THE NEURO CLASS
+def st_norm(st_vals, all_vals, wt_type, bins, dt):
+    st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
+    all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
+    count_norm = np.nan_to_num(st_count/all_count)/dt
+    return count_norm
+
+#with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
+# >>> INDENT ME >>>
+for uid in range(neuro.num_units):
+    fig, ax = subplots(1, 3, figsize=(12,8))
+    fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
+            neuro.region_dict[neuro.shank_ids[uid]], \
+            neuro.depths[uid], \
+            neuro.cell_type[uid], \
+            fid, \
+            neuro.driven_units[uid]))
+
+    # control position no light
+    st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
+    count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+    ax[0].bar(bins[:-1], count_norm, width=dt, edgecolor='none')
+
+    # control position S1 silencing
+    st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
+    count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+    ax[1].bar(bins[:-1], count_norm, width=dt, edgecolor='none')
+
+    # control position M1 silencing
+    st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
+    count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+    ax[2].bar(bins[:-1], count_norm, width=dt, edgecolor='none')
+
+##### quantify modulation depth #####
+mod_index = np.zeros((neuro.num_units, 2))
+for uid in range(neuro.num_units):
+    st_vals, all_vals = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
+    st_count, st_bins = np.histogram(st_vals, bins=bins)
+    mod_index[uid, :] = None # calculate modulation index here
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
