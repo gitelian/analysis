@@ -9,8 +9,8 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mpl
 
-whisk.reclassify_run_trials(mean_thresh=100)
-whisk.wt_organize(running=False)
+whisk.reclassify_run_trials(mean_thresh=100, low_thresh=0)
+whisk.wt_organize(running=True)
 # general useful things
 sns.set_style("whitegrid", {'axes.grid' : False})
 npand   = np.logical_and

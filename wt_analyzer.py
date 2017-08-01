@@ -214,6 +214,9 @@ plt.title('frq; num-sig: ' + str(np.sum(rej)))
 ##### single experiment whisking analysis #####
 ######################################################
 
+##### plot PSD of whisking frequency for s1 and m1 silencing #####
+##### plot PSD of whisking frequency for s1 and m1 silencing #####
+
 def plot_freq(neuro, cond=0, color='k', error='sem'):
     base_inds = np.logical_and(neuro.wtt > 0, neuro.wtt < 1.0)
     stim_inds = np.logical_and(neuro.wtt > 0.5, neuro.wtt < 1.5)
@@ -242,16 +245,35 @@ def plot_freq(neuro, cond=0, color='k', error='sem'):
     plt.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
     return ax
 
-# plot PSD of whisking frequency for s1 and m1 silencing
 plt.figure()
 plot_freq(neuro, cond=8, color='k')
-#plot_freq(neuro, cond=8+9, color='r')
-plot_freq(neuro, cond=8+9+9, color='b')
+plot_freq(neuro, cond=8+9, color='r')
+#plot_freq(neuro, cond=8+9+9, color='b')
 plt.xlim(0,40); plt.xlabel('frequency (Hz)')
 
+##### plot spike triggered averages #####
+##### plot spike triggered averages #####
 
 ###### Plot unit protraction summaries #####
 ###### Plot unit protraction summaries #####
+
+## Fit sinusoid function ##
+## Fit sinusoid function ##
+
+from scipy.optimize import leastsq
+def residuals(p, y, x):
+    A, f, theta, D = p
+    err = y - ( A*sin(2*np.pi*f*x + theta) + D)
+    return err
+
+def peval(x, p):
+    return p[0]*sin(2*np.pi*p[1]*x + p[2]) + p[3]
+
+def fit_sinusoid(bins, y_meas):
+    p0 = [2*np.std(y_meas), 20, 0, np.mean(y_meas)]
+    x = bins[:-1]
+    plsq = leastsq(residuals, p0, args=(y_meas, x))
+    return plsq
 
 # remove gride lines
 sns.set_style("whitegrid", {'axes.grid' : False})
@@ -388,31 +410,105 @@ with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
         fig.clear()
         plt.close()
 
-##### Fit sinusoid #####
-##### Fit sinusoid #####
-
-dt      = 0.005 # seconds
-window  = [-0.08, 0.08]
-y_meas, _, bins = neuro.pta(cond=int(neuro.best_contact[uid]), unit_ind=uid, window=window, dt=dt)
-
-from scipy.optimize import leastsq
-def residuals(p, y, x):
-    A, f, theta, D = p
-    err = y - ( A*sin(2*np.pi*f*x + theta) + D)
-    return err
-
-def peval(x, p):
-    return p[0]*sin(2*np.pi*p[1]*x + p[2]) + p[3]
-
-def fit_sinusoid(bins, y_meas):
-    p0 = [2*np.std(y_meas), 20, 0, np.mean(y_meas)]
-    x = bins[:-1]
-    plsq = leastsq(residuals, p0, args=(y_meas, x))
-    return plsq
-plt.plot(x, peval(x, plsq[0]), x, y_meas, 'o')
 
 
+##### FID1337 GPR26 AAV-ChR2 Analyzer #####
+##### FID1337 GPR26 AAV-ChR2 Analyzer #####
 
+neuro.reclassify_run_trials(mean_thresh=250)
+stim_times = np.arange(0.5, 1.5, 1.0/20.0)
+npand   = np.logical_and
+stim_time_inds = npand(neuro.wtt >= 0.5, neuro.wtt <= 1.5)
+
+ylow, yhigh = 20, 180 # degrees (yaxis lims)
+xlow, xhigh = -0.5, 2.0 # time (xaxis lims)
+
+fig, ax = subplots(2, 2, figsize=(5,8), sharex=True, sharey=True)
+#plt.subplots_adjust(left=0.10, bottom=0.10, right=0.90, top=0.90, wspace=0.20, hspace=0.45)
+# add annotations
+ax[0][0].set_title('POM (optrode) 20Hz stimulation')
+ax[0][1].set_title('M1 (400um fiber) 20Hz stimulation')
+
+# running: POM stim, control position
+neuro.rates(running=True)
+ax[0][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :], linewidth=0.25, color='grey')
+ax[0][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
+ax[0][0].set_ylim([ylow, yhigh])
+ax[0][0].set_xlim([xlow, xhigh])
+ax[0][0].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
+
+# running: M1 stim, control position
+ax[0][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :], linewidth=0.25, color='grey')
+ax[0][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
+ax[0][1].set_ylim([ylow, yhigh])
+ax[0][1].set_xlim([xlow, xhigh])
+ax[0][1].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
+
+# non-running: POM stim, control position
+neuro.rates(running=False)
+ax[1][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :], linewidth=0.25, color='grey')
+ax[1][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
+ax[1][0].set_ylim([ylow, yhigh])
+ax[1][0].set_xlim([xlow, xhigh])
+ax[1][0].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
+
+# non-running: M1 stim, control position
+ax[1][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :], linewidth=0.25, color='grey')
+ax[1][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
+ax[1][1].set_ylim([ylow, yhigh])
+ax[1][1].set_xlim([xlow, xhigh])
+ax[1][1].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
+
+
+##### PSD running vs non-running #####
+##### PSD running vs non-running #####
+ylow, yhigh = 0, 200 # arbitrary power (yaxis lims)
+xlow, xhigh = 0, 30  # frequency (xaxis lims)
+
+fig, ax = subplots(1, 2, figsize=(12,8), sharex=True, sharey=True)
+
+# running: POM and M1
+neuro.rates(running=True)
+f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9][stim_time_inds, 0, :], 500.0)
+neuro.plot_freq(f, frq_mat_temp, axis=ax[0], color='red')
+
+f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9+9][stim_time_inds, 0, :], 500.0)
+neuro.plot_freq(f, frq_mat_temp, axis=ax[0], color='black')
+
+# non-running: POM and M1
+neuro.rates(running=False)
+f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9][stim_time_inds, 0, :], 500.0)
+neuro.plot_freq(f, frq_mat_temp, axis=ax[1], color='orange')
+
+f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9+9][stim_time_inds, 0, :], 500.0)
+neuro.plot_freq(f, frq_mat_temp, axis=ax[1], color='grey')
+
+
+ax[0].set_title('Running')
+ax[0].set_xlim([xlow, xhigh])
+ax[0].legend(['POM', 'M1'])
+ax[0].set_ylabel('Power')
+ax[0].set_xlabel('frequency (Hz)')
+
+ax[1].set_title('Non-Running')
+ax[1].set_xlim([xlow, xhigh])
+ax[1].legend(['POM', 'M1'])
+ax[1].set_ylabel('Power')
+ax[1].set_xlabel('frequency (Hz)')
+
+cmap = mpl.cm.viridis
+cmap = mpl.cm.hot
+fig, ax = subplots(1, 2, figsize=(8,4), sharex=True, sharey=True)
+
+# add annotations
+ax[0].set_title('S1 stimulation')
+ax[1].set_title('M1 stimulation')
+
+for stim in range(num_stims):
+    # compute and plot PSD for S1
+    f, frq_mat_temp = whisk.get_psd(whisk.wt[s1_stim_inds[stim]][stim_time_inds, 0, :], 500.0)
+    whisk.plot_freq(f, frq_mat_temp, axis=ax[0], color=cmap(stim / float(num_stims)))
+    ax[0].set_ylim([ylow, yhigh])
 
 
 ###### Plot unit summaries for stimulation triggered averages #####
@@ -554,108 +650,6 @@ for cond in range(9):
 
     if cond == 8:
         ax[cond].set_xlabel('time from stimulation (s)')
-
-
-
-##### FID1337 GPR26 AAV-ChR2 Analyzer #####
-##### FID1337 GPR26 AAV-ChR2 Analyzer #####
-
-neuro.reclassify_run_trials(mean_thresh=250)
-stim_times = np.arange(0.5, 1.5, 1.0/20.0)
-npand   = np.logical_and
-stim_time_inds = npand(neuro.wtt >= 0.5, neuro.wtt <= 1.5)
-
-ylow, yhigh = 20, 180 # degrees (yaxis lims)
-xlow, xhigh = -0.5, 2.0 # time (xaxis lims)
-
-fig, ax = subplots(2, 2, figsize=(5,8), sharex=True, sharey=True)
-#plt.subplots_adjust(left=0.10, bottom=0.10, right=0.90, top=0.90, wspace=0.20, hspace=0.45)
-# add annotations
-ax[0][0].set_title('POM (optrode) 20Hz stimulation')
-ax[0][1].set_title('M1 (400um fiber) 20Hz stimulation')
-
-# running: POM stim, control position
-neuro.rates(running=True)
-ax[0][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :], linewidth=0.25, color='grey')
-ax[0][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
-ax[0][0].set_ylim([ylow, yhigh])
-ax[0][0].set_xlim([xlow, xhigh])
-ax[0][0].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
-
-# running: M1 stim, control position
-ax[0][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :], linewidth=0.25, color='grey')
-ax[0][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
-ax[0][1].set_ylim([ylow, yhigh])
-ax[0][1].set_xlim([xlow, xhigh])
-ax[0][1].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
-
-# non-running: POM stim, control position
-neuro.rates(running=False)
-ax[1][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :], linewidth=0.25, color='grey')
-ax[1][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
-ax[1][0].set_ylim([ylow, yhigh])
-ax[1][0].set_xlim([xlow, xhigh])
-ax[1][0].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
-
-# non-running: M1 stim, control position
-ax[1][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :], linewidth=0.25, color='grey')
-ax[1][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
-ax[1][1].set_ylim([ylow, yhigh])
-ax[1][1].set_xlim([xlow, xhigh])
-ax[1][1].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
-
-
-##### PSD running vs non-running #####
-##### PSD running vs non-running #####
-ylow, yhigh = 0, 200 # arbitrary power (yaxis lims)
-xlow, xhigh = 0, 30  # frequency (xaxis lims)
-
-fig, ax = subplots(1, 2, figsize=(12,8), sharex=True, sharey=True)
-
-# running: POM and M1
-neuro.rates(running=True)
-f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9][stim_time_inds, 0, :], 500.0)
-neuro.plot_freq(f, frq_mat_temp, axis=ax[0], color='red')
-
-f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9+9][stim_time_inds, 0, :], 500.0)
-neuro.plot_freq(f, frq_mat_temp, axis=ax[0], color='black')
-
-# non-running: POM and M1
-neuro.rates(running=False)
-f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9][stim_time_inds, 0, :], 500.0)
-neuro.plot_freq(f, frq_mat_temp, axis=ax[1], color='orange')
-
-f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9+9][stim_time_inds, 0, :], 500.0)
-neuro.plot_freq(f, frq_mat_temp, axis=ax[1], color='grey')
-
-
-ax[0].set_title('Running')
-ax[0].set_xlim([xlow, xhigh])
-ax[0].legend(['POM', 'M1'])
-ax[0].set_ylabel('Power')
-ax[0].set_xlabel('frequency (Hz)')
-
-ax[1].set_title('Non-Running')
-ax[1].set_xlim([xlow, xhigh])
-ax[1].legend(['POM', 'M1'])
-ax[1].set_ylabel('Power')
-ax[1].set_xlabel('frequency (Hz)')
-
-cmap = mpl.cm.viridis
-cmap = mpl.cm.hot
-fig, ax = subplots(1, 2, figsize=(8,4), sharex=True, sharey=True)
-
-# add annotations
-ax[0].set_title('S1 stimulation')
-ax[1].set_title('M1 stimulation')
-
-for stim in range(num_stims):
-    # compute and plot PSD for S1
-    f, frq_mat_temp = whisk.get_psd(whisk.wt[s1_stim_inds[stim]][stim_time_inds, 0, :], 500.0)
-    whisk.plot_freq(f, frq_mat_temp, axis=ax[0], color=cmap(stim / float(num_stims)))
-    ax[0].set_ylim([ylow, yhigh])
-
-
 
 
 
