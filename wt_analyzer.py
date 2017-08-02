@@ -77,8 +77,9 @@ def plot_setpoint(neuro, axis=axis, cond=0, color='k', error='sem'):
     axis.plot(neuro.wtt, mean_sp, color)
     axis.fill_between(neuro.wtt, mean_sp - err, mean_sp + err, facecolor=color, alpha=0.3)
 
+ylow, yhigh = 90, 160
 for neuro in exps:
-    fig, ax = plt.subplots(neuro.control_pos, 2)
+    fig, ax = plt.subplots(neuro.control_pos, 2, sharex=True, sharey=True)
     for i in range(2):
         for k in range(neuro.control_pos):
             axis = ax[k][i]
@@ -87,128 +88,132 @@ for neuro in exps:
                 plot_setpoint(neuro, axis=axis, cond=k+9, color='r')
             else:
                 plot_setpoint(neuro, axis=axis, cond=k+9+9, color='b')
+            ax[k][i].vlines([0.5, 1.5], ylow, yhigh, color='b')
             ax[k][i].set_xlim(-0.5, 2.0)
+            ax[k][i].set_ylim(ylow, yhigh)
             ax[k][i].set_xlabel('time (s)')
             ax[k][i].set_ylabel('set-point (deg)')
             ax[k][i].set_title('condition {}'.format(str(k)))
 
+##### mean set-points all experiments (control position) #####
+fig, ax = plt.subplots(len(exps), 1)
+for k, neuro in enumerate(exps):
+    plot_setpoint(neuro, axis=ax[k], cond=neuro.control_pos-1, color='k')
+    plot_setpoint(neuro, axis=ax[k], cond=neuro.control_pos-1+9, color='r')
+    plot_setpoint(neuro, axis=ax[k], cond=neuro.control_pos-1+9+9, color='b')
+    ax[k].set_title(neuro.fid)
+    ax[k].vlines([0.5, 1.5], 110, 140, color='blue')
+    ax[k].set_ylim(115, 135)
+    ax[k].set_xlim(0, 2.0)
+
+##### PSDs of angle all experiments (control position) #####
+fig, ax = plt.subplots(len(exps), 1)
+for k, neuro in enumerate(exps):
+    ax[k].set_ylim(0, 15)
+    ax[k].set_xlim(0, 35)
+    stim_inds = np.logical_and(neuro.wtt > 0.5, neuro.wtt < 1.5)
+
+    # no-light PSD
+    f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1][stim_inds, 0, :], 500)
+    neuro.plot_freq(f, frq_mat_temp, axis=ax[k], color='black')
+
+    # s1-light psd
+    f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9][stim_inds, 0, :], 500)
+    neuro.plot_freq(f, frq_mat_temp, axis=ax[k], color='red')
+
+    # m1-light psd
+    f, frq_mat_temp = neuro.get_psd(neuro.wt[neuro.control_pos-1+9+9][stim_inds, 0, :], 500)
+    neuro.plot_freq(f, frq_mat_temp, axis=ax[k], color='blue')
+
+fig, ax = plt.subplots(9, 1, sharex=True, sharey=True)
+for k in range(9):
+    f, frq_mat_temp = neuro.get_psd(neuro.wt[k][stim_inds, 0, :], 500)
+    neuro.plot_freq(f, frq_mat_temp, axis=ax[k], color='black')
+
+    f, frq_mat_temp = neuro.get_psd(neuro.wt[k+9][stim_inds, 0, :], 500)
+    neuro.plot_freq(f, frq_mat_temp, axis=ax[k], color='red')
+
+    f, frq_mat_temp = neuro.get_psd(neuro.wt[k+9+9][stim_inds, 0, :], 500)
+    neuro.plot_freq(f, frq_mat_temp, axis=ax[k], color='blue')
+
+    ax[k].set_xlim(0, 35)
+
 ######################################################
-sp_diff = list()
-sp_t = list()
-sp_p = list()
-vel_diff = list()
-vel_t = list()
-vel_p = list()
-frq_diff = list()
-frq_t = list()
-frq_p = list()
-#run_diff = list()
-#run_t = list()
-#run_p = list()
+sp_s1diff = list()
+sp_m1diff = list()
+sp_diff  = list()
+sp_t_s1  = list()
+sp_p_s1  = list()
+sp_t_m1  = list()
+sp_p_m1  = list()
 
-frq_nolight_mean  = np.zeros(9,)
-frq_light_mean = np.zeros(9,)
-frq_nolight_err   = np.zeros(9,)
-frq_light_err  = np.zeros(9,)
-
-frq_nolight = list()
-frq_light   = list()
+frq_nolight   = list()
+frq_s1light   = list()
+frq_m1light   = list()
+frq_t_s1  = list()
+frq_p_s1  = list()
+frq_t_m1  = list()
+frq_p_m1  = list()
 
 for neuro in exps:
+    print(neuro.fid)
 #    neuro = exps[0]
     for k in range(9):
         base_inds = np.logical_and(neuro.wtt > -1.0, neuro.wtt < 0)
         stim_inds = np.logical_and(neuro.wtt > 0.5, neuro.wtt < 1.5)
+
         ##### set-point #####
-        sp_nolight = np.nanmean(neuro.wt[k][stim_inds, 1, :], axis=1)
-        sp_light   = np.nanmean(neuro.wt[k+9][stim_inds, 1, :], axis=1) # s1 silencin
-        sp_diff.append(np.nanmean(sp_light) - np.nanmean(sp_nolight))
-        t, p = sp.stats.ttest_ind(sp_light, sp_nolight)
-        sp_t.append(t); sp_p.append(p)
+        sp_nolight = np.nanmean(neuro.wt[k][stim_inds, 1, :], axis=0)
+        sp_s1light = np.nanmean(neuro.wt[k+9][stim_inds, 1, :], axis=0) # s1 silencing
+        sp_m1light = np.nanmean(neuro.wt[k+9+9][stim_inds, 1, :], axis=0) # m1 silencing
 
-        #### velocity #####
-        vel_nolight = np.nanmean(neuro.wt[k][stim_inds, 4, :], axis=1)
-        vel_light   = np.nanmean(neuro.wt[k+9][stim_inds, 4, :], axis=1) # s1 silencing
-        vel_diff.append(np.nanmean(vel_light) - np.nanmean(vel_nolight))
-        t, p = sp.stats.ttest_ind(vel_light, vel_nolight)
-        vel_t.append(t); vel_p.append(p)
+        sp_s1diff.append(np.nanmean(sp_s1light) - np.nanmean(sp_nolight))
+        sp_m1diff.append(np.nanmean(sp_m1light) - np.nanmean(sp_nolight))
 
-#        #### run speed #####
-#        run_nolight  = remove_nans(np.nanmean(vel_dict[mouse][k][:, -15000:], axis=1))
-#        run_light = remove_nans(np.nanmean(vel_dict[mouse][k+9][:, -15000:], axis=1))
-#        run_diff.append(np.nanmean(run_light) - np.nanmean(run_nolight))
-#        t, p = sp.stats.ttest_ind(run_light, run_nolight)
-#        run_t.append(t); run_p.append(p)
+        t, p = sp.stats.ttest_ind(sp_s1light, sp_nolight)
+        sp_t_s1.append(t); sp_p_s1.append(p)
+
+        t, p = sp.stats.ttest_ind(sp_m1light, sp_nolight)
+        sp_t_m1.append(t); sp_p_m1.append(p)
 
         ##### frequeny #####
-        ang_nolight = np.nanmean(neuro.wt[k][stim_inds, 0, :], axis=1)
-        ang_light   = np.nanmean(neuro.wt[k+9][stim_inds, 0, :], axis=1) # s1 silencing
+        f, frq_mat_temp_nolight = neuro.get_psd(neuro.wt[k][stim_inds, 0, :], 500)
+        f, frq_mat_temp_s1light = neuro.get_psd(neuro.wt[k+9][stim_inds, 0, :], 500)
+        f, frq_mat_temp_m1light = neuro.get_psd(neuro.wt[k+9+9][stim_inds, 0, :], 500)
+        f_inds = np.where(f >= 2.5)[0]
 
-        ang_nolight_temp = neuro.wt[k][stim_inds, 0, :]
-        ang_light_temp   = neuro.wt[k+9][stim_inds, 0, :]
-        f_nolight_temp = list()
-        f_light_temp = list()
+        # for each trial get the peak PSD value
+        nolight_temp = f[f_inds[np.argmax(frq_mat_temp_nolight[f_inds, :], axis=0)]]
+        s1light_temp = f[f_inds[np.argmax(frq_mat_temp_s1light[f_inds, :], axis=0)]]
+        m1light_temp = f[f_inds[np.argmax(frq_mat_temp_m1light[f_inds, :], axis=0)]]
 
-        num_trials = ang_nolight_temp.shape[1]
-        frq_mat_temp = np.zeros((500/2, num_trials))
-        for trial in range(num_trials):
-            f, Pxx_den = sp.signal.periodogram(ang_nolight_temp[:, trial], 500)
-            f_inds = np.where(f >= 2)[0]
-            f_nolight_temp.append(f[f_inds[np.argmax(Pxx_den[f_inds])]])
+        frq_nolight.append(np.mean(nolight_temp))
+        frq_s1light.append(np.mean(s1light_temp))
+        frq_m1light.append(np.mean(m1light_temp))
 
-            frq_mat_temp[:, trial] = Pxx_den
-        frq_nolight.append(frq_mat_temp)
+        t, p = sp.stats.ttest_ind(frq_s1light, frq_nolight)
+        frq_t_s1.append(t); frq_p_s1.append(p)
 
-        num_trials = ang_light_temp.shape[1]
-        frq_mat_temp = np.zeros((500/2, num_trials))
-        for trial in range(num_trials):
-            f, Pxx_den = sp.signal.periodogram(ang_light_temp[:, trial], 500)
-            f_inds = np.where(f >= 2)[0]
-            f_light_temp.append(f[f_inds[np.argmax(Pxx_den[f_inds])]])
-
-            frq_mat_temp[:, trial] = Pxx_den
-        frq_light.append(frq_mat_temp)
-
-        t, p = sp.stats.ttest_ind(f_light_temp, f_nolight_temp)
-        frq_t.append(t); frq_p.append(p)
-        frq_diff.append(np.nanmean(f_light_temp) - np.nanmean(f_nolight_temp))
-
-        frq_nolight_mean[k] = np.nanmean(f_nolight_temp)
-        frq_nolight_err[k]  = np.nanstd(f_nolight_temp)/np.sqrt(len(f_nolight_temp))*2
-        frq_light_mean[k-9] = np.nanmean(f_light_temp)
-        frq_light_err[k-9] = np.nanstd(f_light_temp)/np.sqrt(len(f_light_temp))*2
-
-    plt.errorbar(np.arange(1,10), frq_nolight_mean, yerr=frq_nolight_err, fmt='-o')
-    plt.errorbar(np.arange(1,10), frq_light_mean, yerr=frq_light_err, fmt='-o')
+        t, p = sp.stats.ttest_ind(frq_m1light, frq_nolight)
+        frq_t_m1.append(t); frq_p_m1.append(p)
 
 ##### make distribution plots and do statistical test corrections #####
-plt.subplots(1, 3)
-
+fig, ax = plt.subplots(1, 2)
 # set-point
-plt.subplot(1, 3, 1)
-plt.hist(sp_diff, bins=np.arange(-20,20,1), align='left')
-rej, pval_corr = smm.multipletests(sp_p, alpha=0.05, method='sh')[:2]
-plt.title('set-point; num-sig: ' + str(np.sum(rej)))
-
-# velocity
-plt.subplot(1, 3, 2)
-plt.hist(vel_diff, bins=np.arange(-100,100,1), align='left')
-rej, pval_corr = smm.multipletests(vel_p, alpha=0.05, method='sh')[:2]
-plt.title('vel; num-sig: ' + str(np.sum(rej)))
+ax[0].hist(sp_s1diff, bins=np.arange(-20,20,1), align='left', color='red', edgecolor='none', alpha=0.5)
+ax[0].hist(sp_m1diff, bins=np.arange(-20,20,1), align='left', color='blue', edgecolor='none', alpha=0.5)
+rej_s1, pval_corr = smm.multipletests(sp_p_s1, alpha=0.05, method='sh')[:2]
+rej_m1, pval_corr = smm.multipletests(sp_p_m1, alpha=0.05, method='sh')[:2]
+ax[0].set_title('set-point diff num significant. S1: {}, M1: {}'.format(np.sum(rej_s1), np.sum(rej_m1)))
 
 # frequency
-plt.subplot(1, 3, 3)
-plt.hist(frq_diff, bins=np.arange(-4,4,0.5), align='left')
-rej, pval_corr = smm.multipletests(frq_p, alpha=0.05, method='sh')[:2]
-plt.title('frq; num-sig: ' + str(np.sum(rej)))
-
-#    # run speed
-#    plt.subplot(1, 5, 4)
-#    plt.hist(run_diff, bins=np.arange(-200,200,10), align='left')
-#    rej, pval_corr = smm.multipletests(run_p, alpha=0.05, method='sh')[:2]
-#    plt.title('run; num-sig: ' + str(np.sum(rej)))
-#
-
+ax[1].hist(frq_nolight, bins=np.arange(-50,50,1), align='left', color='black', edgecolor='none', alpha=0.5)
+ax[1].hist(frq_s1light, bins=np.arange(-50,50,1), align='left', color='red', edgecolor='none', alpha=0.5)
+ax[1].hist(frq_m1light, bins=np.arange(-50,50,1), align='left', color='blue', edgecolor='none', alpha=0.5)
+#rej, pval_corr = smm.multipletests(frq_p, alpha=0.05, method='sh')[:2]
+rej_s1, pval_corr = smm.multipletests(frq_p_s1, alpha=0.05, method='sh')[:2]
+rej_m1, pval_corr = smm.multipletests(frq_p_m1, alpha=0.05, method='sh')[:2]
+ax[1].set_title('frequency diff num significant. S1: {}, M1: {}'.format(np.sum(rej_s1), np.sum(rej_m1)))
 
 ######################################################
 ##### single experiment whisking analysis #####
@@ -733,8 +738,35 @@ for uid in range(neuro.num_units):
 
 
 
+##### plot example whisker traces #####
+pos = neuro.control_pos - 1
+npand   = np.logical_and
+stim_time_inds = npand(neuro.wtt >= 0.5, neuro.wtt <= 1.5)
+trial = 2
 
+fig = plt.figure(figsize=(10, 6))
+ax1 = plt.subplot2grid((2,2), (0,0), colspan=2, rowspan=1)
+ax2 = plt.subplot2grid((2,2), (1,0), colspan=1, rowspan=1)
+ax3 = plt.subplot2grid((2,2), (1,1), colspan=1, rowspan=1)
 
+ax1.plot(neuro.wtt, neuro.wt[pos][:, 0, trial], 'k', linewidth=2)
+ax1.plot(neuro.wtt, neuro.wt[pos][:, 1, trial], 'r', linewidth=2)
+ax1.set_ylim([90, 160])
+ax1.vlines([0.5, 1.5], 90, 160, 'b', linestyles='dashed')
+ax1.set_xlabel('time (s)')
+ax1.set_ylabel('angle (deg)')
+
+ax2.plot(neuro.wtt, neuro.wt[pos][:, 0, trial], 'k', linewidth=2)
+ax2.plot(neuro.wtt, neuro.wt[pos][:, 1, trial], 'r', linewidth=2)
+ax2.set_xlim(0.5, 1.5)
+ax2.set_xlabel('time (s)')
+ax2.set_ylabel('angle (deg)')
+
+f, frq_mat_temp = neuro.get_psd(neuro.wt[pos][stim_time_inds, 0, :], 500.0)
+ax3.plot(f, frq_mat_temp[:, trial], 'k', linewidth=2)
+ax3.set_xlim(0, 35)
+ax3.set_xlabel('frequency (Hz)')
+ax3.set_ylabel('power (arb units)')
 
 
 

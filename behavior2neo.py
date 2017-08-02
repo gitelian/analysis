@@ -428,7 +428,7 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    mouse = 'GT0005'
+    mouse = 'GT0003'
     experiment = 'FID0001'
     # ['FID0001_GT0001']
     fid = experiment + '_' + mouse
