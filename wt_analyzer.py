@@ -635,26 +635,27 @@ with PdfPages(fid + '_unit_stimulation_locked_summaries.pdf') as pdf:
         plt.close()
 
 # plot average whisker traces (angle) aligned to light onset
-fig, ax = subplots(9, 1, sharex=True, sharey=True)
-for cond in range(9):
-    mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=cond, kind='angle')
-    ax[cond].plot(trace_time, mean_trace, 'k')
-    ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='k', alpha=0.3)
+fig, ax = subplots(2, 1, sharex=True, sharey=True)
+#for cond in range(9):
+cond=1
+mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=cond, kind='angle')
+ax[cond].plot(trace_time, mean_trace, 'k')
+ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='k', alpha=0.3)
 
-    mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=cond+9, kind='angle')
-    ax[cond].plot(trace_time, mean_trace, 'r')
-    ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='r', alpha=0.3)
+mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=cond+9, kind='angle')
+ax[cond].plot(trace_time, mean_trace, 'r')
+ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='r', alpha=0.3)
 
-    mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=cond+9+9, kind='angle')
-    ax[cond].plot(trace_time, mean_trace, 'b')
-    ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='b', alpha=0.3)
+mean_trace, err, _ , trace_time = neuro.eta_wt(stim_times, cond=cond+9+9, kind='angle')
+ax[cond].plot(trace_time, mean_trace, 'b')
+ax[cond].fill_between(trace_time, mean_trace - err, mean_trace + err, facecolor='b', alpha=0.3)
 
-    ax[cond].vlines([0, 0.010], ax[cond].get_ylim()[0], ax[cond].get_ylim()[1], 'b', linestyle='dashed')
-    ax[cond].set_title('Position: {}'.format(cond))
-    ax[cond].set_ylabel('firing rate (Hz)')
+ax[cond].vlines([0, 0.010], ax[cond].get_ylim()[0], ax[cond].get_ylim()[1], 'b', linestyle='dashed')
+ax[cond].set_title('Position: {}'.format(cond))
+ax[cond].set_ylabel('firing rate (Hz)')
 
-    if cond == 8:
-        ax[cond].set_xlabel('time from stimulation (s)')
+if cond == 8:
+    ax[cond].set_xlabel('time from stimulation (s)')
 
 
 
