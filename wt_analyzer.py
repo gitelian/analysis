@@ -28,7 +28,7 @@ plot(neuro.wtt, neuro.wt[6+9][:,1,:])
 
 #### LDA analysis #####
 #### LDA analysis #####
-trode = 2
+trode = 1
 
 plt.figure()
 lda = LinearDiscriminantAnalysis(n_components=2)
@@ -45,22 +45,54 @@ plt.legend(loc='best')
 
 
 X, y = neuro.make_design_matrix('evk_count', trode=trode)
-#trial_inds = np.logical_and(y>=9, y<17) # no control position
-trial_inds = np.logical_and(y>=18, y<26) # no control position
-X_r0 = X[trial_inds, :] y_r0 = y[trial_inds] X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
+trial_inds = np.logical_and(y>=9, y<17) # no control position
+#trial_inds = np.logical_and(y>=18, y<26) # no control position
+X_r0 = X[trial_inds, :]
+y_r0 = y[trial_inds]
+X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
 color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
 plt.subplot(1,2,2)
 for k in range(len(np.unique(y_r0))):
     c = next(color)
-#    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
+    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
     plt.xlim(-5,3)
     plt.ylim(-6, 4)
-    plt.plot(X_r0[y_r0==k+9+9, 0], X_r0[y_r0==k+9+9, 1], 'o', c=c, label=str(k))
+#    plt.plot(X_r0[y_r0==k+9+9, 0], X_r0[y_r0==k+9+9, 1], 'o', c=c, label=str(k))
 plt.legend(loc='best')
 plt.show()
 
         ##### WHISKER TRACKING ANALYSIS #####
         ##### WHISKER TRACKING ANALYSIS #####
+
+###### plot example whisker traces #####
+#pos = neuro.control_pos - 1
+#npand   = np.logical_and
+#stim_time_inds = npand(neuro.wtt >= 0.5, neuro.wtt <= 1.5)
+#trial = 2
+#
+#fig = plt.figure(figsize=(10, 6))
+#ax1 = plt.subplot2grid((2,2), (0,0), colspan=2, rowspan=1)
+#ax2 = plt.subplot2grid((2,2), (1,0), colspan=1, rowspan=1)
+#ax3 = plt.subplot2grid((2,2), (1,1), colspan=1, rowspan=1)
+#
+#ax1.plot(neuro.wtt, neuro.wt[pos][:, 0, trial], 'k', linewidth=2)
+#ax1.plot(neuro.wtt, neuro.wt[pos][:, 1, trial], 'r', linewidth=2)
+#ax1.set_ylim([90, 160])
+#ax1.vlines([0.5, 1.5], 90, 160, 'b', linestyles='dashed')
+#ax1.set_xlabel('time (s)')
+#ax1.set_ylabel('angle (deg)')
+#
+#ax2.plot(neuro.wtt, neuro.wt[pos][:, 0, trial], 'k', linewidth=2)
+#ax2.plot(neuro.wtt, neuro.wt[pos][:, 1, trial], 'r', linewidth=2)
+#ax2.set_xlim(0.5, 1.5)
+#ax2.set_xlabel('time (s)')
+#ax2.set_ylabel('angle (deg)')
+#
+#f, frq_mat_temp = neuro.get_psd(neuro.wt[pos][stim_time_inds, 0, :], 500.0)
+#ax3.plot(f, frq_mat_temp[:, trial], 'k', linewidth=2)
+#ax3.set_xlim(0, 35)
+#ax3.set_xlabel('frequency (Hz)')
+#ax3.set_ylabel('power (arb units)')
 
 def plot_setpoint(neuro, axis=axis, cond=0, color='k', error='sem'):
     #ax = plt.gca()
@@ -684,43 +716,93 @@ if cond == 8:
 # 1 x 3 subplots (control, S1 silencing, M1 silencing)
 sns.set_style("whitegrid", {'axes.grid' : False})
 npand   = np.logical_and
-dt      = 5 # seconds, phase, degrees
-window  = [90, 180] # seconds, phase, degree, etc
+wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
+
+# for ANGLE
+dt      = 5 # degrees, radians (for phase)
+window  = [90, 160] # seconds, phase, degree, etc
 bins    = np.arange(window[0], window[1], dt)
-wt_type = 0 # {0: 'angle',1: 'set-point',2: 'amplitude',3: 'phase',4: 'velocity'}
+
+# for PHASE
+
+##### FIGURE OUT PROPER BIN/KERNEL SIZE #####
+##### FIGURE OUT PROPER BIN/KERNEL SIZE #####
+##### FIGURE OUT PROPER BIN/KERNEL SIZE #####
+bins = np.linspace(-np.pi, np.pi, 1000)
+dt   = bins[1] - bins[0]
+
+#sample_period is how often a frame occurrs in seconds
+# deg*spike / deg*sample*2msec
 
 # ADD THIS TO THE NEURO CLASS
 def st_norm(st_vals, all_vals, wt_type, bins, dt):
     st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
     all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
-    count_norm = np.nan_to_num(st_count/all_count)/dt
+    count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
     return count_norm
+def kde_pre(bins, count_norm):
+    all_vals = list()
+    for k, b in enumerate(bins[:-1]):
+        # place in list and multiply by the normed count
+        all_vals.extend([b]*count_norm[k])
+    all_vals = np.asarray(all_vals)
+    return all_vals
 
-#with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
+with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
 # >>> INDENT ME >>>
-for uid in range(neuro.num_units):
-    fig, ax = subplots(1, 3, figsize=(12,8))
-    fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
-            neuro.region_dict[neuro.shank_ids[uid]], \
-            neuro.depths[uid], \
-            neuro.cell_type[uid], \
-            fid, \
-            neuro.driven_units[uid]))
+    for uid in range(neuro.num_units):
+        fig, ax = subplots(2, 3, figsize=(12,8))
+        fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
+                neuro.region_dict[neuro.shank_ids[uid]], \
+                neuro.depths[uid], \
+                neuro.cell_type[uid], \
+                fid, \
+                neuro.driven_units[uid]))
+        if neuro.shank_ids[uid] == 0:
+            c = '#5e819d'
+        elif neuro.shank_ids[uid] == 1:
+            c = '#a83c09' # rust
 
-    # control position no light
-    st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
-    count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-    ax[0].bar(bins[:-1], count_norm, width=dt, edgecolor='none')
+        # control position no light
+        st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
+        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+#        ax[0][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][0], color=c, shade=True)
 
-    # control position S1 silencing
-    st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
-    count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-    ax[1].bar(bins[:-1], count_norm, width=dt, edgecolor='none')
+        # control position S1 silencing
+        st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
+        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+#        ax[0][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][1], color=c, shade=True)
 
-    # control position M1 silencing
-    st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
-    count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-    ax[2].bar(bins[:-1], count_norm, width=dt, edgecolor='none')
+        # control position M1 silencing
+        st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
+        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+#        ax[0][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][2], color=c, shade=True)
+
+        # best position no light
+        st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid], unit_ind=uid) # analysis_window=[0.5, 1.5]
+        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+#        ax[1][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][0], color=c, shade=True)
+
+        # best position S1 silencing
+        st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
+        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+#        ax[1][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][1], color=c, shade=True)
+
+        # best position M1 silencing
+        st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
+        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+#        ax[1][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][2], color=c, shade=True)
+
+
+        pdf.savefig()
+        fig.clear()
+        plt.close()
 
 ##### quantify modulation depth #####
 mod_index = np.zeros((neuro.num_units, 2))
@@ -731,44 +813,31 @@ for uid in range(neuro.num_units):
 
 
 
+data = [1.5]*7 + [2.5]*2 + [3.5]*8 + [4.5]*3 + [5.5]*1 + [6.5]*8
+density = gaussian_kde(data)
+xs = np.linspace(0,8,200)
+density.covariance_factor = lambda : .25
+density._compute_covariance()
+plt.plot(xs,density(xs))
+
+density = gaussian_kde(count_norm)
+density = gaussian_kde(st_vals[:, 3])
+xs = np.linspace(-np.pi, np.pi, 100)
+density.covariance_factor = lambda:0.01
+density._compute_covariance()
+plt.plot(xs, density(xs))
 
 
 
+# MAKE A KERNEL DENSITY ESTIMATE!!!
+all_vals = list()
+for k, b in enumerate(bins[:-1]):
+    # place in list and multiply by the normed count
+    all_vals.extend([b]*count_norm[k])
+all_vals = np.asarray(all_vals)
+sns.kdeplot(all_vals)
 
-
-
-
-
-##### plot example whisker traces #####
-pos = neuro.control_pos - 1
-npand   = np.logical_and
-stim_time_inds = npand(neuro.wtt >= 0.5, neuro.wtt <= 1.5)
-trial = 2
-
-fig = plt.figure(figsize=(10, 6))
-ax1 = plt.subplot2grid((2,2), (0,0), colspan=2, rowspan=1)
-ax2 = plt.subplot2grid((2,2), (1,0), colspan=1, rowspan=1)
-ax3 = plt.subplot2grid((2,2), (1,1), colspan=1, rowspan=1)
-
-ax1.plot(neuro.wtt, neuro.wt[pos][:, 0, trial], 'k', linewidth=2)
-ax1.plot(neuro.wtt, neuro.wt[pos][:, 1, trial], 'r', linewidth=2)
-ax1.set_ylim([90, 160])
-ax1.vlines([0.5, 1.5], 90, 160, 'b', linestyles='dashed')
-ax1.set_xlabel('time (s)')
-ax1.set_ylabel('angle (deg)')
-
-ax2.plot(neuro.wtt, neuro.wt[pos][:, 0, trial], 'k', linewidth=2)
-ax2.plot(neuro.wtt, neuro.wt[pos][:, 1, trial], 'r', linewidth=2)
-ax2.set_xlim(0.5, 1.5)
-ax2.set_xlabel('time (s)')
-ax2.set_ylabel('angle (deg)')
-
-f, frq_mat_temp = neuro.get_psd(neuro.wt[pos][stim_time_inds, 0, :], 500.0)
-ax3.plot(f, frq_mat_temp[:, trial], 'k', linewidth=2)
-ax3.set_xlim(0, 35)
-ax3.set_xlabel('frequency (Hz)')
-ax3.set_ylabel('power (arb units)')
-
+#sns.kdeplot(st_vals[:,3])
 
 
 

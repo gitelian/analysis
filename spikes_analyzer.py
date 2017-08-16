@@ -184,7 +184,8 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # do this for best position and no contact position. Plot things overall and
 # then look at things as a function of depth.
 
-fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336','1338', '1339', '1340']
+fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336','1338', '1339', '1340', '1343']
+fids = ['1336','1338', '1339', '1340', '1343']
 
 #fids = ['1302', '1318', '1330']
 #fids = ['1336', '1338', '1339']
