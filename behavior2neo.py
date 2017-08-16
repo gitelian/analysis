@@ -428,8 +428,8 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    mouse = 'GT0003'
-    experiment = 'FID0001'
+    mouse = 'GT0006'
+    experiment = 'FID1346'
     # ['FID0001_GT0001']
     fid = experiment + '_' + mouse
     neo_name = mouse + '_' + experiment
@@ -478,7 +478,8 @@ if __name__ == "__main__":
 
     ## get control position
 #    control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
-    control_pos = 6
+#    control_pos = 6
+    control_pos = 8
 
     # Put data into a neo object and save
     block = neo.Block(name=neo_name, description='This is a neo block for experiment ' + neo_name, \

@@ -216,15 +216,27 @@ class NeuroAnalyzer(object):
 
             print('whisker tracking data found! trimming data to be all the same length in time')
             # make time vector for whisker tracking data
-            num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*fps ) # total time (s) * frames/sec
-            wt_indices  = np.arange(num_samples) - int( self.min_tbefore_stim * fps )
-            wtt         = wt_indices / fps
+#            num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*fps ) # total time (s) * frames/sec
+#            wt_indices  = np.arange(num_samples) - int( self.min_tbefore_stim * fps )
+#            wtt         = wt_indices / fps
+
+            wt_start_time = self.get_exp_details_info('hsv_start')
+            wt_stop_time  = self.get_exp_details_info('hsv_stop')
+            wt_num_frames = self.get_exp_details_info('hsv_num_frames')
+            num_samples   = wt_num_frames
+            wtt = np.linspace(wt_start_time, wt_stop_time, wt_num_frames) - self.min_tbefore_stim
+            wt_indices = np.arange(wtt.shape[0]) - int(self.min_tbefore_stim *fps)
 
             for i, seg in enumerate(self.neo_obj.segments):
                 for k, anlg in enumerate(seg.analogsignals):
 
                     # find number of samples in the trial
-                    if anlg.name == 'angle':
+                    if anlg.name == 'angle' or \
+                            anlg.name == 'set-point' or\
+                            anlg.name == 'amplitude' or\
+                            anlg.name == 'phase' or\
+                            anlg.name == 'velocity'or\
+                            anlg.name == 'whisking':
                         num_samp = len(anlg)
 
                         # get stimulus onset
