@@ -548,7 +548,7 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1343']
+    fids = ['FID1345']
     # bad_trials for FID1340. Whisker tracking failed here due to the shadow of
     # my hand: 101, 102, 103
 #    fids = ['1295', '1302', '1318', '1328', '1329', '1330']
