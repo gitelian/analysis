@@ -306,9 +306,9 @@ class NeuroAnalyzer(object):
 #            wt_indices  = np.arange(num_samples) - int( self.min_tbefore_stim * fps )
 #            wtt         = wt_indices / fps
 
-            wt_start_time = self.get_exp_details_info('hsv_start')
-            wt_stop_time  = self.get_exp_details_info('hsv_stop')
-            wt_num_frames = self.get_exp_details_info('hsv_num_frames')
+            wt_start_time = float(self.get_exp_details_info('hsv_start'))
+            wt_stop_time  = float(self.get_exp_details_info('hsv_stop'))
+            wt_num_frames = float(self.get_exp_details_info('hsv_num_frames'))
             num_samples   = wt_num_frames
             wtt = np.linspace(wt_start_time, wt_stop_time, wt_num_frames) - self.min_tbefore_stim
             wt_indices = np.arange(wtt.shape[0]) - int(self.min_tbefore_stim *fps)
