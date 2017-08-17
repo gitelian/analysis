@@ -716,20 +716,23 @@ if cond == 8:
 # 1 x 3 subplots (control, S1 silencing, M1 silencing)
 sns.set_style("whitegrid", {'axes.grid' : False})
 npand   = np.logical_and
-wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
 
 # for ANGLE
 dt      = 5 # degrees, radians (for phase)
 window  = [90, 160] # seconds, phase, degree, etc
 bins    = np.arange(window[0], window[1], dt)
+wt_type = 0 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
+
+# for set-point
+dt      = 0.5 # degrees, radians (for phase)
+window  = [90, 160] # seconds, phase, degree, etc
+bins    = np.arange(window[0], window[1], dt)
+wt_type = 1 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
 
 # for PHASE
-
-##### FIGURE OUT PROPER BIN/KERNEL SIZE #####
-##### FIGURE OUT PROPER BIN/KERNEL SIZE #####
-##### FIGURE OUT PROPER BIN/KERNEL SIZE #####
-bins = np.linspace(-np.pi, np.pi, 1000)
+bins = np.linspace(-np.pi, np.pi, 40)
 dt   = bins[1] - bins[0]
+wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
 
 #sample_period is how often a frame occurrs in seconds
 # deg*spike / deg*sample*2msec
@@ -740,16 +743,28 @@ def st_norm(st_vals, all_vals, wt_type, bins, dt):
     all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
     count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
     return count_norm
-def kde_pre(bins, count_norm):
-    all_vals = list()
-    for k, b in enumerate(bins[:-1]):
-        # place in list and multiply by the normed count
-        all_vals.extend([b]*count_norm[k])
-    all_vals = np.asarray(all_vals)
-    return all_vals
 
-with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
-# >>> INDENT ME >>>
+def sg_smooth(data, win_len, poly, neg_vals=False):
+    smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly)
+    if neg_vals is False:
+        smooth_data[smooth_data < 0] = 0
+    return smooth_data
+
+#def kde_pre(bins, count_norm):
+#    '''
+#    scales the number of bins by the count...this way you can use data that
+#    has already been biined in a kde function
+#    '''
+#    all_vals = list()
+#    for k, b in enumerate(bins[:-1]):
+#        # place in list and multiply by the normed count
+#        all_vals.extend([b]*count_norm[k])
+#    all_vals = np.asarray(all_vals)
+#    return all_vals
+win_len=5
+poly=3
+
+with PdfPages('/home/greg/Desktop/' + fid + '_test_setpoint.pdf') as pdf:
     for uid in range(neuro.num_units):
         fig, ax = subplots(2, 3, figsize=(12,8))
         fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
@@ -761,44 +776,61 @@ with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
         if neuro.shank_ids[uid] == 0:
             c = '#5e819d'
         elif neuro.shank_ids[uid] == 1:
-            c = '#a83c09' # rust
+#            c = '#a83c09' # rust
+            c = '#a03623' # brick
 
         # control position no light
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-#        ax[0][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][0], color=c, shade=True)
+ #       ax[0][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        ax[0][0].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][0], color=c, shade=True)
 
         # control position S1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-#        ax[0][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][1], color=c, shade=True)
+#       ax[0][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        ax[0][1].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#       sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][1], color=c, shade=True)
 
         # control position M1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[0][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][2], color=c, shade=True)
+        ax[0][2].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][2], color=c, shade=True)
 
         # best position no light
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid], unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[1][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][0], color=c, shade=True)
+        ax[1][0].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][0], color=c, shade=True)
 
         # best position S1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-#        ax[1][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][1], color=c, shade=True)
+        ax[1][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+ #       ax[1][1].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][1], color=c, shade=True)
 
         # best position M1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[1][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][2], color=c, shade=True)
+        ax[1][2].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][2], color=c, shade=True)
 
+#        ylim_max = 0
+#        for rowi, row in enumerate(ax):
+#            for coli, col in enumerate(row):
+#                ylim_temp = col.get_ylim()[1]
+#                if ylim_temp > ylim_max:
+#                    ylim_max = ylim_temp
+#        for rowi, row in enumerate(ax):
+#            for coli, col in enumerate(row):
+#                col.set_ylim(0, ylim_max)
+#                col.set_xlim(bins[0], bins[-1])
 
         pdf.savefig()
         fig.clear()
