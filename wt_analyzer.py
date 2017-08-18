@@ -712,8 +712,8 @@ bins    = np.arange(window[0], window[1], dt)
 wt_type = 0 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
 
 # for set-point
-dt      = 0.5 # degrees, radians (for phase)
-window  = [90, 160] # seconds, phase, degree, etc
+dt      = 1 # degrees, radians (for phase)
+window  = [90, 180] # seconds, phase, degree, etc
 bins    = np.arange(window[0], window[1], dt)
 wt_type = 1 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
 
@@ -749,7 +749,8 @@ def sg_smooth(data, win_len, poly, neg_vals=False):
 #        all_vals.extend([b]*count_norm[k])
 #    all_vals = np.asarray(all_vals)
 #    return all_vals
-win_len=11
+#win_len=5
+win_len=11 # for phase
 poly=3
 
 with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
@@ -819,6 +820,7 @@ with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
             for coli, col in enumerate(row):
                 col.set_ylim(0, ylim_max)
                 col.set_xlim(bins[0], bins[-1])
+                #col.set_xlim(bins[0], 160)
                 col.spines['top'].set_visible(False)
                 col.spines['right'].set_visible(False)
                 col.tick_params(axis='both', direction='out')
