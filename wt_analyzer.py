@@ -288,11 +288,11 @@ plot_freq(neuro, cond=8+9, color='r')
 #plot_freq(neuro, cond=8+9+9, color='b')
 plt.xlim(0,40); plt.xlabel('frequency (Hz)')
 
-##### plot spike triggered averages #####
-##### plot spike triggered averages #####
 
-###### Plot unit protraction summaries #####
-###### Plot unit protraction summaries #####
+
+######################################################
+##### Plot unit protraction summaries #####
+######################################################
 
 ## Fit sinusoid function ##
 ## Fit sinusoid function ##
@@ -449,8 +449,9 @@ with PdfPages(fid + '_unit_protraction_summaries.pdf') as pdf:
 
 
 
+######################################################
 ##### FID1337 GPR26 AAV-ChR2 Analyzer #####
-##### FID1337 GPR26 AAV-ChR2 Analyzer #####
+######################################################
 
 neuro.reclassify_run_trials(mean_thresh=250)
 stim_times = np.arange(0.5, 1.5, 1.0/20.0)
@@ -548,8 +549,12 @@ for stim in range(num_stims):
     ax[0].set_ylim([ylow, yhigh])
 
 
+#############################################################################
 ###### Plot unit summaries for stimulation triggered averages #####
-###### Plot unit summaries for stimulation triggered averages #####
+#############################################################################
+
+# given a sequence of stim times this bins spikes around each time within a
+# specified window. It is an event triggered average.
 
 # remove gride lines
 sns.set_style("whitegrid", {'axes.grid' : False})
@@ -691,27 +696,10 @@ if cond == 8:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+###################################################
 ##### plot spike triggered averages #####
-##### plot spike triggered averages #####
+###################################################
+
 
 # 1 x 3 subplots (control, S1 silencing, M1 silencing)
 sns.set_style("whitegrid", {'axes.grid' : False})
@@ -761,7 +749,7 @@ def sg_smooth(data, win_len, poly, neg_vals=False):
 #        all_vals.extend([b]*count_norm[k])
 #    all_vals = np.asarray(all_vals)
 #    return all_vals
-win_len=5
+win_len=11
 poly=3
 
 with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
@@ -772,7 +760,7 @@ with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
                 neuro.depths[uid], \
                 neuro.cell_type[uid], \
                 fid, \
-                neuro.driven_units[uid]))
+                neuro.driven_units[uid]), fontsize=18)
         if neuro.shank_ids[uid] == 0:
             c = '#5e819d'
         elif neuro.shank_ids[uid] == 1:
@@ -782,43 +770,43 @@ with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
         # control position no light
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-        ax[0][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-#        ax[0][0].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        ax[0][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        ax[0][0].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][0], color=c, shade=True)
 
         # control position S1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-        ax[0][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-#        ax[0][1].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        ax[0][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        ax[0][1].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #       sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][1], color=c, shade=True)
 
         # control position M1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-        ax[0][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-#        ax[0][2].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        ax[0][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        ax[0][2].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][2], color=c, shade=True)
 
         # best position no light
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid], unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-        ax[1][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-#        ax[1][0].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        ax[1][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        ax[1][0].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][0], color=c, shade=True)
 
         # best position S1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-        ax[1][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-#        ax[1][1].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        ax[1][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        ax[1][1].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][1], color=c, shade=True)
 
         # best position M1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
-        ax[1][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-#        ax[1][2].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+#        ax[1][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
+        ax[1][2].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][2], color=c, shade=True)
 
         ylim_max = 0
@@ -831,6 +819,30 @@ with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
             for coli, col in enumerate(row):
                 col.set_ylim(0, ylim_max)
                 col.set_xlim(bins[0], bins[-1])
+                col.spines['top'].set_visible(False)
+                col.spines['right'].set_visible(False)
+                col.tick_params(axis='both', direction='out')
+                col.get_xaxis().tick_bottom()
+                col.get_yaxis().tick_left()
+
+        # top left
+        fig.subplots_adjust(left=0.12, bottom=0.10, right=0.90, top=0.90, wspace=0.20, hspace=0.30)
+        ax[0][0].set_ylabel('Firing rate (Hz)')
+        ax[0][0].set_title('Free whisking')
+        # top middle
+        ax[0][1].set_title('Free whisking\nS1 silencing')
+        # top right
+        ax[0][2].set_title('Free whisking\nM1 silencing')
+        # bottom left
+        ax[1][0].set_ylabel('Firing rate (Hz)')
+        ax[1][0].set_xlabel('Phase (rad)')
+        ax[1][0].set_title('Best contact')
+        # bottom middle
+        ax[1][1].set_xlabel('Phase (rad)')
+        ax[1][1].set_title('Best contact\nS1 silencing')
+        # bottom right
+        ax[1][2].set_xlabel('Phase (rad)')
+        ax[1][2].set_title('Best contact\nM1 silencing')
 
         pdf.savefig()
         fig.clear()
