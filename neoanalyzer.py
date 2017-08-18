@@ -55,7 +55,7 @@ class NeuroAnalyzer(object):
         neo_obj.segments  = [neo_obj.segments[k] for k in sorted_index_list]
 
         # sort by shank/region and then by depth
-        sorted_index_list = self.__sort_units(neo_obj)
+        self.__sort_units(neo_obj)
 
         # add neo object to class instance
         self.neo_obj         = neo_obj
@@ -64,7 +64,7 @@ class NeuroAnalyzer(object):
         self.stim_ids        = np.sort(np.unique([k.annotations['trial_type'] for k in neo_obj.segments]))
 
         # find number of units
-        self.num_units       = len(self.neo_obj.segments[0].spiketrains) 
+        self.num_units       = len(self.neo_obj.segments[0].spiketrains)
         # find shank names (i.e. names of electrodes/recording sites, e.g.
         # 'e1', 'e2')
         self.shank_names     = np.sort(np.unique([k.annotations['shank'] for k in neo_obj.segments[0].spiketrains]))
@@ -185,7 +185,12 @@ class NeuroAnalyzer(object):
             for k, ordered_spiketrain in enumerate(sorted_spiketrains):
                 neo_obj.segments[i].spiketrains[k] = ordered_spiketrain
 
-        self.depths = depth
+        # NEW wasn't sorting by the same indices as the spiketrains
+        # this should fix it...but was it ever broken??? tuning curves
+        # have depths in order prior to this change
+        sorted_depth = [depth[j] for j in spike_msr_sort_inds]
+
+        self.depths = sorted_depth
 
     def __get_shank_ids(self):
         '''
@@ -1671,70 +1676,6 @@ if __name__ == "__main__":
 ##### SCRATCH SPACE #####
 
 
-##### Protraction Triggered Histograms #####
-##### Protraction Triggered Histograms #####
-#fig, ax = subplots(3, 9)
-#count   = 0
-#dt      = 0.005
-#for row in range(3):
-#    for col in range(9):
-#        spks_per_bin, sem, bins = neuro.pta(cond=count, unit_ind=uid, window=[-0.1, 0.1],dt=dt)
-#        ax[row][col].bar(bins[0:-1], spks_per_bin, width=dt, edgecolor='none')
-#        count += 1
-
-
-
-#
-#plt.figure()
-#lda = LinearDiscriminantAnalysis(n_components=2)
-#X, y = neuro.make_design_matrix('evk_count', trode=1)
-#X_r0 = X[y<8, :]
-#y_r0 = y[y<8]
-#X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
-#plt.subplot(1,2,1)
-#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-#for k in range(len(np.unique(y_r0))):
-#    c = next(color)
-#    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
-#plt.legend(loc='best')
-#
-#X, y = neuro.make_design_matrix('evk_count', trode=1)
-#trial_inds = np.logical_and(y>=9, y<17) # no control position
-#X_r0 = X[trial_inds, :]
-#y_r0 = y[trial_inds]
-#X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
-#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-#plt.subplot(1,2,2)
-#for k in range(len(np.unique(y_r0))):
-#    c = next(color)
-#    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
-#plt.legend(loc='best')
-#plt.show()
-
-#plt.figure()
-#lda = LinearDiscriminantAnalysis(n_components=2)
-#X, y = neuro.make_design_matrix('evk_count', trode=2)
-#X_r0 = X[y<9, :]
-#y_r0 = y[y<9]
-#X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
-#plt.subplot(1,2,1)
-#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-#for k in range(9):
-#    c = next(color)
-#    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
-#plt.legend(loc='best')
-#
-#X, y = neuro.make_design_matrix('evk_count', trode=2)
-#trial_inds = np.where(y>= 18)[0]
-#X_r0 = X[trial_inds, :]
-#y_r0 = y[trial_inds]
-#X_r0 = lda.fit(X_r0, y_r0).transform(X_r0)
-#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-#plt.subplot(1,2,2)
-#for k in range(9):
-#    c = next(color)
-#    plt.plot(X_r0[y_r0==k+9*2, 0], X_r0[y_r0==k+9*2, 1], 'o', c=c, label=str(k))
-#plt.legend(loc='best')
 ################
 ##### TSNE or MDS #####
 ################
