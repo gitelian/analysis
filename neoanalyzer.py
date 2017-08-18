@@ -1192,8 +1192,9 @@ class NeuroAnalyzer(object):
         # iterate through all trials and count spikes
         for trial_ind in range(self.num_good_trials[cond]):
             all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
-            windowed_spike_times = np.logical_and(all_spike_times > analysis_window[0],\
+            windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
                     all_spike_times < analysis_window[1])
+            windowed_spike_times = all_spike_times[windowed_spike_indices]
 
             # iterate through all spike times and measure specified whisker
             # parameter
@@ -1789,5 +1790,6 @@ if __name__ == "__main__":
 # make this pattern 3-2-1 into this 2-1-3
 
 # use this: a.swapaxes(0,2).swapaxes(1,2).reshape(6,2)
+
 
 
