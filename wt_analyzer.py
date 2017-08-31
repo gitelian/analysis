@@ -851,39 +851,18 @@ with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
         plt.close()
 
 ##### quantify modulation depth #####
+import pycircstat.distributions as csdist
 mod_index = np.zeros((neuro.num_units, 2))
 for uid in range(neuro.num_units):
     st_vals, all_vals = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
-    st_count, st_bins = np.histogram(st_vals, bins=bins)
+    count_norm        = st_norm(st_vals, all_vals, wt_type, bins, dt)
+    smooth_data       = sg_smooth(count_norm, win_len, poly, neg_vals=False)
     mod_index[uid, :] = None # calculate modulation index here
 
 
-
-data = [1.5]*7 + [2.5]*2 + [3.5]*8 + [4.5]*3 + [5.5]*1 + [6.5]*8
-density = gaussian_kde(data)
-xs = np.linspace(0,8,200)
-density.covariance_factor = lambda : .25
-density._compute_covariance()
-plt.plot(xs,density(xs))
-
-density = gaussian_kde(count_norm)
-density = gaussian_kde(st_vals[:, 3])
-xs = np.linspace(-np.pi, np.pi, 100)
-density.covariance_factor = lambda:0.01
-density._compute_covariance()
-plt.plot(xs, density(xs))
-
-
-
-# MAKE A KERNEL DENSITY ESTIMATE!!!
-all_vals = list()
-for k, b in enumerate(bins[:-1]):
-    # place in list and multiply by the normed count
-    all_vals.extend([b]*count_norm[k])
-all_vals = np.asarray(all_vals)
-sns.kdeplot(all_vals)
-
-#sns.kdeplot(st_vals[:,3])
+    st_vals, all_vals = neuro.sta_wt(cond=neuro.best_contact[uid], unit_ind=uid) # analysis_window=[0.5, 1.5]
+    count_norm        = st_norm(st_vals, all_vals, wt_type, bins, dt)
+    smooth_data       = sg_smooth(count_norm, win_len, poly, neg_vals=False)
 
 
 

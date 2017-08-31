@@ -1180,56 +1180,12 @@ class NeuroAnalyzer(object):
 
         self.mod_index = mod_mat
 
-    def sta_wt(self, cond=0, unit_ind=0, analysis_window=[0.5, 1.5]):
-        '''
-        Create a spike triggered array
-        Returns: array (total spikes for specified unit x values) where each
-        entry is the whisker tracking value (e.g. angle, phase, set-point) when
-        the specified unit spiked.
-
-        The second array is all the whisker tracking values that occurred
-        during the analysis window for all analyzed trials
-        '''
-        st_vals = np.zeros((1, 5))
-        all_vals    = np.zeros((1, 5))
-        stim_inds   = np.logical_and(self.wtt >= analysis_window[0], self.wtt <= analysis_window[1])
-
-        # iterate through all trials and count spikes
-        for trial_ind in range(self.num_good_trials[cond]):
-            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
-            windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
-                    all_spike_times < analysis_window[1])
-            windowed_spike_times = all_spike_times[windowed_spike_indices]
-
-            # iterate through all spike times and measure specified whisker
-            # parameter
-            for stime in windowed_spike_times:
-                wt_index = np.argmin(np.abs(stime - self.wtt))
-                temp_st_vals = self.wt[cond][wt_index, 0:5, trial_ind].reshape(1, 5)
-                st_vals = np.concatenate((st_vals, temp_st_vals), axis=0)
-
-            # add all whisker tracking values in analysis window to matrix
-            all_vals = np.concatenate((all_vals, self.wt[cond][stim_inds, 0:5, trial_ind]), axis=0)
-
-        st_vals  = st_vals[1::, :]
-        all_vals = all_vals[1::, :]
-
-        return st_vals, all_vals
-
-    def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
-        '''compute adaptation ratio for a given unit and bins'''
-        bins = np.asarray(bins)
-        ratios = np.zeros((1, self.stim_ids.shape[0], bins.shape[0]-1))
-        for cond in range(self.stim_ids.shape[0]):
-            ratios[0, cond, :] = np.mean(self.get_spike_rates_per_bin(bins=bins, unit_ind=unit_ind, trial_type=cond), axis=0)
-        for cond in range(self.stim_ids.shape[0]):
-            ratios[0, cond, :] = ratios[0, cond, :]/float(ratios[0, cond, 0])
-
-        return ratios
-
     def eta(self, event_times, cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
         '''
-        Create an event triggered histogram/average
+        Create an event triggered histogram/average. Given a list of times this
+        will calculate the mean spike rate plus standard error within a given
+        windowed centered at each event time.
+
         Input: event times as a vector
         TODO: event times as a matrix (i.e. a vector per specific trial)
         Returns: mean counts per bin, sem counts per bin, and bins
@@ -1291,6 +1247,75 @@ class NeuroAnalyzer(object):
         out4 = trace_time
 
         return out1, out2, out3, out4
+
+    def sta_wt(self, cond=0, unit_ind=0, analysis_window=[0.5, 1.5]):
+        '''
+        Create a spike triggered array
+        Returns: array (total spikes for specified unit x values) where each
+        entry is the whisker tracking value (e.g. angle, phase, set-point) when
+        the specified unit spiked.
+
+        The second array is all the whisker tracking values that occurred
+        during the analysis window for all analyzed trials
+        '''
+        st_vals = np.zeros((1, 5))
+        all_vals    = np.zeros((1, 5))
+        stim_inds   = np.logical_and(self.wtt >= analysis_window[0], self.wtt <= analysis_window[1])
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(self.num_good_trials[cond]):
+            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+            windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
+                    all_spike_times < analysis_window[1])
+            windowed_spike_times = all_spike_times[windowed_spike_indices]
+
+            # iterate through all spike times and measure specified whisker
+            # parameter
+            for stime in windowed_spike_times:
+                wt_index = np.argmin(np.abs(stime - self.wtt))
+                temp_st_vals = self.wt[cond][wt_index, 0:5, trial_ind].reshape(1, 5)
+                st_vals = np.concatenate((st_vals, temp_st_vals), axis=0)
+
+            # add all whisker tracking values in analysis window to matrix
+            all_vals = np.concatenate((all_vals, self.wt[cond][stim_inds, 0:5, trial_ind]), axis=0)
+
+        st_vals  = st_vals[1::, :]
+        all_vals = all_vals[1::, :]
+
+        return st_vals, all_vals
+
+    def get_phase_modulation_depth(self, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
+        '''
+        Calculates modulation depth from protraction triggered averages
+        Here modulation depth is the coefficient of variation (std/mean)
+        '''
+        if hasattr(self, 'wt') is False:
+            print('no whisking data!')
+        control_pos = self.control_pos
+        num_conditions = self.stim_ids.shape[0]
+        mod_mat = np.zeros((self.num_units, num_conditions))
+
+        for unit_index in range(self.num_units):
+            print('working on unit: {}'.format(unit_index))
+            for cond in range(num_conditions):
+                    spks_bin, _, _ = self.pta(cond=cond, unit_ind=unit_index, window=window, dt=dt, analysis_window=analysis_window)
+                    #mod_depth = (np.max(spks_bin) - np.min(spks_bin)) / np.mean(spks_bin)
+                    mod_depth = np.var(spks_bin)/np.mean(spks_bin)
+                    mod_mat[unit_index, cond] = mod_depth
+
+        self.mod_index = mod_mat
+
+
+    def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
+        '''compute adaptation ratio for a given unit and bins'''
+        bins = np.asarray(bins)
+        ratios = np.zeros((1, self.stim_ids.shape[0], bins.shape[0]-1))
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = np.mean(self.get_spike_rates_per_bin(bins=bins, unit_ind=unit_ind, trial_type=cond), axis=0)
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = ratios[0, cond, :]/float(ratios[0, cond, 0])
+
+        return ratios
 
     def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
         '''
@@ -1675,40 +1700,6 @@ if __name__ == "__main__":
 ##### SCRATCH SPACE #####
 ##### SCRATCH SPACE #####
 
-
-################
-##### TSNE or MDS #####
-################
-
-#from sklearn import manifold
-#
-#plt.figure()
-#X, y = neuro.make_design_matrix('evk_count', trode=1)
-#X_r0 = X[y<9, :]
-#y_r0 = y[y<9]
-#clf = manifold.MDS(n_components=2, n_init=1, max_iter=100)
-#X_r0 = clf.fit_transform(X_r0)
-#plt.subplot(1,2,1)
-#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-#for k in range(9):
-#    c = next(color)
-#    plt.plot(X_r0[y_r0==k, 0], X_r0[y_r0==k, 1], 'o', c=c, label=str(k))
-#plt.legend(loc='best')
-#
-#X, y = neuro.make_design_matrix('evk_count', trode=1)
-#trial_inds = np.logical_and(y>=9, y<18)
-#X_r0 = X[trial_inds, :]
-#y_r0 = y[trial_inds]
-#clf = manifold.MDS(n_components=2, n_init=1, max_iter=100)
-#X_r0 = clf.fit_transform(X_r0)
-##model = TSNE(n_components=2, random_state=0)
-##model.fit_transform(X_r0)
-#color=iter(cm.rainbow(np.linspace(0,1,len(np.unique(y_r0)))))
-#plt.subplot(1,2,2)
-#for k in range(9):
-#    c = next(color)
-#    plt.plot(X_r0[y_r0==k+9, 0], X_r0[y_r0==k+9, 1], 'o', c=c, label=str(k))
-#plt.legend(loc='best')
 
 
 ##how to get spike times: block.segments[0].spiketrains[0].tolist()
