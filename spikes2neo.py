@@ -6,14 +6,9 @@ import scipy as sp
 import scipy.io as sio
 import h5py
 import glob
-from scipy.interpolate import interp1d
 from scipy import signal as sig
 import re
 import os
-import pandas as pd
-#import itertools as it
-from sklearn.cluster import KMeans
-from sklearn import mixture
 import multiprocessing as mp
 import time
 ## NEW STUFF FOR NEO ##
