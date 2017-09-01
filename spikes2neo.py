@@ -1,23 +1,23 @@
 #!/bin/bash
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import scipy as sp
-import scipy.io as sio
-import h5py
 import glob
-from scipy import signal as sig
-import re
-import os
+import h5py
+import matplotlib.pyplot as plt
 import multiprocessing as mp
+import numpy as np
+import os
+import pandas as pd
+import re
+import scipy as sp
+from scipy import signal as sig
+import scipy.io as sio
 import time
-## NEW STUFF FOR NEO ##
-import os.path
+## Old stuff for neo
 import neo
-from neo.io import NeoHdf5IO
+from neo.io import NeoHdf5IO # old way...doesnt work
 import quantities as pq
-## NEW STUFF FOR WARNING
 from warnings import warn
+## NEW STUFF FOR NEO ##
+from neo.io import NixIO # read and write to NIX files (the new neo file format).
 
 def load_spike_file(path):
     """
@@ -362,6 +362,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
         seg_description = 'Trial number: ' + str(trial_ind) + ' Trial type: ' + str(stim[trial_ind][0])
         segment = neo.Segment(
                 description  = seg_description,
+                name         = 'segment-{0:04d}'.format(trial_ind),
                 index        = trial_ind,                    # trial number as an index
                 run_boolean  = run_bool_list[trial_ind],     # running=1, not-running=0
                 trial_number = trial_ind,                    # trial number as an annotation
@@ -372,7 +373,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
         # add velocity data to trial segment
         sig0 = neo.AnalogSignal(
                 signal=vel_list[trial_ind][:],
-                units=pq.deg/pq.S,
+                units=pq.deg/pq.s,
                 sampling_rate=6*pq.kHz,
                 name='run speed')
         block.segments[trial_ind].analogsignals.append(sig0)
@@ -401,14 +402,14 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
 
             # for each trial add LFPs for every channel on the electrode
             for trial_ind in np.arange(stim.shape[0]):
-                sig0 = neo.AnalogSignalArray(
+                sig0 = neo.AnalogSignal(
                         signal=lfp[trial_ind],
                         units=pq.uV,
                         sampling_rate=1.5*pq.kHz,
                         name='LFPs'+'-'+e_name,
                         shank_name=e_name,
                         shank_num=e_num)
-                block.segments[trial_ind].analogsignalarrays.append(sig0)
+                block.segments[trial_ind].analogsignals.append(sig0)
 
     if wtrack_files:
         for e, wt_path in enumerate(wtrack_files):
@@ -502,6 +503,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                                     t_stop=trial_times[trial_ind, 1] * pq.s,
                                     sampling_rate=30 * pq.kHz,
                                     units=pq.s,
+                                    name='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit)),
                                     description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
                                     depth=spk_msrs[unit_ind, 3]*pq.um,
                                     cell_type=spk_msrs[unit_ind, 7],
@@ -522,6 +524,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                                     t_stop=trial_times[trial_ind, 1] * pq.s,
                                     sampling_rate=30 * pq.kHz,
                                     units=pq.s,
+                                    name='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit)),
                                     description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
                                     depth=np.nan * pq.um,
                                     cell_type=3,
@@ -531,7 +534,9 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                                     region=shank_region))
 
         # close writer object to stop adding blocks to the file
-    writer.write(block)
+    print('Now writting blocks to writer object')
+    #writer.write(block)
+    writer.write_block(block)
     return block
 
 ########## MAIN CODE ##########
@@ -543,7 +548,8 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1345']
+    fids = ['FID1330']
+    #fid = 'FID1330'
     # bad_trials for FID1340. Whisker tracking failed here due to the shadow of
     # my hand: 101, 102, 103
 #    fids = ['1295', '1302', '1318', '1328', '1329', '1330']
@@ -563,15 +569,19 @@ if __name__ == "__main__":
     for fid in fids:
         # create multiple independent neo files
         neo_fname = '/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5'
+        neo_fname = '/home/greg/Desktop/' + fids[0] + '_neo_object.h5'
         if os.path.exists(neo_fname):
             print('!!! DELETING OLD NEO FILE !!!')
             os.remove(neo_fname)
-        writer = NeoHdf5IO(neo_fname)
+        #writer = NeoHdf5IO(neo_fname)
+        writer = NixIO(neo_fname, "rw")
+
         # get paths to run, whiser tracking, lfp, and spikes files if they
         # exist.
         # REMEMBER glob.glob returns a LIST of path strings you must
         # index into the appropriate one for whatever experiment/electrode
         # you're trying to add to the neo object
+
         run_file     = glob.glob(data_dir + fid + '*/' + fid + '*.run')
         lfp_files    = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*LFP.mat'))
         spikes_files = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*spikes.mat'))
