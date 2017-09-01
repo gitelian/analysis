@@ -377,7 +377,8 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
         # add velocity data to trial segment
         sig0 = neo.AnalogSignal(
                 signal=vel_list[trial_ind][:],
-                units=pq.rad,
+                units=pq.s,
+                a_units=pq.deg/pq.s,
                 sampling_rate=6*pq.kHz,
                 name='run speed')
         block.segments[trial_ind].analogsignals.append(sig0)
@@ -385,6 +386,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
         sig1 = neo.AnalogSignal(
                 signal=run_time_list[trial_ind][:],
                 units=pq.s,
+                a_units=pq.s,
                 sampling_rate=6*pq.kHz,
                 name='run speed time')
         block.segments[trial_ind].analogsignals.append(sig1)
@@ -409,6 +411,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                 sig0 = neo.AnalogSignalArray(
                         signal=lfp[trial_ind],
                         units=pq.uV,
+                        a_units=pq.uV,
                         sampling_rate=1.5*pq.kHz,
                         name='LFPs'+'-'+e_name,
                         shank_name=e_name,
@@ -424,32 +427,38 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
             for trial_ind in np.arange(stim.shape[0]):
                 sig0 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,0],
-                        units=pq.rad,
+                        units=pq.s,
+                        a_units=pq.deg,
                         sampling_rate=500*pq.Hz,
                         name='angle')
                 sig1 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,1],
                         units=pq.rad,
+                        a_units=pq.deg,
                         sampling_rate=500*pq.Hz,
                         name='set-point')
                 sig2 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,2],
                         units=pq.rad,
+                        a_units=pq.deg,
                         sampling_rate=500*pq.Hz,
                         name='amplitude')
                 sig3 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,3],
                         units=pq.rad,
+                        a_units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='phase')
                 sig4 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,4],
                         units=pq.rad,
+                        a_units=pq.deg/pq.s,
                         sampling_rate=500*pq.Hz,
                         name='velocity')
                 sig5 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,5],
                         units=pq.rad,
+                        a_units=pq.deg,
                         sampling_rate=500*pq.Hz,
                         name='whisking')
                 block.segments[trial_ind].analogsignals.append(sig0)
@@ -507,6 +516,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                                     t_stop=trial_times[trial_ind, 1] * pq.s,
                                     sampling_rate=30 * pq.kHz,
                                     units=pq.s,
+                                    a-units=pq.s,
                                     description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
                                     depth=spk_msrs[unit_ind, 3]*pq.um,
                                     cell_type=spk_msrs[unit_ind, 7],
