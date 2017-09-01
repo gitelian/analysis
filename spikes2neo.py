@@ -440,7 +440,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         name='phase')
                 sig4 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,4],
-                        units=pq.deg/pq.S,
+                        units=pq.deg/pq.s,
                         sampling_rate=500*pq.Hz,
                         name='velocity')
                 sig5 = neo.AnalogSignal(
