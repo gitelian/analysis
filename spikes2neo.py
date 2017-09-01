@@ -373,9 +373,9 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
         # add velocity data to trial segment
         sig0 = neo.AnalogSignal(
                 signal=vel_list[trial_ind][:],
+                units=pq.rad/pq.s,
                 sampling_rate=6*pq.kHz,
                 name='run-speed-{0:04d}'.format(trial_ind))
-                #units=pq.deg/pq.s,
         block.segments[trial_ind].analogsignals.append(sig0)
 
         sig1 = neo.AnalogSignal(
@@ -420,19 +420,19 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
             for trial_ind in np.arange(stim.shape[0]):
                 sig0 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,0],
+                        units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='angle-{0:04d}'.format(trial_ind))
-                        #units=pq.deg,
                 sig1 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,1],
+                        units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='set-point-{0:04d}'.format(trial_ind))
-                        #units=pq.deg,
                 sig2 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,2],
+                        units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='amplitude-{0:04d}'.format(trial_ind))
-                        #units=pq.deg,
                 sig3 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,3],
                         units=pq.rad,
@@ -440,98 +440,98 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         name='phase-{0:04d}'.format(trial_ind))
                 sig4 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,4],
+                        units=pq.rad/pq.s,
                         sampling_rate=500*pq.Hz,
                         name='velocity-{0:04d}'.format(trial_ind))
-                        #units=pq.deg/pq.s,
                 sig5 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,5],
+                        units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='whisking-{0:04d}'.format(trial_ind))
-                        #units=pq.deg,
                 block.segments[trial_ind].analogsignals.append(sig0)
                 block.segments[trial_ind].analogsignals.append(sig1)
                 block.segments[trial_ind].analogsignals.append(sig2)
                 block.segments[trial_ind].analogsignals.append(sig3)
                 block.segments[trial_ind].analogsignals.append(sig4)
                 block.segments[trial_ind].analogsignals.append(sig5)
-
-    ## Load in spike measure mat file ##
-    spike_measure_path = data_dir + 'spike_measures.mat'
-    if os.path.exists(spike_measure_path):
-        spk_msrs = load_mat_file(spike_measure_path, variable_name='spike_msr_mat')
-
-    if spikes_files:
-        for e, spike_path in enumerate(spikes_files):
-            spike_fname       = os.path.split(spike_path)[1]
-            electrode_match = re.search(r'e\d{0,2}', spike_fname)
-            e_name          = electrode_match.group()
-            e_num           = int(e_name[1::])
-            fid_match       = re.search(r'FID\d{0,4}', spike_fname, re.IGNORECASE)
-            fid_name        = fid_match.group()
-            fid_num         = int(fid_name[3::])
-            fid_inds        = np.where(spk_msrs[:, 0] == fid_num)[0]
-            e_inds          = np.where(spk_msrs[:, 1] == e_num)[0]
-            exp_inds        = np.intersect1d(fid_inds, e_inds)
-            shank_region    = get_exp_details_info(data_dir, fid_num, '{}_location'.format(e_name))
-
-            print('\nloading spikes from: {}\nREGION: {}'.format(spike_fname, shank_region))
-            labels, assigns, trials, spiketimes, _, _,\
-                    _, ids, nunit, unit_type, trial_times = load_spike_file(spike_path)
-
-            for trial_ind in np.arange(stim.shape[0]):
-                for k, unit in enumerate(ids): # iterate through ALL UNITS FROM ONE SPIKE FILE
-
-                    ## GETS SPIKE TIMES FOR ONE UNIT FOR ONE TRIAL ##
-                    spk_times_bool = sp.logical_and(trials == trial_ind + 1, assigns == unit) # trial_ind + 1 since trials are 1 based
-                    if unit_type[k] > 0 and unit_type[k] < 3: # get multi-unit and single-units
-
-                        # look for unit in spike_measures matrix
-                        unit_inds = np.where(spk_msrs[:, 2] == unit)[0]
-                        unit_ind = np.intersect1d(exp_inds, unit_inds)
-
-                        # if unit is in spike_measures file add appropriate data
-                        if unit_ind:
-                            # round t_stop because sometimes a spiketime would
-                            # be slightly longer than it (by about 0.0001 s)
-
-                            # spike_measures columns order: fid [0], electrode [1], unit_id [2],
-                            # depth [3], unit_id [4] (MU=1, SU=2), duration [5], ratio [6],
-                            # MU/RS/FS/UC [7], mean waveform [8:240]
-                            #print('duration:!!! {}'.format(spk_msrs[unit_ind, 5]))
-                            block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
-                                    t_start=trial_times[trial_ind, 0] * pq.s,
-                                    t_stop=trial_times[trial_ind, 1] * pq.s,
-                                    sampling_rate=30 * pq.kHz,
-                                    units=pq.s,
-                                    name='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit)) + '-{0:04d}'.format(trial_ind),
-                                    description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
-                                    depth=spk_msrs[unit_ind, 3]*pq.um,
-                                    cell_type=spk_msrs[unit_ind, 7],
-                                    duration=spk_msrs[unit_ind, 5],
-                                    ratio=spk_msrs[unit_ind, 6],
-                                    waveform=spk_msrs[unit_ind, 8::],
-                                    fid=fid_name,
-                                    shank=e_name,
-                                    unit_id=unit,
-                                    region=shank_region))
-
-                        # if unit isn't in spike_measures file add spike times
-                        # and which experiment and shank it came from and label
-                        # it as an unclassified cell type with an unknown depth
-                        else:
-                            block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
-                                    t_start=trial_times[trial_ind, 0] * pq.s,
-                                    t_stop=trial_times[trial_ind, 1] * pq.s,
-                                    sampling_rate=30 * pq.kHz,
-                                    units=pq.s,
-                                    name='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit)) + '-{0:04d}'.format(trial_ind),
-                                    description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
-                                    depth=np.nan * pq.um,
-                                    cell_type=3,
-                                    fid=fid_name,
-                                    shank=e_name,
-                                    unit_id=unit,
-                                    region=shank_region))
+#
+#    ## Load in spike measure mat file ##
+#    spike_measure_path = data_dir + 'spike_measures.mat'
+#    if os.path.exists(spike_measure_path):
+#        spk_msrs = load_mat_file(spike_measure_path, variable_name='spike_msr_mat')
+#
+#    if spikes_files:
+#        for e, spike_path in enumerate(spikes_files):
+#            spike_fname       = os.path.split(spike_path)[1]
+#            electrode_match = re.search(r'e\d{0,2}', spike_fname)
+#            e_name          = electrode_match.group()
+#            e_num           = int(e_name[1::])
+#            fid_match       = re.search(r'FID\d{0,4}', spike_fname, re.IGNORECASE)
+#            fid_name        = fid_match.group()
+#            fid_num         = int(fid_name[3::])
+#            fid_inds        = np.where(spk_msrs[:, 0] == fid_num)[0]
+#            e_inds          = np.where(spk_msrs[:, 1] == e_num)[0]
+#            exp_inds        = np.intersect1d(fid_inds, e_inds)
+#            shank_region    = get_exp_details_info(data_dir, fid_num, '{}_location'.format(e_name))
+#
+#            print('\nloading spikes from: {}\nREGION: {}'.format(spike_fname, shank_region))
+#            labels, assigns, trials, spiketimes, _, _,\
+#                    _, ids, nunit, unit_type, trial_times = load_spike_file(spike_path)
+#
+#            for trial_ind in np.arange(stim.shape[0]):
+#                for k, unit in enumerate(ids): # iterate through ALL UNITS FROM ONE SPIKE FILE
+#
+#                    ## GETS SPIKE TIMES FOR ONE UNIT FOR ONE TRIAL ##
+#                    spk_times_bool = sp.logical_and(trials == trial_ind + 1, assigns == unit) # trial_ind + 1 since trials are 1 based
+#                    if unit_type[k] > 0 and unit_type[k] < 3: # get multi-unit and single-units
+#
+#                        # look for unit in spike_measures matrix
+#                        unit_inds = np.where(spk_msrs[:, 2] == unit)[0]
+#                        unit_ind = np.intersect1d(exp_inds, unit_inds)
+#
+#                        # if unit is in spike_measures file add appropriate data
+#                        if unit_ind:
+#                            # round t_stop because sometimes a spiketime would
+#                            # be slightly longer than it (by about 0.0001 s)
+#
+#                            # spike_measures columns order: fid [0], electrode [1], unit_id [2],
+#                            # depth [3], unit_id [4] (MU=1, SU=2), duration [5], ratio [6],
+#                            # MU/RS/FS/UC [7], mean waveform [8:240]
+#                            #print('duration:!!! {}'.format(spk_msrs[unit_ind, 5]))
+#                            block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
+#                                    t_start=trial_times[trial_ind, 0] * pq.s,
+#                                    t_stop=trial_times[trial_ind, 1] * pq.s,
+#                                    sampling_rate=30 * pq.kHz,
+#                                    units=pq.s,
+#                                    name='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit)) + '-{0:04d}'.format(trial_ind),
+#                                    description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
+#                                    depth=spk_msrs[unit_ind, 3]*pq.um,
+#                                    cell_type=spk_msrs[unit_ind, 7],
+#                                    duration=spk_msrs[unit_ind, 5],
+#                                    ratio=spk_msrs[unit_ind, 6],
+#                                    waveform=spk_msrs[unit_ind, 8::],
+#                                    fid=fid_name,
+#                                    shank=e_name,
+#                                    unit_id=unit,
+#                                    region=shank_region))
+#
+#                        # if unit isn't in spike_measures file add spike times
+#                        # and which experiment and shank it came from and label
+#                        # it as an unclassified cell type with an unknown depth
+#                        else:
+#                            block.segments[trial_ind].spiketrains.append(neo.SpikeTrain(spiketimes[spk_times_bool],
+#                                    t_start=trial_times[trial_ind, 0] * pq.s,
+#                                    t_stop=trial_times[trial_ind, 1] * pq.s,
+#                                    sampling_rate=30 * pq.kHz,
+#                                    units=pq.s,
+#                                    name='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit)) + '-{0:04d}'.format(trial_ind),
+#                                    description="Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit)),
+#                                    depth=np.nan * pq.um,
+#                                    cell_type=3,
+#                                    fid=fid_name,
+#                                    shank=e_name,
+#                                    unit_id=unit,
+#                                    region=shank_region))
 
         # close writer object to stop adding blocks to the file
     print('Now writting blocks to writer object')
