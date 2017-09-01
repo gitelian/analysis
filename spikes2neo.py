@@ -377,7 +377,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
         # add velocity data to trial segment
         sig0 = neo.AnalogSignal(
                 signal=vel_list[trial_ind][:],
-                units=pq.deg/pq.S,
+                units=pq.deg/pq.s,
                 sampling_rate=6*pq.kHz,
                 name='run speed')
         block.segments[trial_ind].analogsignals.append(sig0)
@@ -444,7 +444,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         name='phase')
                 sig4 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,4],
-                        units=pq.deg/pq.S,
+                        units=pq.deg/pq.s,
                         sampling_rate=500*pq.Hz,
                         name='velocity')
                 sig5 = neo.AnalogSignal(
@@ -548,7 +548,7 @@ if __name__ == "__main__":
     # and to prevent github confusion.
 
     # Select which experiments to analyze
-    fids = ['FID1345']
+    fids = ['FID1330']
     # bad_trials for FID1340. Whisker tracking failed here due to the shadow of
     # my hand: 101, 102, 103
 #    fids = ['1295', '1302', '1318', '1328', '1329', '1330']
