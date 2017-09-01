@@ -377,7 +377,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
         # add velocity data to trial segment
         sig0 = neo.AnalogSignal(
                 signal=vel_list[trial_ind][:],
-                units=pq.rad/pq.s,
+                units=pq.rad,
                 sampling_rate=6*pq.kHz,
                 name='run speed')
         block.segments[trial_ind].analogsignals.append(sig0)
@@ -444,7 +444,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         name='phase')
                 sig4 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,4],
-                        units=pq.rad/pq.s,
+                        units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='velocity')
                 sig5 = neo.AnalogSignal(
