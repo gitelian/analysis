@@ -377,7 +377,7 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
         # add velocity data to trial segment
         sig0 = neo.AnalogSignal(
                 signal=vel_list[trial_ind][:],
-                units=pq.deg/pq.s,
+                units=pq.rad/pq.s,
                 sampling_rate=6*pq.kHz,
                 name='run speed')
         block.segments[trial_ind].analogsignals.append(sig0)
@@ -424,17 +424,17 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
             for trial_ind in np.arange(stim.shape[0]):
                 sig0 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,0],
-                        units=pq.deg,
+                        units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='angle')
                 sig1 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,1],
-                        units=pq.deg,
+                        units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='set-point')
                 sig2 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,2],
-                        units=pq.deg,
+                        units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='amplitude')
                 sig3 = neo.AnalogSignal(
@@ -444,12 +444,12 @@ def make_neo_object(writer, data_dir, fid, lfp_files, spikes_files, \
                         name='phase')
                 sig4 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,4],
-                        units=pq.deg/pq.s,
+                        units=pq.rad/pq.s,
                         sampling_rate=500*pq.Hz,
                         name='velocity')
                 sig5 = neo.AnalogSignal(
                         signal=wt[trial_ind][:,5],
-                        units=pq.deg,
+                        units=pq.rad,
                         sampling_rate=500*pq.Hz,
                         name='whisking')
                 block.segments[trial_ind].analogsignals.append(sig0)
