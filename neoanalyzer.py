@@ -301,6 +301,7 @@ class NeuroAnalyzer(object):
         wt_boolean = False
         for anlg in self.neo_obj.segments[0].analogsignals:
             if anlg.name == 'angle':
+                print('TRUE')
                 wt_boolean = True
 
         if wt_boolean:
@@ -520,14 +521,14 @@ class NeuroAnalyzer(object):
             # plot distribution
             print('making "whisking" histogram')
             sns.set(style="ticks")
-            f, (ax_box, ax_hist) = sns.plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
-            sns.boxplot(wsk_dist, vert=False, ax=ax_box)
+            f, (ax_box, ax_hist) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
+            sns.boxplot(wsk_dist, ax=ax_box)
             sns.distplot(wsk_dist, ax=ax_hist)
             ax_box.set(yticks=[])
             sns.despine(ax=ax_hist)
             sns.despine(ax=ax_box, left=True)
-            sns.plt.xlim(70, 180)
-            sns.plt.show()
+            plt.xlim(70, 180)
+            plt.show()
 
             # select threshold
             if threshold is 'median':
