@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import scipy.signal
 import statsmodels.stats.multitest as smm
 from scipy.optimize import curve_fit
@@ -10,7 +11,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 # change default figure type to PDF
 mpl.rcParams['savefig.format'] = 'pdf'
-mpl.rcParams('font',family='Arial')
+plt.rc('font',family='Arial')
 sns.set_style("whitegrid", {'axes.grid' : False})
 
 #fids = ['1289', '1290', '1295', '1302']
@@ -736,6 +737,17 @@ def st_norm(st_vals, all_vals, wt_type, bins, dt):
     return count_norm
 
 def sg_smooth(data, win_len, poly, neg_vals=False):
+    """
+    Smooth a 1-d array with a Savitzky–Golay filter
+
+    Arguments
+    Data: the 1-d array to be smoothed
+    win_len: the size of the smoothing window to be used. It MUST be an odd.
+    poly: order of the smoothing polynomial. Must be less than win_len
+    neg_vals: whether to convert negative values to zero.
+
+    Returns smoothed array
+    """
     smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly)
     if neg_vals is False:
         smooth_data[smooth_data < 0] = 0

@@ -27,7 +27,7 @@ from sklearn import manifold
 
 # change default figure type to PDF
 mpl.rcParams['savefig.format'] = 'pdf'
-mpl.rcParams('font',family='Arial')
+plt.rc('font',family='Arial')
 sns.set_style("whitegrid", {'axes.grid' : False})
 
 class NeuroAnalyzer(object):
@@ -1111,6 +1111,28 @@ class NeuroAnalyzer(object):
         return burst_rate_mat
 
     def get_spike_rates_per_bin(self, bins=[0, 0.5, 1.0, 1.5], unit_ind=0, trial_type=0):
+        """
+        Compute firing rate for arbitrary bin sizes
+
+        This bins spike count data for specified bin locations and computes the
+        firing rate for that bin.
+
+        Parameters
+        ----------
+        bins: array_like
+            bin locations. Bin width will be determined from these values.
+            Must be equally spaced bins!
+        unit_ind: int
+            unit index used to specify which unit's spikes should be binned
+        trial_type: int
+            trial type index used to specify which trial to be analyzed
+
+        Returns
+        -------
+        rates_per_bins: an array of size "number of bins" X "number of trials"
+
+
+        """
         # if the rates have not been calculated do that now
         if hasattr(self, 'binned_spikes') is False:
             print('Spikes have not been binned! Binning data now.')
@@ -1138,7 +1160,7 @@ class NeuroAnalyzer(object):
         Returns: mean counts per bin, sem counts per bin, and bins
         '''
         if hasattr(self, 'wt') is False:
-            print('no whisking data!')
+            warnings.warn('no whisking data!')
 
         bins      = np.arange(window[0], window[1], dt)
         count_mat = np.zeros((1, bins.shape[0] - 1)) # trials x bins
@@ -1168,7 +1190,7 @@ class NeuroAnalyzer(object):
         Here modulation depth is the coefficient of variation (std/mean)
         '''
         if hasattr(self, 'wt') is False:
-            print('no whisking data!')
+            warnings.warn('no whisking data!')
         control_pos = self.control_pos
         num_conditions = self.stim_ids.shape[0]
         mod_mat = np.zeros((self.num_units, num_conditions))
