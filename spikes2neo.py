@@ -235,6 +235,7 @@ def plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
     num_rows = 5
     num_cols = 6
     step = len(vel_list)/30
+    time_vec_plot = trtime_list[0] - stim_time_list[0][0]
 
     if conversion:
         # circumfrence per revolution (with a mouse 6cm away from center) / number of pulses per revolution
@@ -253,11 +254,20 @@ def plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
             vel_mat[k, :] = vel_list[k][stim_period_inds]
     plt.figure()
     plt.imshow(vel_mat, interpolation='nearest', aspect='auto', cmap='hot', \
-            extent=[trtime_list[0][stim_period_inds[0]], trtime_list[0][stim_period_inds[-1]],\
+            extent=[time_vec_plot[stim_period_inds[0]], time_vec_plot[stim_period_inds[-1]],\
             0, num_trials])
     plt.xlabel('time (s)'); plt.ylabel('trial')
     plt.title('running speed during stimulus period across entire experiment')
     cbar = plt.colorbar().set_label('runspeed cm/s')
+
+    # plot runspeed distribution (mean and std)
+    bins = range(0, 100, 1)
+    fig, ax = plt.subplots(2, 1)
+    ax[0].hist
+    mean_counts, _ = np.histogram(vel_mat.mean(axis=1), bins)
+    sigm_counts, _ = np.histogram(vel_mat.std(axis=1), bins)
+    ax[0].bar(bins[:-1], mean_counts, width=1.0)
+    ax[1].bar(bins[:-1], sigm_counts, width=1.0)
 
     # make subplots of a subset of trials
     i = 0
@@ -652,7 +662,6 @@ if __name__ == "__main__":
 
         # get stimulus on/off times and stimulus ID for each trial
         stim_time_list = load_v73_mat_file(run_file[0], variable_name='stimulus_times')
-        fail()
         stim = load_v73_mat_file(run_file[0], variable_name='stimsequence')
 
         # Plot runspeed
@@ -666,14 +675,14 @@ if __name__ == "__main__":
         # # Create running trial dictionary
         # fast running
         run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
-                t_after_stop=1.50, t_before_start=1.0, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=True) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+                t_after_stop=1.50, t_before_start=1.0, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
 #        # medium running
 #        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
-#                t_after_stop=1.50, mean_thresh=200, sigma_thresh=150, low_thresh=150, display=True) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+#                t_after_stop=1.50, mean_thresh=200, sigma_thresh=150, low_thresh=150, display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
 
 #        # slow but steady running
 #        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
-#                t_after_stop=1.50, mean_thresh=100, sigma_thresh=100, low_thresh=050, display=True) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+#                t_after_stop=1.50, mean_thresh=100, sigma_thresh=100, low_thresh=050, display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
 
         run_time_list = get_running_times(trtime_list, stim_time_list)
 
