@@ -320,6 +320,8 @@ def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.2
                 & (trtime_list[trial] <= (stim_time_list[trial][0]))
 
         vel = vel_list[trial][stim_period_inds]
+        vel = np.concatenate(vel_list[trial][stim_period_inds], vel_list[trial][base_period_inds]
+
         mean_vel.append(np.mean(vel))
         sigm_vel.append(np.std(vel))
         if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
@@ -337,39 +339,6 @@ def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.2
         plt.show()
 
     return run_bool_list
-#def reclassify_run_trials(self, time_before_stimulus= -1,\
-#        mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
-#    '''
-#    Two specified time windows are used to classify trials as running. One
-#    region during the pre-stimulus/baseline period and one during the stimulus
-#    period.
-#
-#    set_all_to_true will set all trials to true regardless of running data.
-#
-#    TODO: classify trials as not_running and use that classification to extract
-#    data for those trials. This will allow for the analysis of non-running
-#    trial. Right now trials classified as not running aren't analyzed.
-#    '''
-#
-#    for count, trial in enumerate(self.neo_obj.segments):
-#        for anlg_signals in trial.analogsignals:
-#            if anlg_signals.name == 'run speed':
-#                run_speed = np.asarray(anlg_signals)
-#            elif anlg_signals.name == 'run speed time':
-#                run_time = np.asarray(anlg_signals)
-#
-#        base_ind = np.logical_and( run_time > time_before_stimulus, run_time < 0)
-#        wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < (self.min_tbefore_stim + self.t_after_stim) )
-#
-##            vel = run_speed[stim_period_inds]
-#        vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
-#        if set_all_to_true == 0:
-#            if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
-#                self.neo_obj.segments[count].annotations['run_boolean'] = True
-#            else:
-#                self.neo_obj.segments[count].annotations['run_boolean'] = False
-#        elif set_all_to_true == 1:
-#            self.neo_obj.segments[count].annotations['run_boolean'] = True
 
 def get_running_times(trtime_list, stim_time_list):
     '''subtracts of stimulus start time from each trial time'''
