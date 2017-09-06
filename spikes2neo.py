@@ -320,7 +320,7 @@ def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.2
                 & (trtime_list[trial] <= (stim_time_list[trial][0]))
 
         vel = vel_list[trial][stim_period_inds]
-        vel = np.concatenate(vel_list[trial][stim_period_inds], vel_list[trial][base_period_inds]
+        vel = np.concatenate((vel_list[trial][stim_period_inds], vel_list[trial][base_period_inds]))
 
         mean_vel.append(np.mean(vel))
         sigm_vel.append(np.std(vel))
@@ -653,6 +653,7 @@ if __name__ == "__main__":
 #        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
 #                t_after_stop=1.50, mean_thresh=100, sigma_thresh=100, low_thresh=050, display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
 
+        fail()
         run_time_list = get_running_times(trtime_list, stim_time_list)
 
         ## get control position
