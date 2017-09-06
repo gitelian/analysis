@@ -201,6 +201,7 @@ class NeuroAnalyzer(object):
             for j, unit in enumerate(self.neo_obj.segments[0].spiketrains):
                 if unit.annotations['shank'] == shank_name:
                     shank_ids[j] = k
+        shank_ids = shank_ids.astype(int)
         return shank_ids
 
     def __get_shank_depths(self):
