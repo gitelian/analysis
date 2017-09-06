@@ -8,10 +8,9 @@ import h5py
 import glob
 import os
 import re
+import sys
 from scipy.interpolate import interp1d
-from sklearn.cluster import KMeans
 from sklearn import mixture
-import itertools as it
 
 # 20170524: added a1x32_Poly2 probe info in get_depth()
 
@@ -88,11 +87,13 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
     spike_measures_path = data_dir_path + 'spike_measures.mat'
 
 
-    if len(fid_list) == 0:
+    #if len(fid_list) == 0:
+    if fid_list[0] == 'overwrite':
         print('No FID list provided. Current spike_measures.mat will\n' + \
                 'be overwritten and updated with all spikes files.')
         overwrite=True
         spike_msr_mat = np.zeros((1, 8+240))
+        fail()
 
     elif os.path.exists(spike_measures_path):
         # load spike measures mat file
@@ -120,7 +121,8 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
     ##### GET PATHS TO ALL OF THE APPROPRIATE SPIKES MAT FILES #####
     # looks through experiment data directory which should have the structure
     # of /experiment_dir/electrode_sub_directories/*spikes.mat
-    if len(fid_list) == 0:
+    #if len(fid_list) == 0:
+    if fid_list[0] == 'overwrite':
         path2spikes_files = np.sort(glob.glob(data_dir_path + 'FID*/FID*_e*/*spikes.mat'))
     else:
         path2spikes_files = list()
@@ -301,7 +303,8 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
     dur_ratio_array = np.concatenate((dur_array, ratio_array),axis=1)
 
     ## GMM Clustering
-    clf = mixture.GMM(n_components=2, covariance_type='tied')
+    #clf = mixture.GMM(n_components=2, covariance_type='tied') # old version of GMM for scikit-learn v < 0.19
+    clf = mixture.GaussianMixture(n_components=2, covariance_type='tied') # new version of GMM for scikit-learn v >= 0.19
     clf.fit(dur_ratio_array)
     pred_prob = clf.predict_proba(dur_ratio_array)
     gmm_means = clf.means_
@@ -351,7 +354,8 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
     #'FID1295'
-    update_spikes_measures_mat(fid_list=['FID1345'], data_dir_path='/media/greg/data/neuro/')
+#    update_spikes_measures_mat(fid_list=['FID1345'], data_dir_path='/media/greg/data/neuro/')
+    update_spikes_measures_mat(fid_list=[sys.argv[1]], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/')
 
 
