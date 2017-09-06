@@ -234,6 +234,11 @@ def plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
         # circumfrence per revolution (with a mouse 6cm away from center) / number of pulses per revolution
         scale_factor = (2*np.pi*6)/360.0
         vel_list = [scale_factor* trial for trial in vel_list]
+        bin_size = 1
+        bins = range(0, 100, bin_size)
+    else:
+        bin_size = 5
+        bins = range(0, 1000, bin_size)
 
     # make heatmap of all running trials during the stimulus period
     num_trials = len(stim_time_list)
@@ -254,13 +259,12 @@ def plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
     cbar = plt.colorbar().set_label('runspeed cm/s')
 
     # plot runspeed distribution (mean and std)
-    bins = range(0, 100, 1)
     fig, ax = plt.subplots(2, 1)
     ax[0].hist
     mean_counts, _ = np.histogram(vel_mat.mean(axis=1), bins)
     sigm_counts, _ = np.histogram(vel_mat.std(axis=1), bins)
-    ax[0].bar(bins[:-1], mean_counts, width=1.0)
-    ax[1].bar(bins[:-1], sigm_counts, width=1.0)
+    ax[0].bar(bins[:-1], mean_counts, width=bin_size)
+    ax[1].bar(bins[:-1], sigm_counts, width=bin_size)
 
     # make subplots of a subset of trials
     i = 0
@@ -629,7 +633,7 @@ if __name__ == "__main__":
         stim = load_v73_mat_file(run_file[0], variable_name='stimsequence')
 
         # Plot runspeed
-        plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=True)
+        plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
 
         # select runspeed classification parameters
         print('\nDefault runspeed options')
