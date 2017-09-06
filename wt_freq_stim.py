@@ -9,10 +9,15 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mpl
 
+# change default figure type to PDF
+mpl.rcParams['savefig.format'] = 'pdf'
+mpl.rcParams('font',family='Arial')
+sns.set_style("whitegrid", {'axes.grid' : False})
+
 whisk.reclassify_run_trials(mean_thresh=200, low_thresh=0)
 whisk.wt_organize(running=False)
+
 # general useful things
-sns.set_style("whitegrid", {'axes.grid' : False})
 npand   = np.logical_and
 
 # plot mean and individual trial angles for all stim types

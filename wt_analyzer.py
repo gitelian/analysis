@@ -8,6 +8,9 @@ import sys
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 
+# change default figure type to PDF
+mpl.rcParams['savefig.format'] = 'pdf'
+mpl.rcParams('font',family='Arial')
 sns.set_style("whitegrid", {'axes.grid' : False})
 
 #fids = ['1289', '1290', '1295', '1302']

@@ -5,8 +5,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import scipy.io as sio
 
-# remove gride lines
+# change default figure type to PDF
+mpl.rcParams['savefig.format'] = 'pdf'
+mpl.rcParams('font',family='Arial')
 sns.set_style("whitegrid", {'axes.grid' : False})
+
 #get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
 
 # create multipage PDF of unit summaries

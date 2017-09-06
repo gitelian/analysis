@@ -27,7 +27,7 @@ from sklearn import manifold
 
 # change default figure type to PDF
 mpl.rcParams['savefig.format'] = 'pdf'
-mpl.rcParams('font',family='Times New Roman')
+mpl.rcParams('font',family='Arial')
 sns.set_style("whitegrid", {'axes.grid' : False})
 
 class NeuroAnalyzer(object):
