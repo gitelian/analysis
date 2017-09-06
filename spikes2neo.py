@@ -6,22 +6,15 @@ import scipy as sp
 import scipy.io as sio
 import h5py
 import glob
-from scipy.interpolate import interp1d
 from scipy import signal as sig
 import re
 import os
-import pandas as pd
-#import itertools as it
-from sklearn.cluster import KMeans
-from sklearn import mixture
+import sys
 import multiprocessing as mp
 import time
-## NEW STUFF FOR NEO ##
-import os.path
 import neo
 from neo.io import NeoHdf5IO
 import quantities as pq
-## NEW STUFF FOR WARNING
 from warnings import warn
 
 def load_spike_file(path):
@@ -590,27 +583,29 @@ if __name__ == "__main__":
     # easily run on laptop and lab computer without changing directory names
     # and to prevent github confusion.
 
-    # Select which experiments to analyze
-    fids = ['FID1330']
+    # Random notes for different experiments
+    #
     # bad_trials for FID1340. Whisker tracking failed here due to the shadow of
     # my hand: 101, 102, 103
-#    fids = ['1295', '1302', '1318', '1328', '1329', '1330']
-#    fids = ['FID' + fid for fid in fids]
-    #data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-    #fids = 'FID' + sys.argv[1]
-#    manager = NeoHdf5IO(os.path.join(data_dir + 'FID' + sys.argv[1] + '_neo_object.h5'))
+    #
+    # good experiments
+    #fids = ['1295', '1302', '1318', '1328', '1329', '1330']
+
+
+    # define parameters
+    run_param_dict = {\
+            'fast':   [250, 150, 200],\
+            'medium': [200, 150, 150],\
+            'slow':   [100, 150, 050]}
+
     data_dir = '/media/greg/data/neuro/'
 
-#    # combine multiple experiments into one neo file
-#    neo_fname = '/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5'
-#    if os.path.exists(neo_fname):
-#        print('!!! DELETING OLD NEO FILE !!!')
-#        os.remove(neo_fname)
-#    writer = NeoHdf5IO(neo_fname)
-
-    for fid in fids:
+    # Begin create neo file loop
+    for arg in sys.argv[1:]:
+        fid = 'FID' + arg
+        print(fid)
         # create multiple independent neo files
-        neo_fname = '/media/greg/data/neuro/neo/' + fids[0] + '_neo_object.h5'
+        neo_fname = '/media/greg/data/neuro/neo/' + fid + '_neo_object.h5'
         if os.path.exists(neo_fname):
             print('!!! DELETING OLD NEO FILE !!!')
             os.remove(neo_fname)
@@ -635,28 +630,44 @@ if __name__ == "__main__":
 
         # Plot runspeed
         plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=True)
-        usr_input = raw_input('Are the running parameters okay?\ny or n\n')
-        if usr_input == 'n':
-            exit()
-        else:
-            print('continuing')
 
-        # # Create running trial dictionary
-        # fast running
-        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
-                t_after_stop=1.50, t_before_start=1.0, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
-#        # medium running
-#        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
-#                t_after_stop=1.50, mean_thresh=200, sigma_thresh=150, low_thresh=150, display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+        # select runspeed classification parameters
+        print('\nDefault runspeed options')
+        print(run_param_dict)
+        valid_input = False
+        while not valid_input:
+            usr_input = raw_input('Select runspeed parameters: fast, medium, slow, or custom\n')
+            if usr_input == 'fast':
+                rparam = run_param_dict['fast']
+                valid_input = True
+            elif usr_input == 'medium':
+                rparam = run_param_dict['medium']
+                valid_input = True
+            elif usr_input == 'slow':
+                rparam = run_param_dict['slow']
+                valid_input = True
+            elif usr_input == 'custom':
+                try:
+                    rparam = list()
+                    rparam.append(float(raw_input('mean_thresh: ')))
+                    rparam.append(float(raw_input('sigma_thresh: ')))
+                    rparam.append(float(raw_input('low_thresh: ')))
+                    valid_input = True
+                except:
+                    warn('\nInvalid response, try again!')
+                    valid_input = False
+            else:
+                warn('\nInvalid response, try again!')
+                valid_input = False
 
-#        # slow but steady running
-#        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
-#                t_after_stop=1.50, mean_thresh=100, sigma_thresh=100, low_thresh=050, display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+        # Create running trial dictionary
+        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list,\
+                t_after_start=0.50, t_after_stop=1.50, t_before_start=1.0,\
+                mean_thresh=rparam[0], sigma_thresh=rparam[1], low_thresh=rparam[2], display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
 
-        fail()
         run_time_list = get_running_times(trtime_list, stim_time_list)
 
-        ## get control position
+        # get control position
         control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
 
         # Put data into a neo object and save
