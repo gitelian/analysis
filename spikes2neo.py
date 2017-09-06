@@ -294,15 +294,21 @@ def plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
     plt.show()
 
 def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.250,\
-        t_after_stop=0.5, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=False):
+        t_after_stop=0.5, t_before_start=1.0, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=False):
     num_trials = len(vel_list)
-    mean_vel = []
-    sigm_vel = []
+    mean_vel, sigm_vel = list(), list()
     run_bool_list = [False]*num_trials
 
     for count, trial in enumerate(range(num_trials)):
+
+        # get indices of stimulus period run speed
         stim_period_inds = (trtime_list[trial] >= (stim_time_list[trial][0] + t_after_start))\
-                & (trtime_list[trial] <= (stim_time_list[trial][1] + t_after_stop))
+                & (trtime_list[trial] <= (stim_time_list[trial][0] + t_after_stop))
+
+        # get indices of baseline run speed
+        base_period_inds = (trtime_list[trial] >= (stim_time_list[trial][0] - t_before_start))\
+                & (trtime_list[trial] <= (stim_time_list[trial][0]))
+
         vel = vel_list[trial][stim_period_inds]
         mean_vel.append(np.mean(vel))
         sigm_vel.append(np.std(vel))
@@ -321,6 +327,39 @@ def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.2
         plt.show()
 
     return run_bool_list
+#def reclassify_run_trials(self, time_before_stimulus= -1,\
+#        mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
+#    '''
+#    Two specified time windows are used to classify trials as running. One
+#    region during the pre-stimulus/baseline period and one during the stimulus
+#    period.
+#
+#    set_all_to_true will set all trials to true regardless of running data.
+#
+#    TODO: classify trials as not_running and use that classification to extract
+#    data for those trials. This will allow for the analysis of non-running
+#    trial. Right now trials classified as not running aren't analyzed.
+#    '''
+#
+#    for count, trial in enumerate(self.neo_obj.segments):
+#        for anlg_signals in trial.analogsignals:
+#            if anlg_signals.name == 'run speed':
+#                run_speed = np.asarray(anlg_signals)
+#            elif anlg_signals.name == 'run speed time':
+#                run_time = np.asarray(anlg_signals)
+#
+#        base_ind = np.logical_and( run_time > time_before_stimulus, run_time < 0)
+#        wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < (self.min_tbefore_stim + self.t_after_stim) )
+#
+##            vel = run_speed[stim_period_inds]
+#        vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
+#        if set_all_to_true == 0:
+#            if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
+#                self.neo_obj.segments[count].annotations['run_boolean'] = True
+#            else:
+#                self.neo_obj.segments[count].annotations['run_boolean'] = False
+#        elif set_all_to_true == 1:
+#            self.neo_obj.segments[count].annotations['run_boolean'] = True
 
 def get_running_times(trtime_list, stim_time_list):
     '''subtracts of stimulus start time from each trial time'''
@@ -613,6 +652,7 @@ if __name__ == "__main__":
 
         # get stimulus on/off times and stimulus ID for each trial
         stim_time_list = load_v73_mat_file(run_file[0], variable_name='stimulus_times')
+        fail()
         stim = load_v73_mat_file(run_file[0], variable_name='stimsequence')
 
         # Plot runspeed
@@ -626,7 +666,7 @@ if __name__ == "__main__":
         # # Create running trial dictionary
         # fast running
         run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
-                t_after_stop=1.50, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=True) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+                t_after_stop=1.50, t_before_start=1.0, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=True) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
 #        # medium running
 #        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.50,\
 #                t_after_stop=1.50, mean_thresh=200, sigma_thresh=150, low_thresh=150, display=True) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
