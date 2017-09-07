@@ -767,6 +767,8 @@ def sg_smooth(data, win_len, poly, neg_vals=False):
 #win_len=5
 win_len=11 # for phase
 poly=3
+neuro.get_phase_modulation_depth()
+md = neuro.mod_index
 
 with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
     for uid in range(neuro.num_units):
@@ -788,6 +790,7 @@ with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
         count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[0][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
         ax[0][0].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][0], color=c, shade=True)
 
         # control position S1 silencing
@@ -845,39 +848,171 @@ with PdfPages('/home/greg/Desktop/' + fid + '_test_phase.pdf') as pdf:
         # top left
         fig.subplots_adjust(left=0.12, bottom=0.10, right=0.90, top=0.90, wspace=0.20, hspace=0.30)
         ax[0][0].set_ylabel('Firing rate (Hz)')
-        ax[0][0].set_title('Free whisking')
+        ax[0][0].set_title('Free whisking\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
+                .format(md[uid, neuro.control_pos-1, 0], md[uid, neuro.control_pos-1, 1]))
+
         # top middle
-        ax[0][1].set_title('Free whisking\nS1 silencing')
+        ax[0][1].set_title('Free whisking\nS1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
+                .format(md[uid, neuro.control_pos-1+9, 0], md[uid, neuro.control_pos-1+9, 1]))
+
         # top right
-        ax[0][2].set_title('Free whisking\nM1 silencing')
+        ax[0][2].set_title('Free whisking\nM1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
+                .format(md[uid, neuro.control_pos-1+9+9, 0], md[uid, neuro.control_pos-1+9+9, 1]))
+
         # bottom left
         ax[1][0].set_ylabel('Firing rate (Hz)')
         ax[1][0].set_xlabel('Phase (rad)')
-        ax[1][0].set_title('Best contact')
+        ax[1][0].set_title('Best contact\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
+                .format(md[uid, neuro.best_contact[uid], 0], md[uid, neuro.best_contact[uid], 1]))
+
         # bottom middle
         ax[1][1].set_xlabel('Phase (rad)')
-        ax[1][1].set_title('Best contact\nS1 silencing')
+        ax[1][1].set_title('Best contact\nS1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
+                .format(md[uid, neuro.best_contact[uid]+9, 0], md[uid, neuro.best_contact[uid]+9, 1]))
+
         # bottom right
         ax[1][2].set_xlabel('Phase (rad)')
-        ax[1][2].set_title('Best contact\nM1 silencing')
+        ax[1][2].set_title('Best contact\nM1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
+                .format(md[uid, neuro.best_contact[uid]+9+9, 0], md[uid, neuro.best_contact[uid]+9+9, 1]))
+
+        fig.subplots_adjust(left=0.10, bottom=0.10, right=0.90, top=0.85, wspace=0.20, hspace=0.40)
 
         pdf.savefig()
         fig.clear()
         plt.close()
 
-##### quantify modulation depth #####
-import pycircstat.distributions as csdist
-mod_index = np.zeros((neuro.num_units, 2))
-for uid in range(neuro.num_units):
-    st_vals, all_vals = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
-    count_norm        = st_norm(st_vals, all_vals, wt_type, bins, dt)
-    smooth_data       = sg_smooth(count_norm, win_len, poly, neg_vals=False)
-    mod_index[uid, :] = None # calculate modulation index here
 
 
-    st_vals, all_vals = neuro.sta_wt(cond=neuro.best_contact[uid], unit_ind=uid) # analysis_window=[0.5, 1.5]
-    count_norm        = st_norm(st_vals, all_vals, wt_type, bins, dt)
-    smooth_data       = sg_smooth(count_norm, win_len, poly, neg_vals=False)
+###################################################
+##### plot spike spike-phase polar plots #####
+###################################################
+
+# polar scatter plot can handle negative angles
+
+npand   = np.logical_and
+neuro.get_phase_modulation_index()
+
+m1_rs = npand(neuro.shank_ids == 0, neuro.cell_type == 'RS')
+s1_rs = npand(neuro.shank_ids == 1, neuro.cell_type == 'RS')
+m1_fs = npand(neuro.shank_ids == 0, neuro.cell_type == 'FS')
+s1_fs = npand(neuro.shank_ids == 1, neuro.cell_type == 'FS')
+
+fig, ax = plt.subplots(2, 2, figsize=(10,6),subplot_kw=dict(polar=True)) #fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
+
+# top left: control position # M1 RS units with and without light
+ax[0][0].scatter(neuro.mod_index[m1_rs, neuro.control_pos-1, 1],\
+        neuro.mod_index[m1_rs, neuro.control_pos-1, 0], c='k')
+
+ax[0][0].scatter(neuro.mod_index[m1_rs, neuro.control_pos-1+9, 1],\
+        neuro.mod_index[m1_rs, neuro.control_pos-1+9, 0], c='b')
+
+# bottom left: control position # S1 RS units with and without light
+ax[1][0].scatter(neuro.mod_index[s1_rs, neuro.control_pos-1, 1],\
+        neuro.mod_index[s1_rs, neuro.control_pos-1, 0], c='k')
+
+ax[1][0].scatter(neuro.mod_index[s1_rs, neuro.control_pos-1+9+9, 1],\
+        neuro.mod_index[s1_rs, neuro.control_pos-1+9+9, 0], c='b')
+
+# top right: best contact position # M1 FS units with and without light
+ax[0][1].scatter(neuro.mod_index[m1_fs, neuro.best_contact[m1_fs], 1],\
+        neuro.mod_index[m1_fs, neuro.best_contact[m1_fs], 0], c='k')
+
+ax[0][1].scatter(neuro.mod_index[m1_fs, neuro.best_contact[m1_fs]+9, 1],\
+        neuro.mod_index[m1_fs, neuro.best_contact[m1_fs]+9, 0], c='r')
+
+# top right: best contact position # S1 FS units with and without light
+ax[1][1].scatter(neuro.mod_index[s1_fs, neuro.best_contact[s1_fs], 1],\
+        neuro.mod_index[s1_fs, neuro.best_contact[s1_fs], 0], c='k')
+
+ax[1][1].scatter(neuro.mod_index[s1_fs, neuro.best_contact[s1_fs]+9+9, 1],\
+        neuro.mod_index[s1_fs, neuro.best_contact[s1_fs]+9+9, 0], c='r')
+
+# set plot labels
+# top left
+ax[0][0].set_title('M1 RS units\nNo contact')
+# bottom left
+ax[1][0].set_title('S1 RS units\nNo contact')
+#ax[1][0].set_ylim(0,0.3)
+# top right
+ax[0][1].set_title('M1 FS units\nNo contact')
+# bottom right
+ax[1][1].set_title('S1 FS units\nNo contact')
+
+
+fig.subplots_adjust(top=0.90, bottom=0.05, left=0.10, right=0.90, hspace=0.35, wspace=0.20)
+
+## polar plot toy example
+#theta = np.arange(-np.pi, np.pi, 5*np.pi/180)
+#r = np.linspace(0, 3, theta.shape[0])
+#colors = theta
+#ax = subplot(111, polar=True)
+#ax.set_ylim(0,5)
+##c = scatter(theta, r) # one color for all the dots
+#c = scatter(theta, r, c=colors) # unique colors for all the dots
+
+
+################################################################
+##### plot spike spike-phase vector strength scatter plot  #####
+################################################################
+
+neuro.get_phase_modulation_index()
+
+m1_rs = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='RS')
+s1_rs = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='RS')
+m1_fs = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='FS')
+s1_fs = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='FS')
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9))
+fig.suptitle('spike-phase paired vector strength')
+
+# top left: M1 control position
+ax[0][0].plot(neuro.mod_index[m1_rs, neuro.control_pos-1, 0],\
+        neuro.mod_index[m1_rs, neuro.control_pos-1+9, 0], 'ok', label='RS')
+ax[0][0].plot(neuro.mod_index[m1_fs, neuro.control_pos-1, 0],\
+        neuro.mod_index[m1_fs, neuro.control_pos-1+9, 0], 'ob', label='FS')
+ax[0][0].set_title('M1 spike-phase\nvector strength')
+ax[0][0].set_xlabel('No Light')
+ax[0][0].set_ylabel('S1 Silencing')
+ax[0][0].legend(loc='upper left')
+
+# bottom left: M1 best positions
+ax[1][0].plot(neuro.mod_index[m1_rs, neuro.best_contact[m1_rs], 0],\
+        neuro.mod_index[m1_rs, neuro.best_contact[m1_rs]+9, 0], 'ok', label='RS')
+ax[1][0].plot(neuro.mod_index[m1_rs, neuro.best_contact[m1_fs], 0],\
+        neuro.mod_index[m1_fs, neuro.best_contact[m1_fs]+9, 0], 'ob', label='FS')
+ax[1][0].set_title('M1 spike-phase\nvector strength')
+ax[1][0].set_xlabel('No Light')
+ax[1][0].set_ylabel('S1 Silencing')
+ax[1][0].legend()
+
+# set ylim to the max ylim of all subplots and plot line of unity
+ylim_max = 0
+xlim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+        if xlim_temp > xlim_max:
+            xlim_max = xlim_temp
+for row in ax:
+    for col in row:
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
