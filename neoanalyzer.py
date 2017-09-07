@@ -1049,7 +1049,7 @@ class NeuroAnalyzer(object):
             else:
                 driven.append(False)
 
-        self.driven_units = driven
+        self.driven_units = np.asarray(driven)
 
     def get_burst_rate(self, unit_ind=0, trial_type=0, start_time=0.5, stop_time=1.5):
         """
@@ -1409,7 +1409,7 @@ class NeuroAnalyzer(object):
                 # corresponds to negative pi and six is close to positive pi
 
                 # compute vector strength
-                mod_mat[uid, k, 0] = pycirc.descriptive.resultant_vector_length(bins_pos[:-1], smooth_data) - np.pi # angles in radian, weightings (counts)
+                mod_mat[uid, k, 0] = pycirc.descriptive.resultant_vector_length(bins_pos[:-1], smooth_data) # angles in radian, weightings (counts)
 
                 # compute vector angle (mean direction)
                 mod_mat[uid, k, 1] = pycirc.descriptive.mean(bins_pos[:-1], smooth_data) - np.pi # angles in radian, weightings (counts)
@@ -1418,26 +1418,6 @@ class NeuroAnalyzer(object):
                 mod_mat[uid, k, 2] = np.std(smooth_data)/np.mean(smooth_data)
 
         self.mod_index = mod_mat
-
-                ## toy example to determine whether negative values work with pycircstat
-                ## uid=23, k=5, FID1336
-                #
-                ## positive bins
-                #In [47]: pycirc.descriptive.mean(b[:-1], smooth_data)
-                #Out[47]: 2.948533031333326
-                #
-                ## positive bins and shifted by -pi
-                ## This accurately describes the distribution and is the method used here
-                #In [46]: pycirc.descriptive.mean(b[:-1], smooth_data) - np.pi
-                #Out[46]: -0.19305962225646711
-                #
-                ## regular bins
-                #In [48]: pycirc.descriptive.mean(bins[:-1], smooth_data)
-                #Out[48]: 6.0901256849231187
-                #
-                ## regular bins shifted by -pi
-                #In [49]: pycirc.descriptive.mean(bins[:-1], smooth_data) - np.pi
-            #Out[49]: 2.9485330313333256
 
 ###############################################################################
 ##### Plotting Functions #####
