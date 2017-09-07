@@ -23,6 +23,8 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import TSNE
 # for MDS
 from sklearn import manifold
+# for python circular statistics
+import pycircstat as pycirc
 
 
 # change default figure type to PDF
@@ -137,7 +139,11 @@ class NeuroAnalyzer(object):
         #self.reclassify_run_trials(self, time_before_stimulus= -1,\
         #            mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False)
 
-    def get_exp_details_info(self, key):
+###############################################################################
+##### Class initialization functions #####
+###############################################################################
+
+    def __get_exp_details_info(self, key):
         ##### LOAD IN EXPERIMENT DETAILS CSV FILE #####
         print('\n----- get_exp_details_info -----')
         fid = int(self.fid[3::])
@@ -164,10 +170,10 @@ class NeuroAnalyzer(object):
             return exp_info[key]
 
     def __sort_units(self, neo_obj):
-        '''
+        """
         Units are saved out of order in the neo object.
         This reorders units by experiment FID, shank, and depth across all segments.
-        '''
+        """
         for i, seg in enumerate(neo_obj.segments):
             fid, shank, depth = list(), list(), list()
 
@@ -194,9 +200,9 @@ class NeuroAnalyzer(object):
         self.depths = sorted_depth
 
     def __get_shank_ids(self):
-        '''
+        """
         Return shank IDs for each unit
-        '''
+        """
         shank_ids = np.zeros((self.num_units, ))
         for k, shank_name in enumerate(self.shank_names):
             for j, unit in enumerate(self.neo_obj.segments[0].spiketrains):
@@ -206,7 +212,7 @@ class NeuroAnalyzer(object):
         return shank_ids
 
     def __get_shank_depths(self):
-        '''Find depths of each shank and add it to self.shank_depths'''
+        """Find depths of each shank and add it to self.shank_depths"""
         depth = list()
         for shank in self.shank_names:
             depth_temp0 = 0
@@ -219,7 +225,7 @@ class NeuroAnalyzer(object):
         return depth
 
     def __get_waveinfo(self):
-        '''gets waveform duration, ratio, and mean waveform for each unit'''
+        """gets waveform duration, ratio, and mean waveform for each unit"""
 
         duration = list()
         ratio    = list()
@@ -241,9 +247,9 @@ class NeuroAnalyzer(object):
             self.waves    = None
 
     def __get_celltypeID(self):
-        '''
+        """
         Put celltype IDs in an array that corresponds to the unit order
-        '''
+        """
         cell_type = list()
         for spike in self.neo_obj.segments[0].spiketrains:
             try:
@@ -285,18 +291,18 @@ class NeuroAnalyzer(object):
 
         # over writes dynamic baselines and trials. Now all trials will be the
         # same length. This is what the trimming functions did anyway.
-        min_tbefore_stim = self.get_exp_details_info('latency')
-        min_tafter_stim  = self.get_exp_details_info('duration') - self.get_exp_details_info('latency')
+        min_tbefore_stim = self.__get_exp_details_info('latency')
+        min_tafter_stim  = self.__get_exp_details_info('duration') - self.__get_exp_details_info('latency')
 
         self.min_tbefore_stim = np.asarray(min_tbefore_stim)
         self.min_tafter_stim  = np.asarray(min_tafter_stim)
         print('smallest baseline period (time before stimulus): {0}\nsmallest trial length (time after stimulus): {1}'.format(str(min_tbefore_stim), str(min_tafter_stim)))
 
     def __trim_wt(self):
-        '''
+        """
         Trim whisker tracking arrays to the length of the shortest trial.
         Time zero of the wt time corresponds to stimulus onset.
-        '''
+        """
         print('\n-----__trim_wt-----')
 
         fps        = 500.0
@@ -314,9 +320,9 @@ class NeuroAnalyzer(object):
 #            wt_indices  = np.arange(num_samples) - int( self.min_tbefore_stim * fps )
 #            wtt         = wt_indices / fps
 
-            wt_start_time = float(self.get_exp_details_info('hsv_start'))
-            wt_stop_time  = float(self.get_exp_details_info('hsv_stop'))
-            wt_num_frames = float(self.get_exp_details_info('hsv_num_frames'))
+            wt_start_time = float(self.__get_exp_details_info('hsv_start'))
+            wt_stop_time  = float(self.__get_exp_details_info('hsv_stop'))
+            wt_num_frames = float(self.__get_exp_details_info('hsv_num_frames'))
             num_samples   = wt_num_frames
             wtt = np.linspace(wt_start_time, wt_stop_time, wt_num_frames) - self.min_tbefore_stim
             wt_indices = np.arange(wtt.shape[0]) - int(self.min_tbefore_stim *fps)
@@ -368,10 +374,10 @@ class NeuroAnalyzer(object):
             self.wt_boolean = wt_boolean
 
     def __trim_lfp(self):
-        '''
+        """
         Trim LFP arrays to the length of the shortest trial.
         Time zero of the LFP time corresponds to stimulus onset.
-        '''
+        """
         print('\n-----__trim_lfp-----')
 
         chan_per_shank = list()
@@ -430,7 +436,7 @@ class NeuroAnalyzer(object):
 
     def reclassify_run_trials(self, time_before_stimulus= -1,\
             mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
-        '''
+        """
         If the neo object is still associated with the NeuroAnalyzer class this
         function uses the velocity data stored in the analogsignals array to
         reclassify running trials as running or not running.
@@ -444,7 +450,7 @@ class NeuroAnalyzer(object):
         TODO: classify trials as not_running and use that classification to extract
         data for those trials. This will allow for the analysis of non-running
         trial. Right now trials classified as not running aren't analyzed.
-        '''
+        """
 
         for count, trial in enumerate(self.neo_obj.segments):
             for anlg_signals in trial.analogsignals:
@@ -468,11 +474,11 @@ class NeuroAnalyzer(object):
 
 
     def get_num_good_trials(self, kind='run_boolean'):
-        '''
+        """
         Return a list with the number of good trials for each stimulus condition
         And the specified annotations to use.
         kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
-        '''
+        """
         num_good_trials = list()
         num_slow_trials = list()
         num_all_trials  = list()
@@ -496,14 +502,14 @@ class NeuroAnalyzer(object):
         self.num_all_trials  = num_all_trials
 
     def classify_whisking_trials(self, threshold='user'):
-        '''
+        """
         Classify a trial as good if whisking occurs during a specified period.
         A trial is considered whisking if the mouse was whisking during the
         baseline period and the stimulus period.
 
         threshold can take the values 'median' or 'user' (default)
         A new annotation ('wsk_boolean') is added to each segment
-        '''
+        """
 
         if self.wt_boolean:
             print('whisker tracking data found! trimming data to be all the same length in time')
@@ -566,7 +572,7 @@ class NeuroAnalyzer(object):
             print('NO WHISKER TRACKING DATA FOUND!\nuse runspeed to classify trials')
 
     def __make_kernel(self, resolution=0.025, kind='square'):
-        '''Build alpha kernel with specified 25msec (default) resolution'''
+        """Build alpha kernel with specified 25msec (default) resolution"""
         if kind == 'alpha':
             alpha  = 1.0/resolution
             tau    = np.arange(0,1/alpha*10, 0.001)
@@ -581,36 +587,19 @@ class NeuroAnalyzer(object):
 
         return kernel
 
-    def get_protraction_times(self, pos, trial, analysis_window=[0.5, 1.5]):
-        '''
-        Calculates the protration times for a specified trial
-        time_window: start and end time of analysis window of interest (in seconds).
-        '''
-        phase             = self.wt[pos][:, 3, trial]
-        phs_crossing      = phase > 0
-        phs_crossing      = phs_crossing.astype(int)
-        protraction_inds  = np.where(np.diff(phs_crossing) > 0)[0] + 1
-        protraction_times = self.wtt[protraction_inds]
-
-        good_inds = np.logical_and(protraction_times > analysis_window[0],\
-                protraction_times < analysis_window[1])
-        timestamps = protraction_times[good_inds]
-
-        return timestamps
-
     def update_t_after_stim(self, t_after_stim):
         self.t_after_stim = t_after_stim
         self.classify_whisking_trials(threshold='user')
         self.rates()
 
     def get_annotations_index(self, key, value):
-        '''Returns trial index for the given key value pair'''
+        """Returns trial index for the given key value pair"""
         stim_index = [ index for index, segment in enumerate(self.neo_obj.segments) \
                 if segment.annotations[key] == value]
         return stim_index
 
     def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True, all_trials=False):
-        '''
+        """
         rates computes the absolute and evoked firing rate and counts for the
         specified stimulus period. The time to start analyzing after the stimulus
         start time is specified by neuro.t_after_stim. The baseline period to
@@ -623,7 +612,7 @@ class NeuroAnalyzer(object):
         kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
 
         Recomputes whisker tracking data and adds it to self.wt
-        '''
+        """
 
         print('\n-----computing rates----')
         absolute_rate   = list()
@@ -747,7 +736,7 @@ class NeuroAnalyzer(object):
             self.wt        = wt
 
     def reclassify_units(self):
-        '''use OMI and wave duration to reclassify units'''
+        """use OMI and wave duration to reclassify units"""
 
         new_labels = list()
         if hasattr(self, 'cell_type_og') is False:
@@ -810,13 +799,13 @@ class NeuroAnalyzer(object):
         self.lfps = lfps
 
     def get_psd(self, input_array, sr):
-        '''
+        """
         compute PSD of input array sampled at sampling rate sr
         input_array: a samples x trial array
         sr: sampling rate of input signal
 
         Returns x, and mean y and sem y
-        '''
+        """
         f_temp = list()
         num_trials = input_array.shape[1]
         for trial in range(num_trials):
@@ -827,25 +816,8 @@ class NeuroAnalyzer(object):
 
         return f, frq_mat_temp
 
-    def plot_freq(self, f, frq_mat_temp, axis=None, color='k', error='sem'):
-        if axis == None:
-            axis = plt.gca()
-
-        mean_frq = np.mean(frq_mat_temp, axis=1)
-        se       = sp.stats.sem(frq_mat_temp, axis=1)
-
-        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
-        if error == 'ci':
-            err = se*sp.stats.t.ppf((1+0.95)/2.0, frq_mat_temp.shape[1]-1) # (1+1.95)/2 = 0.975
-        elif error == 'sem':
-            err = se
-
-        axis.plot(f, mean_frq, color=color)
-        axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
-        #axis.set_yscale('log')
-
     def make_design_matrix(self, rate_type='evk_count', trode=None, trim_trials=True):
-        '''make design matrix for classification and regressions'''
+        """make design matrix for classification and regressions"""
 
         print('\n-----make design matrix----')
         min_trials     = np.min(self.num_good_trials)
@@ -883,13 +855,13 @@ class NeuroAnalyzer(object):
         return X, y
 
     def get_burst_isi(self, kind='run_boolean'):
-        '''
+        """
         Compute the interspike interval for spikes during the stimulus period.
         get_burst_isi creates a list that has n_stimulus_types entries. Each
         stimulus type has a list which contains a numpy array for each unit.
 
         These values can be used to identify bursting activity.
-        '''
+        """
 
         if self.wt_boolean:
             wt          = list()
@@ -976,6 +948,10 @@ class NeuroAnalyzer(object):
         self.bisi_list = bisi_list
         self.isi_list  = isi_list
 
+###############################################################################
+##### Eight-Position experiment specific functions #####
+###############################################################################
+
     def get_selectivity(self):
         if hasattr(self, 'abs_rate') is False:
             self.rates()
@@ -996,10 +972,10 @@ class NeuroAnalyzer(object):
         self.selectivity = sel_mat
 
     def get_omi(self, pos=-1):
-        '''
+        """
         calculates mean OMI or OMI at a specifie position. Returns a
         unit X number of optogenetic manipulations
-        '''
+        """
         if hasattr(self, 'abs_rate') is False:
             self.rates()
         control_pos = self.control_pos
@@ -1021,10 +997,10 @@ class NeuroAnalyzer(object):
         return omi_mat
 
     def get_preferred_position(self):
-        '''
+        """
         calculated the preferred position. Returns a
         unit X number of manipulations
-        '''
+        """
         if hasattr(self, 'abs_rate') is False:
             self.rates()
         control_pos = self.control_pos
@@ -1044,7 +1020,7 @@ class NeuroAnalyzer(object):
         self.preference = pref_mat
 
     def get_best_contact(self):
-        '''calculates best contact for all units from evoked rate tuning curve'''
+        """calculates best contact for all units from evoked rate tuning curve"""
         best_contact = np.zeros((self.num_units,))
         for unit_index in range(self.num_units):
             meanr = np.array([np.mean(k[:, unit_index]) for k in self.evk_rate])
@@ -1052,7 +1028,7 @@ class NeuroAnalyzer(object):
         self.best_contact = best_contact.astype(int)
 
     def get_sensory_drive(self):
-        '''determine which units are sensory driven'''
+        """determine which units are sensory driven"""
         if hasattr(self, 'abs_count') is False:
             self.rates()
         control_pos = self.control_pos - 1
@@ -1076,8 +1052,8 @@ class NeuroAnalyzer(object):
         self.driven_units = driven
 
     def get_burst_rate(self, unit_ind=0, trial_type=0, start_time=0.5, stop_time=1.5):
-        '''
-        '''
+        """
+        """
         # if the rates have not been calculated do that now
         if hasattr(self, 'binned_spikes') is False:
             print('Spikes have not been binned! Binning data now.')
@@ -1154,11 +1130,62 @@ class NeuroAnalyzer(object):
 
         return rates_per_bin
 
+    def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
+        """compute adaptation ratio for a given unit and bins"""
+        bins = np.asarray(bins)
+        ratios = np.zeros((1, self.stim_ids.shape[0], bins.shape[0]-1))
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = np.mean(self.get_spike_rates_per_bin(bins=bins, unit_ind=unit_ind, trial_type=cond), axis=0)
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = ratios[0, cond, :]/float(ratios[0, cond, 0])
+
+        return ratios
+
+###############################################################################
+##### Whisker tracking functions #####
+###############################################################################
+
+    def get_protraction_times(self, pos, trial, analysis_window=[0.5, 1.5]):
+        """
+        Calculates the protration times for a specified trial
+
+        Given a position/trial type index and the trial index this will return
+        the timestamp for each whisker at maximum protraction. The protraction
+        time will be withing the specified analysis_window
+
+        Parameters
+        ----------
+        pos: int
+            index specifying which position/trial type to analyze
+        trial: int
+            index specifying which trial to analyze
+        analysis_window: array-like
+            array or list containing two numbers specifying the beginning and
+            end of the analysis period to anlyze
+
+        Returns
+        _______
+        timestampt: array
+            an array containing the timestamps for maximum protractions during
+            the analysis window.
+        """
+        phase             = self.wt[pos][:, 3, trial]
+        phs_crossing      = phase > 0
+        phs_crossing      = phs_crossing.astype(int)
+        protraction_inds  = np.where(np.diff(phs_crossing) > 0)[0] + 1
+        protraction_times = self.wtt[protraction_inds]
+
+        good_inds = np.logical_and(protraction_times > analysis_window[0],\
+                protraction_times < analysis_window[1])
+        timestamps = protraction_times[good_inds]
+
+        return timestamps
+
     def pta(self, cond=0, unit_ind=0, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
-        '''
+        """
         Create a protraction triggered histogram/average
         Returns: mean counts per bin, sem counts per bin, and bins
-        '''
+        """
         if hasattr(self, 'wt') is False:
             warnings.warn('no whisking data!')
 
@@ -1185,10 +1212,10 @@ class NeuroAnalyzer(object):
         return out1, out2, out3
 
     def get_pta_depth(self, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
-        '''
+        """
         Calculates modulation depth from protraction triggered averages
         Here modulation depth is the coefficient of variation (std/mean)
-        '''
+        """
         if hasattr(self, 'wt') is False:
             warnings.warn('no whisking data!')
         control_pos = self.control_pos
@@ -1206,7 +1233,7 @@ class NeuroAnalyzer(object):
         self.mod_index = mod_mat
 
     def eta(self, event_times, cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
-        '''
+        """
         Create an event triggered histogram/average. Given a list of times this
         will calculate the mean spike rate plus standard error within a given
         windowed centered at each event time.
@@ -1214,7 +1241,7 @@ class NeuroAnalyzer(object):
         Input: event times as a vector
         TODO: event times as a matrix (i.e. a vector per specific trial)
         Returns: mean counts per bin, sem counts per bin, and bins
-        '''
+        """
 
         bins      = np.arange(window[0], window[1], dt)
         count_mat = np.zeros((1, bins.shape[0] - 1)) # trials x bins
@@ -1240,12 +1267,12 @@ class NeuroAnalyzer(object):
 
     def eta_wt(self, event_times, cond=0, kind='angle', window=[-0.050, 0.050]):
 #            cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
-        '''
+        """
         Create an event triggered trace of a specified whisking parameter
         Input: event times as a vector
         TODO: event times as a matrix (i.e. a vector per specific trial)
         Returns: mean trace, sem of traces, and the trace matrix (trials x window length)
-        '''
+        """
         self.wt_type_dict = {'angle':0, 'set-point':1, 'amplitude':2, 'phase':3, 'velocity':4, 'whisking':5}
 
         num_inds_pre  = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[0])))[0])
@@ -1274,15 +1301,15 @@ class NeuroAnalyzer(object):
         return out1, out2, out3, out4
 
     def sta_wt(self, cond=0, unit_ind=0, analysis_window=[0.5, 1.5]):
-        '''
-        Create a spike triggered array
+        """
+        Create a spike triggered array for whisker tracking
         Returns: array (total spikes for specified unit x values) where each
         entry is the whisker tracking value (e.g. angle, phase, set-point) when
         the specified unit spiked.
 
         The second array is all the whisker tracking values that occurred
         during the analysis window for all analyzed trials
-        '''
+        """
         st_vals = np.zeros((1, 5))
         all_vals    = np.zeros((1, 5))
         stim_inds   = np.logical_and(self.wtt >= analysis_window[0], self.wtt <= analysis_window[1])
@@ -1309,41 +1336,13 @@ class NeuroAnalyzer(object):
 
         return st_vals, all_vals
 
-    def get_phase_modulation_depth(self, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
-        '''
-        Calculates modulation depth from protraction triggered averages
-        Here modulation depth is the coefficient of variation (std/mean)
-        '''
-        if hasattr(self, 'wt') is False:
-            print('no whisking data!')
-        control_pos = self.control_pos
-        num_conditions = self.stim_ids.shape[0]
-        mod_mat = np.zeros((self.num_units, num_conditions))
 
-        for unit_index in range(self.num_units):
-            print('working on unit: {}'.format(unit_index))
-            for cond in range(num_conditions):
-                    spks_bin, _, _ = self.pta(cond=cond, unit_ind=unit_index, window=window, dt=dt, analysis_window=analysis_window)
-                    #mod_depth = (np.max(spks_bin) - np.min(spks_bin)) / np.mean(spks_bin)
-                    mod_depth = np.var(spks_bin)/np.mean(spks_bin)
-                    mod_mat[unit_index, cond] = mod_depth
-
-        self.mod_index = mod_mat
-
-
-    def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
-        '''compute adaptation ratio for a given unit and bins'''
-        bins = np.asarray(bins)
-        ratios = np.zeros((1, self.stim_ids.shape[0], bins.shape[0]-1))
-        for cond in range(self.stim_ids.shape[0]):
-            ratios[0, cond, :] = np.mean(self.get_spike_rates_per_bin(bins=bins, unit_ind=unit_ind, trial_type=cond), axis=0)
-        for cond in range(self.stim_ids.shape[0]):
-            ratios[0, cond, :] = ratios[0, cond, :]/float(ratios[0, cond, 0])
-
-        return ratios
+###############################################################################
+##### Plotting Functions #####
+###############################################################################
 
     def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
-        '''
+        """
         make_simple_tuning_curve allows one to specify what type of tuning
         curve to plot as well as which unit for a single tuning curve or all
         units for a subplot of tuning curves
@@ -1353,7 +1352,7 @@ class NeuroAnalyzer(object):
         Absolute counts: 'abs_count'
         Evoked rate:     'evk_rate'
         Evoked counts:   'evk_count'
-        '''
+        """
 
         # if the rates have not been calculated do that now
         if hasattr(self, 'abs_rate') is False:
@@ -1454,13 +1453,13 @@ class NeuroAnalyzer(object):
                     plot_count = 0
 
     def plot_raster(self, unit_ind=0, trial_type=0, axis=None, burst=True):
-        '''
+        """
         Makes a raster plot for the given unit index and trial type.
         If called alone it will plot a raster to the current axis. This function
         is called by plot_all_rasters and returns an axis handle to the current
         subplot. This allows plot_all_rasters to plot rasters in the appropriate
         subplots.
-        '''
+        """
         # if the rates have not been calculated do that now
         if hasattr(self, 'binned_spikes') is False:
             print('Spikes have not been binned! Binning data now.')
@@ -1497,13 +1496,13 @@ class NeuroAnalyzer(object):
         return ax
 
     def plot_raster_all_conditions(self, unit_ind=0, num_trials=None, offset=5, axis=None, burst=False):
-        '''
+        """
         Makes a raster plot for the given unit index and trial type.
         If called alone it will plot a raster to the current axis. This function
         is called by plot_all_rasters and returns an axis handle to the current
         subplot. This allows plot_all_rasters to plot rasters in the appropriate
         subplots.
-        '''
+        """
         # if the rates have not been calculated do that now
         if hasattr(self, 'binned_spikes') is False:
             print('Spikes have not been binned! Binning data now.')
@@ -1546,13 +1545,13 @@ class NeuroAnalyzer(object):
         return ax
 
     def plot_psth(self, axis=None, unit_ind=0, trial_type=0, error='ci', color='k'):
-        '''
+        """
         Makes a PSTH plot for the given unit index and trial type.
         If called alone it will plot a PSTH to the current axis. This function
         is called by plot_all_PSTHs and returns an axis handle to the current
         subplot. This allows plot_all_PSTHs to plot PSTHs in the appropriate
         subplots.
-        '''
+        """
         # if the rates have not been calculated do that now
         if hasattr(self, 'psth') is False:
             print('Spikes have not been binned! Binning data now.')
@@ -1581,10 +1580,10 @@ class NeuroAnalyzer(object):
         return ax
 
     def plot_all_rasters(self, unit_ind=0, burst=True):
-        '''
+        """
         Plots all rasters for a given unit with subplots.
         Each positions is a row and each manipulation is a column.
-        '''
+        """
         num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
         subplt_indices    = np.arange(self.control_pos*num_manipulations).reshape(self.control_pos, num_manipulations)
         fig = plt.subplots(self.control_pos, num_manipulations, figsize=(6*num_manipulations, 12))
@@ -1595,10 +1594,10 @@ class NeuroAnalyzer(object):
                 self.plot_raster(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip), burst=burst)
 
     def plot_all_psths(self, unit_ind=0, error='sem'):
-        '''
+        """
         Plots all PSTHs for a given unit with subplots.
         Each positions is a row and each manipulation is a column.
-        '''
+        """
         ymax = 0
         color = ['k','r','b']
         num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
@@ -1616,6 +1615,23 @@ class NeuroAnalyzer(object):
         for trial in range(self.control_pos):
             ax[trial].set_ylim(0, ymax)
         plt.show()
+
+    def plot_freq(self, f, frq_mat_temp, axis=None, color='k', error='sem'):
+        if axis == None:
+            axis = plt.gca()
+
+        mean_frq = np.mean(frq_mat_temp, axis=1)
+        se       = sp.stats.sem(frq_mat_temp, axis=1)
+
+        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
+        if error == 'ci':
+            err = se*sp.stats.t.ppf((1+0.95)/2.0, frq_mat_temp.shape[1]-1) # (1+1.95)/2 = 0.975
+        elif error == 'sem':
+            err = se
+
+        axis.plot(f, mean_frq, color=color)
+        axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
+        #axis.set_yscale('log')
 
 ###############################################################################
 ######## Doesn't work in Ubuntu...figure out why ##############################
@@ -1662,7 +1678,7 @@ class NeuroAnalyzer(object):
 #        plt.close()
 #
 #def single_trial_all_unit_raster(segments, trial_type, stim_times, stim_ids, run_trials=True):
-#    '''
+#    """
 #    Plot single trial rasters with all recorded units
 #
 #    segments: neo segments object.
@@ -1675,7 +1691,7 @@ class NeuroAnalyzer(object):
 #
 #
 #
-#    '''
+#    """
 #
 #    num_units = len(segments[0].spiketrains)
 #    stim_index = get_stimulus_index(segments, trial_type, run_trials=True)
@@ -1722,11 +1738,6 @@ if __name__ == "__main__":
     exp1 = block[0]
     neuro = NeuroAnalyzer(exp1, fid)
 
-##### SCRATCH SPACE #####
-##### SCRATCH SPACE #####
-
-
-
 ##how to get spike times: block.segments[0].spiketrains[0].tolist()
 #
 ##############!!!!!!!!!!!!!!!!!!!!!!!#########################
@@ -1749,4 +1760,81 @@ if __name__ == "__main__":
 # use this: a.swapaxes(0,2).swapaxes(1,2).reshape(6,2)
 
 
+
+
+
+##### SCRATCH SPACE #####
+##### SCRATCH SPACE #####
+
+
+
+
+
+def get_phase_modulation_depth(neuro, bins=np.linspace(-np.pi, np.pi, 40)):
+
+    # helper functions
+    def st_norm(st_vals, all_vals, wt_type, bins, dt):
+        '''
+        normalizes phase/spike counts
+
+        Divides each phase bin by the occupancy of that bin. That is, it
+        divides by the number of times the whiskers happened to occupy each bin
+        '''
+        st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
+        all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
+        count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
+        return count_norm
+
+    def sg_smooth(data, win_len=11, poly=3, neg_vals=False):
+        """
+        Smooth a 1-d array with a Savitzky–Golay filter
+
+        Arguments
+        Data: the 1-d array to be smoothed
+        win_len: the size of the smoothing window to be used. It MUST be an odd.
+        poly: order of the smoothing polynomial. Must be less than win_len
+        neg_vals: whether to convert negative values to zero.
+
+        Returns smoothed array
+        """
+        smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly)
+        if neg_vals is False:
+            smooth_data[smooth_data < 0] = 0
+        return smooth_data
+
+    dt = bins[1] - bins[0]
+    wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
+    mod_mat = np.zeros((neuro.num_units, len(neuro.num_all_trials), 3))
+
+    for uid in range(neuro.num_units):
+        for k in range(len(neuro.num_all_trials)):
+
+            # compute spike-rate per phase bin
+            st_vals, all_vals = neuro.sta_wt(cond=k, unit_ind=uid) # analysis_window=[0.5, 1.5]
+            count_norm        = st_norm(st_vals, all_vals, wt_type, bins, dt)
+            smooth_data       = sg_smooth(count_norm)
+
+            # pycircstat returns positive values (I think?). So zero
+            # corresponds to negative pi and six is close to positive pi
+
+            # compute vector strength
+            mod_mat[uid, k, 0] = pycirc.descriptive.resultant_vector_length(bins[:-1], smooth_data) # angles in radian, weightings (counts)
+
+            # compute vector angle (mean direction)
+            mod_mat[uid, k, 1] = pycirc.descriptive.mean(bins[:-1], smooth_data) # angles in radian, weightings (counts)
+
+            # compute coefficient of variation
+            mod_mat[uid, k, 2] = np.std(smooth_data)/np.mean(smooth_data)
+
+    neuro.mod_index = mod_mat
+
+
+# for PHASE
+bins = np.linspace(-np.pi, np.pi, 40)
+wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
+
+
+win_len=11 # for phase
+poly=3
+mod_index = np.zeros((neuro.num_units, 2))
 
