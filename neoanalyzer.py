@@ -118,7 +118,7 @@ class NeuroAnalyzer(object):
         self.classify_whisking_trials(threshold='median')
 
         # calculate rates, psths, whisking array, etc.
-        self.rates(all_trials=True)
+        self.rates()
 
         # create region dictionary
         self.region_dict = {0:'M1', 1:'S1'}
@@ -1336,6 +1336,108 @@ class NeuroAnalyzer(object):
 
         return st_vals, all_vals
 
+    def get_phase_modulation_depth(self, bins=np.linspace(-np.pi, np.pi, 40)):
+        """
+        computes spike-phase modulation depth for each unit
+
+        Parameters
+        _________
+        bins: array-like
+            specify the bin locations used to bin spike-phase data
+
+        Returns
+        -------
+        mod_index: 3-d array
+            The 3-d array has dimensions:
+                row: number of units
+                col: number of trial types
+                3-d: vector strength, vector direction, coefficient of variation
+            The array is added to the neuro class and can be called with dot
+            notations <name of class object>.mod_index
+        """
+
+        # helper functions
+        def st_norm(st_vals, all_vals, wt_type, bins, dt):
+            """
+            normalizes phase/spike counts
+
+            Divides each phase bin by the occupancy of that bin. That is, it
+            divides by the number of times the whiskers happened to occupy each bin
+            """
+            st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
+            all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
+            count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
+            return count_norm
+
+        def sg_smooth(data, win_len=11, poly=3, neg_vals=False):
+            """
+            Smooth a 1-d array with a Savitzky-Golay filter
+
+            Arguments
+            Data: the 1-d array to be smoothed
+            win_len: the size of the smoothing window to be used. It MUST be an odd.
+            poly: order of the smoothing polynomial. Must be less than win_len
+            neg_vals: whether to convert negative values to zero.
+
+            Returns smoothed array
+            """
+            smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly)
+            if neg_vals is False:
+                smooth_data[smooth_data < 0] = 0
+            return smooth_data
+
+        # Main function code
+        print('\n-----get_phase_modulation_depth-----')
+        if hasattr(self, 'wt') is False:
+            warnings.warn('no whisking data!')
+
+        dt       = bins[1] - bins[0]
+        bins_pos = bins + np.pi # must use positive bins with pycircstat, remeber to offset results by -pi
+        wt_type  = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
+        mod_mat  = np.zeros((self.num_units, len(self.num_all_trials), 3))
+
+        for uid in range(self.num_units):
+            print('working on unit: {}'.format(uid))
+            for k in range(len(self.num_all_trials)):
+
+                # compute spike-rate per phase bin
+                st_vals, all_vals = self.sta_wt(cond=k, unit_ind=uid) # analysis_window=[0.5, 1.5]
+                count_norm        = st_norm(st_vals, all_vals, wt_type, bins, dt)
+                smooth_data       = sg_smooth(count_norm)
+
+                # pycircstat returns positive values (yes, verified). So zero
+                # corresponds to negative pi and six is close to positive pi
+
+                # compute vector strength
+                mod_mat[uid, k, 0] = pycirc.descriptive.resultant_vector_length(bins_pos[:-1], smooth_data) - np.pi # angles in radian, weightings (counts)
+
+                # compute vector angle (mean direction)
+                mod_mat[uid, k, 1] = pycirc.descriptive.mean(bins_pos[:-1], smooth_data) - np.pi # angles in radian, weightings (counts)
+
+                # compute coefficient of variation
+                mod_mat[uid, k, 2] = np.std(smooth_data)/np.mean(smooth_data)
+
+        self.mod_index = mod_mat
+
+                ## toy example to determine whether negative values work with pycircstat
+                ## uid=23, k=5, FID1336
+                #
+                ## positive bins
+                #In [47]: pycirc.descriptive.mean(b[:-1], smooth_data)
+                #Out[47]: 2.948533031333326
+                #
+                ## positive bins and shifted by -pi
+                ## This accurately describes the distribution and is the method used here
+                #In [46]: pycirc.descriptive.mean(b[:-1], smooth_data) - np.pi
+                #Out[46]: -0.19305962225646711
+                #
+                ## regular bins
+                #In [48]: pycirc.descriptive.mean(bins[:-1], smooth_data)
+                #Out[48]: 6.0901256849231187
+                #
+                ## regular bins shifted by -pi
+                #In [49]: pycirc.descriptive.mean(bins[:-1], smooth_data) - np.pi
+            #Out[49]: 2.9485330313333256
 
 ###############################################################################
 ##### Plotting Functions #####
@@ -1770,71 +1872,18 @@ if __name__ == "__main__":
 
 
 
-def get_phase_modulation_depth(neuro, bins=np.linspace(-np.pi, np.pi, 40)):
-
-    # helper functions
-    def st_norm(st_vals, all_vals, wt_type, bins, dt):
-        '''
-        normalizes phase/spike counts
-
-        Divides each phase bin by the occupancy of that bin. That is, it
-        divides by the number of times the whiskers happened to occupy each bin
-        '''
-        st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
-        all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
-        count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
-        return count_norm
-
-    def sg_smooth(data, win_len=11, poly=3, neg_vals=False):
-        """
-        Smooth a 1-d array with a Savitzky–Golay filter
-
-        Arguments
-        Data: the 1-d array to be smoothed
-        win_len: the size of the smoothing window to be used. It MUST be an odd.
-        poly: order of the smoothing polynomial. Must be less than win_len
-        neg_vals: whether to convert negative values to zero.
-
-        Returns smoothed array
-        """
-        smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly)
-        if neg_vals is False:
-            smooth_data[smooth_data < 0] = 0
-        return smooth_data
-
-    dt = bins[1] - bins[0]
-    wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
-    mod_mat = np.zeros((neuro.num_units, len(neuro.num_all_trials), 3))
-
-    for uid in range(neuro.num_units):
-        for k in range(len(neuro.num_all_trials)):
-
-            # compute spike-rate per phase bin
-            st_vals, all_vals = neuro.sta_wt(cond=k, unit_ind=uid) # analysis_window=[0.5, 1.5]
-            count_norm        = st_norm(st_vals, all_vals, wt_type, bins, dt)
-            smooth_data       = sg_smooth(count_norm)
-
-            # pycircstat returns positive values (I think?). So zero
-            # corresponds to negative pi and six is close to positive pi
-
-            # compute vector strength
-            mod_mat[uid, k, 0] = pycirc.descriptive.resultant_vector_length(bins[:-1], smooth_data) # angles in radian, weightings (counts)
-
-            # compute vector angle (mean direction)
-            mod_mat[uid, k, 1] = pycirc.descriptive.mean(bins[:-1], smooth_data) # angles in radian, weightings (counts)
-
-            # compute coefficient of variation
-            mod_mat[uid, k, 2] = np.std(smooth_data)/np.mean(smooth_data)
-
-    neuro.mod_index = mod_mat
 
 
-# for PHASE
-bins = np.linspace(-np.pi, np.pi, 40)
-wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
 
 
-win_len=11 # for phase
-poly=3
-mod_index = np.zeros((neuro.num_units, 2))
+
+
+
+
+
+
+
+
+
+
 
