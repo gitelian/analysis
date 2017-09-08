@@ -322,7 +322,7 @@ class NeuroAnalyzer(object):
 
             wt_start_time = float(self.__get_exp_details_info('hsv_start'))
             wt_stop_time  = float(self.__get_exp_details_info('hsv_stop'))
-            wt_num_frames = float(self.__get_exp_details_info('hsv_num_frames'))
+            wt_num_frames = int(self.__get_exp_details_info('hsv_num_frames'))
             num_samples   = wt_num_frames
             wtt = np.linspace(wt_start_time, wt_stop_time, wt_num_frames) - self.min_tbefore_stim
             wt_indices = np.arange(wtt.shape[0]) - int(self.min_tbefore_stim *fps)
@@ -1381,7 +1381,7 @@ class NeuroAnalyzer(object):
 
             Returns smoothed array
             """
-            smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly)
+            smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly, mode='wrap')
             if neg_vals is False:
                 smooth_data[smooth_data < 0] = 0
             return smooth_data
