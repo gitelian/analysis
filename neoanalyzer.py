@@ -1369,7 +1369,7 @@ class NeuroAnalyzer(object):
             count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
             return count_norm
 
-        def sg_smooth(data, win_len=11, poly=3, neg_vals=False):
+        def sg_smooth(data, win_len=5, poly=3, neg_vals=False):
             """
             Smooth a 1-d array with a Savitzky-Golay filter
 
