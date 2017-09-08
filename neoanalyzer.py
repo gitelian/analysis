@@ -1396,7 +1396,7 @@ class NeuroAnalyzer(object):
         bins_pos = bins + np.pi # must use positive bins with pycircstat, remeber to offset results by -pi
         wt_type  = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
         mod_mat  = np.zeros((self.num_units, len(self.num_all_trials), 3))
-        mod_pval = np.zeros((self.num_units, len(self.num_all_trials))
+        mod_pval = np.zeros((self.num_units, len(self.num_all_trials)))
 
         for uid in range(self.num_units):
             print('working on unit: {}'.format(uid))
