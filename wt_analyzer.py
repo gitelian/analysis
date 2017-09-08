@@ -1098,6 +1098,305 @@ for row in ax:
         col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
 
 
+######################################################
+##### multiple experiment whisking analysis #####
+######################################################
+
+# poly2 trode experiments with whisker tracking
+#fids = ['1336','1338', '1339', '1340', '1343', '1345']
+
+##### Load experiments #####
+fids = ['1336','1338']
+experiments = list()
+for fid in fids:
+    get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
+    # del neo objects to save memory
+    del neuro.neo_obj
+    del block
+    del exp1
+    del manager
+    experiments.append(neuro)
+
+##### create arrays and lists for concatenating specified data from all experiments
+cell_type    = list()
+shank_ids    = np.empty((1, ))
+depths       = np.empty((1, ))
+driven       = np.empty((1, ))
+best_contact = np.empty((1, ))
+mod_index    =  np.empty((1, 27, 3))
+
+for neuro in experiments:
+    # calculate measures that weren't calculated at init
+    neuro.get_best_contact()
+    neuro.get_phase_modulation_depth()
+
+    # concatenate measures
+    cell_type.extend(neuro.cell_type)
+    shank_ids    = np.append(shank_ids, neuro.shank_ids)
+    depths       = np.append(depths, np.asarray(neuro.depths))
+    driven       = np.append(driven, neuro.driven_units, axis=0)
+    best_contact = np.append(best_contact, neuro.best_contact)
+    mod_index    = np.concatenate( (mod_index, neuro.mod_index), axis=0)
+
+cell_type = np.asarray(cell_type)
+
+shank_ids = shank_ids[1:,]
+shank_ids = shank_ids.astype(int)
+
+depths = depths[1:,]
+
+driven = driven[1:,]
+driven = driven.astype(int)
+
+best_contact = best_contact[1:,]
+best_contact = best_contact.astype(int)
+
+mod_index = np.nan_to_num(mod_index[1:, :, :])
+
+
+########################################
+##### multiple experiment analysis #####
+########################################
+
+
+
+##################################################################
+##### multiple experiment plot spike spike-phase polar plots #####
+##################################################################
+
+npand = np.logical_and
+m1_rs = npand(npand(shank_ids==0, driven==True), cell_type=='RS')
+s1_rs = npand(npand(shank_ids==1, driven==True), cell_type=='RS')
+m1_fs = npand(npand(shank_ids==0, driven==True), cell_type=='FS')
+s1_fs = npand(npand(shank_ids==1, driven==True), cell_type=='FS')
+
+fig, ax = plt.subplots(2, 2, figsize=(10,6),subplot_kw=dict(polar=True)) #fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
+
+# top left: control position # M1 RS units with and without light
+ax[0][0].scatter(mod_index[m1_rs, control_pos-1, 1],\
+        mod_index[m1_rs, control_pos-1, 0], c='k')
+
+ax[0][0].scatter(mod_index[m1_rs, control_pos-1+9, 1],\
+        mod_index[m1_rs, control_pos-1+9, 0], c='b')
+
+# bottom left: control position # S1 RS units with and without light
+ax[1][0].scatter(mod_index[s1_rs, control_pos-1, 1],\
+        mod_index[s1_rs, control_pos-1, 0], c='k')
+
+ax[1][0].scatter(mod_index[s1_rs, control_pos-1+9+9, 1],\
+        mod_index[s1_rs, control_pos-1+9+9, 0], c='b')
+
+# top right: best contact position # M1 FS units with and without light
+ax[0][1].scatter(mod_index[m1_fs, best_contact[m1_fs], 1],\
+        mod_index[m1_fs, best_contact[m1_fs], 0], c='k')
+
+ax[0][1].scatter(mod_index[m1_fs, best_contact[m1_fs]+9, 1],\
+        mod_index[m1_fs, best_contact[m1_fs]+9, 0], c='r')
+
+# top right: best contact position # S1 FS units with and without light
+ax[1][1].scatter(mod_index[s1_fs, best_contact[s1_fs], 1],\
+        mod_index[s1_fs, best_contact[s1_fs], 0], c='k')
+
+ax[1][1].scatter(mod_index[s1_fs, best_contact[s1_fs]+9+9, 1],\
+        mod_index[s1_fs, best_contact[s1_fs]+9+9, 0], c='r')
+
+# set plot labels
+# top left
+ax[0][0].set_title('M1 RS units\nNo contact')
+# bottom left
+ax[1][0].set_title('S1 RS units\nNo contact')
+#ax[1][0].set_ylim(0,0.3)
+# top right
+ax[0][1].set_title('M1 FS units\nNo contact')
+# bottom right
+ax[1][1].set_title('S1 RS units\nNo contact')
+
+
+fig.subplots_adjust(top=0.90, bottom=0.05, left=0.10, right=0.90, hspace=0.35, wspace=0.20)
+
+
+
+####################################################################################
+##### multiple experiment plot spike spike-phase vector strength scatter plots #####
+####################################################################################
+
+control_pos = 9
+npand = np.logical_and
+m1_rs = npand(npand(shank_ids==0, driven==True), cell_type=='RS')
+s1_rs = npand(npand(shank_ids==1, driven==True), cell_type=='RS')
+m1_fs = npand(npand(shank_ids==0, driven==True), cell_type=='FS')
+s1_fs = npand(npand(shank_ids==1, driven==True), cell_type=='FS')
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
+fig.suptitle('spike-phase paired vector strength')
+
+# top left: M1 control position
+ax[0][0].plot(mod_index[m1_rs, control_pos-1, 0],\
+        mod_index[m1_rs, control_pos-1+9, 0], 'ok', label='RS')
+ax[0][0].plot(mod_index[m1_fs, control_pos-1, 0],\
+        mod_index[m1_fs, control_pos-1+9, 0], 'ob', label='FS')
+ax[0][0].set_title('M1 No contact')
+ax[0][0].set_xlabel('No Light')
+ax[0][0].set_ylabel('S1 Silencing')
+ax[0][0].legend(loc='upper left')
+
+# bottom left: M1 best positions
+ax[1][0].plot(mod_index[m1_rs, best_contact[m1_rs], 0],\
+        mod_index[m1_rs, best_contact[m1_rs]+9, 0], 'ok', label='RS')
+ax[1][0].plot(mod_index[m1_fs, best_contact[m1_fs], 0],\
+        mod_index[m1_fs, best_contact[m1_fs]+9, 0], 'ob', label='FS')
+ax[1][0].set_title('M1 contact')
+ax[1][0].set_xlabel('No Light')
+ax[1][0].set_ylabel('S1 Silencing')
+ax[1][0].legend()
+
+# top right: S1 best positions
+ax[0][1].plot(mod_index[s1_rs, control_pos-1, 0],\
+        mod_index[s1_rs, control_pos-1+9+9, 0], 'ok', label='RS')
+ax[0][1].plot(mod_index[s1_fs, control_pos-1, 0],\
+        mod_index[s1_fs, control_pos-1+9+9, 0], 'ob', label='FS')
+ax[0][1].set_title('S1 No contact')
+ax[0][1].set_xlabel('No Light')
+ax[0][1].set_ylabel('S1 Silencing')
+ax[0][1].legend(loc='upper left')
+
+# top right: S1 best positions
+ax[1][1].plot(mod_index[s1_rs, best_contact[s1_rs]-1, 0],\
+        mod_index[s1_rs, best_contact[s1_rs]-1+9+9, 0], 'ok', label='RS')
+ax[1][1].plot(mod_index[s1_fs, best_contact[s1_fs]-1, 0],\
+        mod_index[s1_fs, best_contact[s1_fs]-1+9+9, 0], 'ob', label='FS')
+ax[1][1].set_title('S1 Best contact')
+ax[1][1].set_xlabel('No Light')
+ax[1][1].set_ylabel('S1 Silencing')
+ax[1][1].legend(loc='upper left')
+
+# set ylim to the max ylim of all subplots and plot line of unity
+ylim_max = 0
+xlim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+        if xlim_temp > xlim_max:
+            xlim_max = xlim_temp
+for row in ax:
+    for col in row:
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
+
+
+##############################################################################
+##### multiple experiment plot spike-phase preferred phase scatter plot  #####
+##############################################################################
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
+fig.suptitle('spike-phase paired preferred phase')
+
+# top left: M1 control position
+ax[0][0].plot(mod_index[m1_rs, control_pos-1, 1],\
+        mod_index[m1_rs, control_pos-1+9, 1], 'ok', label='RS')
+ax[0][0].plot(mod_index[m1_fs, control_pos-1, 1],\
+        mod_index[m1_fs, control_pos-1+9, 1], 'ob', label='FS')
+ax[0][0].set_title('M1 No contact')
+ax[0][0].set_xlabel('No Light')
+ax[0][0].set_ylabel('S1 Silencing')
+ax[0][0].legend(loc='upper left')
+
+# bottom left: M1 best positions
+ax[1][0].plot(mod_index[m1_rs, best_contact[m1_rs], 1],\
+        mod_index[m1_rs, best_contact[m1_rs]+9, 1], 'ok', label='RS')
+ax[1][0].plot(mod_index[m1_fs, best_contact[m1_fs], 1],\
+        mod_index[m1_fs, best_contact[m1_fs]+9, 1], 'ob', label='FS')
+ax[1][0].set_title('M1 Best contact')
+ax[1][0].set_xlabel('No Light')
+ax[1][0].set_ylabel('S1 Silencing')
+ax[1][0].legend()
+
+# top right: S1 best positions
+ax[0][1].plot(mod_index[s1_rs, control_pos-1, 1],\
+        mod_index[s1_rs, control_pos-1+9+9, 1], 'ok', label='RS')
+ax[0][1].plot(mod_index[s1_fs, control_pos-1, 1],\
+        mod_index[s1_fs, control_pos-1+9+9, 1], 'ob', label='FS')
+ax[0][1].set_title('S1 No contact')
+ax[0][1].set_xlabel('No Light')
+ax[0][1].set_ylabel('S1 Silencing')
+ax[0][1].legend(loc='upper left')
+
+# top right: S1 best positions
+ax[1][1].plot(mod_index[s1_rs, best_contact[s1_rs]-1, 1],\
+        mod_index[s1_rs, best_contact[s1_rs]-1+9+9, 1], 'ok', label='RS')
+ax[1][1].plot(mod_index[s1_fs, best_contact[s1_fs]-1, 1],\
+        mod_index[s1_fs, best_contact[s1_fs]-1+9+9, 1], 'ob', label='FS')
+ax[1][1].set_title('S1 Best contact')
+ax[1][1].set_xlabel('No Light')
+ax[1][1].set_ylabel('S1 Silencing')
+ax[1][1].legend(loc='upper left')
+
+# set ylim to the max ylim of all subplots and plot line of unity
+ylim_max = 0
+xlim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+        if xlim_temp > xlim_max:
+            xlim_max = xlim_temp
+for row in ax:
+    for col in row:
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
+
+
+
+
+
+#################################################################################
+##### multiple experiment plot spike-phase vector strength region histogram #####
+#################################################################################
+
+npand = np.logical_and
+# driven units
+m1_rs = npand(npand(shank_ids==0, driven==True), cell_type=='RS')
+s1_rs = npand(npand(shank_ids==1, driven==True), cell_type=='RS')
+m1_fs = npand(npand(shank_ids==0, driven==True), cell_type=='FS')
+s1_fs = npand(npand(shank_ids==1, driven==True), cell_type=='FS')
+
+
+# all units
+m1_rs = npand(shank_ids==0, cell_type=='RS')
+s1_rs = npand(shank_ids==1, cell_type=='RS')
+m1_fs = npand(shank_ids==0, cell_type=='FS')
+s1_fs = npand(shank_ids==1, cell_type=='FS')
+bins = np.arange(0, 0.35, 0.025)
+
+fig, ax = plt.subplots(1, 2, figsize=(10,4), sharex=True, sharey=True)
+fig.suptitle('spike-phase paired vector strength')
+ax[0].hist(mod_index[m1_rs, control_pos, 0], bins=bins, alpha=0.3, label='M1 RS', color='k')
+ax[0].hist(mod_index[s1_rs, control_pos, 0], bins=bins, alpha=0.3, label='S1 RS', color='r')
+ax[0].legend()
+ax[0].set_xlabel('vector strength')
+
+ax[1].hist(mod_index[m1_fs, control_pos, 0], bins=bins, alpha=0.3, label='M1 FS', color='k')
+ax[1].hist(mod_index[s1_fs, control_pos, 0], bins=bins, alpha=0.3, label='S1 FS', color='r')
+ax[1].legend()
+ax[1].set_xlabel('vector strength')
+
+
+
+
+
+
+
+
+
+
+
 
 
 
