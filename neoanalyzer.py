@@ -1222,8 +1222,9 @@ class NeuroAnalyzer(object):
         num_conditions = self.stim_ids.shape[0]
         mod_mat = np.zeros((self.num_units, num_conditions))
 
+        print ('working on unit:')
         for unit_index in range(self.num_units):
-            print('working on unit: {}'.format(unit_index))
+            print(unit_index)
             for cond in range(num_conditions):
                     spks_bin, _, _ = self.pta(cond=cond, unit_ind=unit_index, window=window, dt=dt, analysis_window=analysis_window)
                     #mod_depth = (np.max(spks_bin) - np.min(spks_bin)) / np.mean(spks_bin)
@@ -1395,6 +1396,7 @@ class NeuroAnalyzer(object):
         bins_pos = bins + np.pi # must use positive bins with pycircstat, remeber to offset results by -pi
         wt_type  = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
         mod_mat  = np.zeros((self.num_units, len(self.num_all_trials), 3))
+        mod_pval = np.zeros((self.num_units, len(self.num_all_trials))
 
         for uid in range(self.num_units):
             print('working on unit: {}'.format(uid))
@@ -1417,7 +1419,12 @@ class NeuroAnalyzer(object):
                 # compute coefficient of variation
                 mod_mat[uid, k, 2] = np.std(smooth_data)/np.mean(smooth_data)
 
+                # stats
+                # compute Rayleigh test for non-uniformity around unit circle
+                mod_pval[uid, k] = pycirc.tests.rayleigh(bins_pos[:-1], smooth_data)
+
         self.mod_index = mod_mat
+        self.mod_pval  = mod_pval
 
 ###############################################################################
 ##### Plotting Functions #####
