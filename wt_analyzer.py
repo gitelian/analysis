@@ -957,12 +957,13 @@ fig.subplots_adjust(top=0.90, bottom=0.05, left=0.10, right=0.90, hspace=0.35, w
 
 neuro.get_phase_modulation_index()
 
+
 m1_rs = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='RS')
 s1_rs = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='RS')
 m1_fs = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='FS')
 s1_fs = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='FS')
 
-fig, ax = plt.subplots(2, 2, figsize=(10,9))
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
 fig.suptitle('spike-phase paired vector strength')
 
 # top left: M1 control position
@@ -970,7 +971,7 @@ ax[0][0].plot(neuro.mod_index[m1_rs, neuro.control_pos-1, 0],\
         neuro.mod_index[m1_rs, neuro.control_pos-1+9, 0], 'ok', label='RS')
 ax[0][0].plot(neuro.mod_index[m1_fs, neuro.control_pos-1, 0],\
         neuro.mod_index[m1_fs, neuro.control_pos-1+9, 0], 'ob', label='FS')
-ax[0][0].set_title('M1 spike-phase\nvector strength')
+ax[0][0].set_title('M1 No contact')
 ax[0][0].set_xlabel('No Light')
 ax[0][0].set_ylabel('S1 Silencing')
 ax[0][0].legend(loc='upper left')
@@ -978,12 +979,32 @@ ax[0][0].legend(loc='upper left')
 # bottom left: M1 best positions
 ax[1][0].plot(neuro.mod_index[m1_rs, neuro.best_contact[m1_rs], 0],\
         neuro.mod_index[m1_rs, neuro.best_contact[m1_rs]+9, 0], 'ok', label='RS')
-ax[1][0].plot(neuro.mod_index[m1_rs, neuro.best_contact[m1_fs], 0],\
+ax[1][0].plot(neuro.mod_index[m1_fs, neuro.best_contact[m1_fs], 0],\
         neuro.mod_index[m1_fs, neuro.best_contact[m1_fs]+9, 0], 'ob', label='FS')
-ax[1][0].set_title('M1 spike-phase\nvector strength')
+ax[1][0].set_title('M1 contact')
 ax[1][0].set_xlabel('No Light')
 ax[1][0].set_ylabel('S1 Silencing')
 ax[1][0].legend()
+
+# top right: S1 best positions
+ax[0][1].plot(neuro.mod_index[s1_rs, neuro.control_pos-1, 0],\
+        neuro.mod_index[s1_rs, neuro.control_pos-1+9+9, 0], 'ok', label='RS')
+ax[0][1].plot(neuro.mod_index[s1_fs, neuro.control_pos-1, 0],\
+        neuro.mod_index[s1_fs, neuro.control_pos-1+9+9, 0], 'ob', label='FS')
+ax[0][1].set_title('S1 No contact')
+ax[0][1].set_xlabel('No Light')
+ax[0][1].set_ylabel('S1 Silencing')
+ax[0][1].legend(loc='upper left')
+
+# top right: S1 best positions
+ax[1][1].plot(neuro.mod_index[s1_rs, neuro.best_contact[s1_rs]-1, 0],\
+        neuro.mod_index[s1_rs, neuro.best_contact[s1_rs]-1+9+9, 0], 'ok', label='RS')
+ax[1][1].plot(neuro.mod_index[s1_fs, neuro.best_contact[s1_fs]-1, 0],\
+        neuro.mod_index[s1_fs, neuro.best_contact[s1_fs]-1+9+9, 0], 'ob', label='FS')
+ax[1][1].set_title('S1 Best contact')
+ax[1][1].set_xlabel('No Light')
+ax[1][1].set_ylabel('S1 Silencing')
+ax[1][1].legend(loc='upper left')
 
 # set ylim to the max ylim of all subplots and plot line of unity
 ylim_max = 0
@@ -1003,6 +1024,78 @@ for row in ax:
         col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
 
 
+
+################################################################
+##### plot spike spike-phase preferred phase scatter plot  #####
+################################################################
+
+neuro.get_phase_modulation_index()
+
+
+m1_rs = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='RS')
+s1_rs = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='RS')
+m1_fs = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='FS')
+s1_fs = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='FS')
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
+fig.suptitle('spike-phase paired preferred phase')
+
+# top left: M1 control position
+ax[0][0].plot(neuro.mod_index[m1_rs, neuro.control_pos-1, 1],\
+        neuro.mod_index[m1_rs, neuro.control_pos-1+9, 1], 'ok', label='RS')
+ax[0][0].plot(neuro.mod_index[m1_fs, neuro.control_pos-1, 1],\
+        neuro.mod_index[m1_fs, neuro.control_pos-1+9, 1], 'ob', label='FS')
+ax[0][0].set_title('M1 No contact')
+ax[0][0].set_xlabel('No Light')
+ax[0][0].set_ylabel('S1 Silencing')
+ax[0][0].legend(loc='upper left')
+
+# bottom left: M1 best positions
+ax[1][0].plot(neuro.mod_index[m1_rs, neuro.best_contact[m1_rs], 1],\
+        neuro.mod_index[m1_rs, neuro.best_contact[m1_rs]+9, 1], 'ok', label='RS')
+ax[1][0].plot(neuro.mod_index[m1_fs, neuro.best_contact[m1_fs], 1],\
+        neuro.mod_index[m1_fs, neuro.best_contact[m1_fs]+9, 1], 'ob', label='FS')
+ax[1][0].set_title('M1 Best contact')
+ax[1][0].set_xlabel('No Light')
+ax[1][0].set_ylabel('S1 Silencing')
+ax[1][0].legend()
+
+# top right: S1 best positions
+ax[0][1].plot(neuro.mod_index[s1_rs, neuro.control_pos-1, 1],\
+        neuro.mod_index[s1_rs, neuro.control_pos-1+9+9, 1], 'ok', label='RS')
+ax[0][1].plot(neuro.mod_index[s1_fs, neuro.control_pos-1, 1],\
+        neuro.mod_index[s1_fs, neuro.control_pos-1+9+9, 1], 'ob', label='FS')
+ax[0][1].set_title('S1 No contact')
+ax[0][1].set_xlabel('No Light')
+ax[0][1].set_ylabel('S1 Silencing')
+ax[0][1].legend(loc='upper left')
+
+# top right: S1 best positions
+ax[1][1].plot(neuro.mod_index[s1_rs, neuro.best_contact[s1_rs]-1, 1],\
+        neuro.mod_index[s1_rs, neuro.best_contact[s1_rs]-1+9+9, 1], 'ok', label='RS')
+ax[1][1].plot(neuro.mod_index[s1_fs, neuro.best_contact[s1_fs]-1, 1],\
+        neuro.mod_index[s1_fs, neuro.best_contact[s1_fs]-1+9+9, 1], 'ob', label='FS')
+ax[1][1].set_title('S1 Best contact')
+ax[1][1].set_xlabel('No Light')
+ax[1][1].set_ylabel('S1 Silencing')
+ax[1][1].legend(loc='upper left')
+
+# set ylim to the max ylim of all subplots and plot line of unity
+ylim_max = 0
+xlim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+        if xlim_temp > xlim_max:
+            xlim_max = xlim_temp
+for row in ax:
+    for col in row:
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
 
 
 
