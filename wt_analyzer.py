@@ -765,13 +765,15 @@ def sg_smooth(data, win_len, poly, neg_vals=False):
 #    all_vals = np.asarray(all_vals)
 #    return all_vals
 #win_len=5
-win_len=5 # for phase
+win_len=5 # for phase poly=3
 poly=3
 neuro.get_phase_modulation_depth()
 md = neuro.mod_index
 
 with PdfPages('/media/greg/data/neuro/' + fid + '_spike_phase_histogram.pdf') as pdf:
+    print('Working on unit:')
     for uid in range(neuro.num_units):
+        print(uid)
         fig, ax = subplots(2, 3, figsize=(12,8))
         fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
                 neuro.region_dict[neuro.shank_ids[uid]], \
