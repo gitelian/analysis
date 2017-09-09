@@ -1421,7 +1421,7 @@ class NeuroAnalyzer(object):
 
                 # stats
                 # compute Rayleigh test for non-uniformity around unit circle
-                mod_pval[uid, k] = pycirc.tests.rayleigh(bins_pos[:-1], smooth_data)
+                mod_pval[uid, k] = pycirc.tests.rayleigh(bins_pos[:-1], smooth_data)[0]
 
         self.mod_index = mod_mat
         self.mod_pval  = mod_pval

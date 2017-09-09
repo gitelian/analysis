@@ -700,9 +700,10 @@ if cond == 8:
 
 
 
-###################################################
-##### plot spike triggered averages #####
-###################################################
+############################################################
+##### plot spike triggered averages                     #####
+##### i.e. spike-phase, spike-setpoint, spike-amplitude #####
+#############################################################
 
 
 # 1 x 3 subplots (control, S1 silencing, M1 silencing)
@@ -722,6 +723,7 @@ bins    = np.arange(window[0], window[1], dt)
 wt_type = 1 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
 
 # for PHASE
+neuro.get_phase_modulation_depth()
 bins = np.linspace(-np.pi, np.pi, 40)
 dt   = bins[1] - bins[0]
 wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
@@ -765,10 +767,11 @@ def sg_smooth(data, win_len, poly, neg_vals=False):
 #    all_vals = np.asarray(all_vals)
 #    return all_vals
 #win_len=5
+
 win_len=5 # for phase poly=3
 poly=3
-neuro.get_phase_modulation_depth()
-md = neuro.mod_index
+md  = neuro.mod_index
+mdp = neuro.mod_pval
 
 with PdfPages('/media/greg/data/neuro/' + fid + '_spike_phase_histogram.pdf') as pdf:
     print('Working on unit:')
@@ -850,34 +853,40 @@ with PdfPages('/media/greg/data/neuro/' + fid + '_spike_phase_histogram.pdf') as
         # top left
         fig.subplots_adjust(left=0.12, bottom=0.10, right=0.90, top=0.90, wspace=0.20, hspace=0.30)
         ax[0][0].set_ylabel('Firing rate (Hz)')
-        ax[0][0].set_title('Free whisking\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
-                .format(md[uid, neuro.control_pos-1, 0], md[uid, neuro.control_pos-1, 1]))
+        ax[0][0].set_title('Free whisking\nvstrength: {:05.4f},\nvangle: {:05.4f}\np-val: {:05.5f}'\
+                .format(md[uid, neuro.control_pos-1, 0], md[uid, neuro.control_pos-1, 1],\
+                mdp[uid, neuro.control_pos-1]))
 
         # top middle
-        ax[0][1].set_title('Free whisking\nS1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
-                .format(md[uid, neuro.control_pos-1+9, 0], md[uid, neuro.control_pos-1+9, 1]))
+        ax[0][1].set_title('Free whisking\nS1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}\np-val: {:05.5f}'\
+                .format(md[uid, neuro.control_pos-1+9, 0], md[uid, neuro.control_pos-1+9, 1],\
+                mdp[uid, neuro.control_pos-1+9]))
 
         # top right
-        ax[0][2].set_title('Free whisking\nM1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
-                .format(md[uid, neuro.control_pos-1+9+9, 0], md[uid, neuro.control_pos-1+9+9, 1]))
+        ax[0][2].set_title('Free whisking\nM1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}\np-val: {:05.5f}'\
+                .format(md[uid, neuro.control_pos-1+9+9, 0], md[uid, neuro.control_pos-1+9+9, 1],\
+                mdp[uid, neuro.control_pos-1+9+9]))
 
         # bottom left
         ax[1][0].set_ylabel('Firing rate (Hz)')
         ax[1][0].set_xlabel('Phase (rad)')
-        ax[1][0].set_title('Best contact\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
-                .format(md[uid, neuro.best_contact[uid], 0], md[uid, neuro.best_contact[uid], 1]))
+        ax[1][0].set_title('Best contact\nvstrength: {:05.4f},\nvangle: {:05.4f}\np-val: {:05.5f}'\
+                .format(md[uid, neuro.best_contact[uid], 0], md[uid, neuro.best_contact[uid], 1],\
+                mdp[uid, neuro.best_contact[uid]]))
 
         # bottom middle
         ax[1][1].set_xlabel('Phase (rad)')
-        ax[1][1].set_title('Best contact\nS1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
-                .format(md[uid, neuro.best_contact[uid]+9, 0], md[uid, neuro.best_contact[uid]+9, 1]))
+        ax[1][1].set_title('Best contact\nS1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}\np-val: {:05.5f}'\
+                .format(md[uid, neuro.best_contact[uid]+9, 0], md[uid, neuro.best_contact[uid]+9, 1],\
+                mdp[uid, neuro.best_contact[uid]+9]))
 
         # bottom right
         ax[1][2].set_xlabel('Phase (rad)')
-        ax[1][2].set_title('Best contact\nM1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}'\
-                .format(md[uid, neuro.best_contact[uid]+9+9, 0], md[uid, neuro.best_contact[uid]+9+9, 1]))
+        ax[1][2].set_title('Best contact\nM1 silencing\nvstrength: {:05.4f},\nvangle: {:05.4f}\np-val: {:05.5f}'\
+                .format(md[uid, neuro.best_contact[uid]+9+9, 0], md[uid, neuro.best_contact[uid]+9+9, 1],\
+                mdp[uid, neuro.best_contact[uid]+9+9]))
 
-        fig.subplots_adjust(left=0.10, bottom=0.10, right=0.90, top=0.85, wspace=0.20, hspace=0.40)
+        fig.subplots_adjust(left=0.10, bottom=0.10, right=0.90, top=0.80, wspace=0.20, hspace=0.50)
 
         pdf.savefig()
         fig.clear()
@@ -1103,13 +1112,15 @@ for row in ax:
 ######################################################
 ##### multiple experiment whisking analysis #####
 ######################################################
+######################################################
+##### multiple experiment whisking analysis #####
+######################################################
 
 # poly2 trode experiments with whisker tracking
-#fids = ['1336','1338', '1339', '1340', '1343', '1345']
+fids = ['1336','1338', '1339', '1340', '1343', '1345']
 
 ##### Load experiments #####
-fids = ['1336','1338']
-experiments = list()
+mxperiments = list()
 for fid in fids:
     get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
     # del neo objects to save memory
@@ -1126,6 +1137,7 @@ depths       = np.empty((1, ))
 driven       = np.empty((1, ))
 best_contact = np.empty((1, ))
 mod_index    =  np.empty((1, 27, 3))
+mod_pval     =  np.empty((1, 27))
 
 for neuro in experiments:
     # calculate measures that weren't calculated at init
@@ -1161,7 +1173,6 @@ mod_index = np.nan_to_num(mod_index[1:, :, :])
 ########################################
 
 
-
 ##################################################################
 ##### multiple experiment plot spike spike-phase polar plots #####
 ##################################################################
@@ -1171,47 +1182,60 @@ m1_rs = npand(npand(shank_ids==0, driven==True), cell_type=='RS')
 s1_rs = npand(npand(shank_ids==1, driven==True), cell_type=='RS')
 m1_fs = npand(npand(shank_ids==0, driven==True), cell_type=='FS')
 s1_fs = npand(npand(shank_ids==1, driven==True), cell_type=='FS')
+control_pos = 9
 
+m1_rs = npand(shank_ids==0, cell_type=='RS')
+s1_rs = npand(shank_ids==1, cell_type=='RS')
+m1_fs = npand(shank_ids==0, cell_type=='FS')
+s1_fs = npand(shank_ids==1, cell_type=='FS')
+
+bins = np.arange(0, 0.35, 0.025)
 fig, ax = plt.subplots(2, 2, figsize=(10,6),subplot_kw=dict(polar=True)) #fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
 
+##### Leftcolumn is NO CONTACT
 # top left: control position # M1 RS units with and without light
 ax[0][0].scatter(mod_index[m1_rs, control_pos-1, 1],\
-        mod_index[m1_rs, control_pos-1, 0], c='k')
+        mod_index[m1_rs, control_pos-1, 0], c='k', s=15)
 
-ax[0][0].scatter(mod_index[m1_rs, control_pos-1+9, 1],\
-        mod_index[m1_rs, control_pos-1+9, 0], c='b')
+#ax[0][0].scatter(mod_index[m1_rs, control_pos-1+9, 1],\
+#        mod_index[m1_rs, control_pos-1+9, 0], c='b', s=15)
 
 # bottom left: control position # S1 RS units with and without light
 ax[1][0].scatter(mod_index[s1_rs, control_pos-1, 1],\
-        mod_index[s1_rs, control_pos-1, 0], c='k')
+        mod_index[s1_rs, control_pos-1, 0], c='k', s=15)
 
-ax[1][0].scatter(mod_index[s1_rs, control_pos-1+9+9, 1],\
-        mod_index[s1_rs, control_pos-1+9+9, 0], c='b')
+#ax[1][0].scatter(mod_index[s1_rs, control_pos-1+9+9, 1],\
+#        mod_index[s1_rs, control_pos-1+9+9, 0], c='b', s=15)
 
-# top right: best contact position # M1 FS units with and without light
-ax[0][1].scatter(mod_index[m1_fs, best_contact[m1_fs], 1],\
-        mod_index[m1_fs, best_contact[m1_fs], 0], c='k')
+##### Right column is BEST CONTACT
+# top right: best contact position # M1 RS units with and without light
+ax[0][1].scatter(mod_index[m1_rs, best_contact[m1_rs], 1],\
+        mod_index[m1_rs, best_contact[m1_rs], 0], c='k', s=15)
+#best_contact[m1_rs]
+#ax[0][1].scatter(mod_index[m1_rs, best_contact[m1_rs]+9, 1],\
+#        mod_index[m1_rs, best_contact[m1_rs], 0], c='r', s=15)
 
-ax[0][1].scatter(mod_index[m1_fs, best_contact[m1_fs]+9, 1],\
-        mod_index[m1_fs, best_contact[m1_fs]+9, 0], c='r')
+# top right: best contact position # S1 RS units with and without light
+ax[1][1].scatter(mod_index[s1_rs, best_contact[s1_rs], 1],\
+        mod_index[s1_rs, best_contact[s1_rs], 0], c='k', s=15)
 
-# top right: best contact position # S1 FS units with and without light
-ax[1][1].scatter(mod_index[s1_fs, best_contact[s1_fs], 1],\
-        mod_index[s1_fs, best_contact[s1_fs], 0], c='k')
-
-ax[1][1].scatter(mod_index[s1_fs, best_contact[s1_fs]+9+9, 1],\
-        mod_index[s1_fs, best_contact[s1_fs]+9+9, 0], c='r')
+#ax[1][1].scatter(mod_index[s1_rs, best_contact[s1_rs]+9+9, 1],\
+#        mod_index[s1_rs, best_contact[s1_rs]+9+9, 0], c='r', s=15)
 
 # set plot labels
 # top left
 ax[0][0].set_title('M1 RS units\nNo contact')
+ax[0][0].set_ylim(0,.25)
 # bottom left
 ax[1][0].set_title('S1 RS units\nNo contact')
+ax[1][0].set_ylim(0,.25)
 #ax[1][0].set_ylim(0,0.3)
 # top right
-ax[0][1].set_title('M1 FS units\nNo contact')
+ax[0][1].set_title('M1 RS units\nBest contact')
+ax[0][1].set_ylim(0,.25)
 # bottom right
-ax[1][1].set_title('S1 RS units\nNo contact')
+ax[1][1].set_title('S1 RS units\nBest contact')
+ax[1][1].set_ylim(0,.3)
 
 
 fig.subplots_adjust(top=0.90, bottom=0.05, left=0.10, right=0.90, hspace=0.35, wspace=0.20)
@@ -1235,43 +1259,42 @@ fig.suptitle('spike-phase paired vector strength')
 # top left: M1 control position
 ax[0][0].plot(mod_index[m1_rs, control_pos-1, 0],\
         mod_index[m1_rs, control_pos-1+9, 0], 'ok', label='RS')
-ax[0][0].plot(mod_index[m1_fs, control_pos-1, 0],\
-        mod_index[m1_fs, control_pos-1+9, 0], 'ob', label='FS')
+#ax[0][0].plot(mod_index[m1_fs, control_pos-1, 0],\
+#        mod_index[m1_fs, control_pos-1+9, 0], 'ob', label='FS')
 ax[0][0].set_title('M1 No contact')
 ax[0][0].set_xlabel('No Light')
 ax[0][0].set_ylabel('S1 Silencing')
-ax[0][0].legend(loc='upper left')
+#ax[0][0].legend(loc='upper left')
 
-# bottom left: M1 best positions
-ax[1][0].plot(mod_index[m1_rs, best_contact[m1_rs], 0],\
+# top right: M1 best positions
+ax[0][1].plot(mod_index[m1_rs, best_contact[m1_rs], 0],\
         mod_index[m1_rs, best_contact[m1_rs]+9, 0], 'ok', label='RS')
-ax[1][0].plot(mod_index[m1_fs, best_contact[m1_fs], 0],\
-        mod_index[m1_fs, best_contact[m1_fs]+9, 0], 'ob', label='FS')
-ax[1][0].set_title('M1 contact')
-ax[1][0].set_xlabel('No Light')
-ax[1][0].set_ylabel('S1 Silencing')
-ax[1][0].legend()
-
-# top right: S1 best positions
-ax[0][1].plot(mod_index[s1_rs, control_pos-1, 0],\
-        mod_index[s1_rs, control_pos-1+9+9, 0], 'ok', label='RS')
-ax[0][1].plot(mod_index[s1_fs, control_pos-1, 0],\
-        mod_index[s1_fs, control_pos-1+9+9, 0], 'ob', label='FS')
-ax[0][1].set_title('S1 No contact')
+#ax[0][1].plot(mod_index[m1_fs, best_contact[m1_fs], 0],\
+#        mod_index[m1_fs, best_contact[m1_fs]+9, 0], 'ob', label='FS')
+ax[0][1].set_title('M1 contact')
 ax[0][1].set_xlabel('No Light')
 ax[0][1].set_ylabel('S1 Silencing')
-ax[0][1].legend(loc='upper left')
+#ax[1][0].legend()
+
+# bottom left: S1 positions
+ax[1][0].plot(mod_index[s1_rs, control_pos-1, 0],\
+        mod_index[s1_rs, control_pos-1+9+9, 0], 'ok', label='RS')
+#ax[1][0].plot(mod_index[s1_fs, control_pos-1, 0],\
+#        mod_index[s1_fs, control_pos-1+9+9, 0], 'ob', label='FS')
+ax[1][0].set_title('S1 No contact')
+ax[1][0].set_xlabel('No Light')
+ax[1][0].set_ylabel('S1 Silencing')
+#ax[0][1].legend(loc='upper left')
 
 # top right: S1 best positions
 ax[1][1].plot(mod_index[s1_rs, best_contact[s1_rs]-1, 0],\
         mod_index[s1_rs, best_contact[s1_rs]-1+9+9, 0], 'ok', label='RS')
-ax[1][1].plot(mod_index[s1_fs, best_contact[s1_fs]-1, 0],\
-        mod_index[s1_fs, best_contact[s1_fs]-1+9+9, 0], 'ob', label='FS')
+#ax[1][1].plot(mod_index[s1_fs, best_contact[s1_fs]-1, 0],\
+#        mod_index[s1_fs, best_contact[s1_fs]-1+9+9, 0], 'ob', label='FS')
 ax[1][1].set_title('S1 Best contact')
 ax[1][1].set_xlabel('No Light')
 ax[1][1].set_ylabel('S1 Silencing')
-ax[1][1].legend(loc='upper left')
-
+#ax[1][1].legend(loc='upper left')
 # set ylim to the max ylim of all subplots and plot line of unity
 ylim_max = 0
 xlim_max = 0
@@ -1288,6 +1311,35 @@ for row in ax:
 #        col.set_ylim(-ylim_max, ylim_max)
 #        col.set_xlim(-xlim_max, xlim_max)
         col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
+
+##### Stats tests #####
+
+# RS M1 Units
+#no contact
+r, p = sp.stats.wilcoxon(mod_index[m1_rs, 8, 0], mod_index[m1_rs, 8+9, 0])
+# best contact
+r, p = sp.stats.wilcoxon(mod_index[m1_rs, best_contact[m1_rs], 0], mod_index[m1_rs, best_contact[m1_rs]+9, 0])
+
+# RS S1 Units
+#no contact
+r, p = sp.stats.wilcoxon(mod_index[s1_rs, 8, 0], mod_index[s1_rs, 8+9+9, 0])
+# best contact
+r, p = sp.stats.wilcoxon(mod_index[s1_rs, best_contact[s1_rs], 0], mod_index[s1_rs, best_contact[s1_rs]+9+9, 0])
+
+
+
+# FS M1 Units
+#no contact
+r, p = sp.stats.wilcoxon(mod_index[m1_fs, 8, 0], mod_index[m1_fs, 8+9, 0])
+# best contact
+r, p = sp.stats.wilcoxon(mod_index[m1_fs, best_contact[m1_fs], 0], mod_index[m1_fs,best_contact[m1_fs]+9, 0])
+
+# FS S1 Units
+#no contact
+r, p = sp.stats.wilcoxon(mod_index[s1_fs, 8, 0], mod_index[s1_fs, 8+9+9, 0])
+# best contact
+r, p = sp.stats.wilcoxon(mod_index[s1_fs, best_contact[s1_fs], 0], mod_index[s1_fs, best_contact[s1_fs]+9+9, 0])
+
 
 
 ##############################################################################
@@ -1300,61 +1352,49 @@ fig.suptitle('spike-phase paired preferred phase')
 # top left: M1 control position
 ax[0][0].plot(mod_index[m1_rs, control_pos-1, 1],\
         mod_index[m1_rs, control_pos-1+9, 1], 'ok', label='RS')
-ax[0][0].plot(mod_index[m1_fs, control_pos-1, 1],\
-        mod_index[m1_fs, control_pos-1+9, 1], 'ob', label='FS')
+#ax[0][0].plot(mod_index[m1_fs, control_pos-1, 1],\
+#        mod_index[m1_fs, control_pos-1+9, 1], 'ob', label='FS')
 ax[0][0].set_title('M1 No contact')
 ax[0][0].set_xlabel('No Light')
 ax[0][0].set_ylabel('S1 Silencing')
-ax[0][0].legend(loc='upper left')
+#ax[0][0].legend(loc='upper left')
 
-# bottom left: M1 best positions
-ax[1][0].plot(mod_index[m1_rs, best_contact[m1_rs], 1],\
+# top right: M1 best positions
+ax[0][1].plot(mod_index[m1_rs, best_contact[m1_rs], 1],\
         mod_index[m1_rs, best_contact[m1_rs]+9, 1], 'ok', label='RS')
-ax[1][0].plot(mod_index[m1_fs, best_contact[m1_fs], 1],\
-        mod_index[m1_fs, best_contact[m1_fs]+9, 1], 'ob', label='FS')
-ax[1][0].set_title('M1 Best contact')
-ax[1][0].set_xlabel('No Light')
-ax[1][0].set_ylabel('S1 Silencing')
-ax[1][0].legend()
-
-# top right: S1 best positions
-ax[0][1].plot(mod_index[s1_rs, control_pos-1, 1],\
-        mod_index[s1_rs, control_pos-1+9+9, 1], 'ok', label='RS')
-ax[0][1].plot(mod_index[s1_fs, control_pos-1, 1],\
-        mod_index[s1_fs, control_pos-1+9+9, 1], 'ob', label='FS')
-ax[0][1].set_title('S1 No contact')
+#ax[0][1].plot(mod_index[m1_fs, best_contact[m1_fs], 1],\
+#        mod_index[m1_fs, best_contact[m1_fs]+9, 1], 'ob', label='FS')
+ax[0][1].set_title('M1 Best contact')
 ax[0][1].set_xlabel('No Light')
 ax[0][1].set_ylabel('S1 Silencing')
-ax[0][1].legend(loc='upper left')
+#ax[1][0].legend()
+
+# bottom left: S1 best positions
+ax[1][0].plot(mod_index[s1_rs, control_pos-1, 1],\
+        mod_index[s1_rs, control_pos-1+9+9, 1], 'ok', label='RS')
+#ax[1][0].plot(mod_index[s1_fs, control_pos-1, 1],\
+#        mod_index[s1_fs, control_pos-1+9+9, 1], 'ob', label='FS')
+ax[1][0].set_title('S1 No contact')
+ax[1][0].set_xlabel('No Light')
+ax[1][0].set_ylabel('S1 Silencing')
+#ax[0][1].legend(loc='upper left')
 
 # top right: S1 best positions
 ax[1][1].plot(mod_index[s1_rs, best_contact[s1_rs]-1, 1],\
         mod_index[s1_rs, best_contact[s1_rs]-1+9+9, 1], 'ok', label='RS')
-ax[1][1].plot(mod_index[s1_fs, best_contact[s1_fs]-1, 1],\
-        mod_index[s1_fs, best_contact[s1_fs]-1+9+9, 1], 'ob', label='FS')
+#ax[1][1].plot(mod_index[s1_fs, best_contact[s1_fs]-1, 1],\
+#        mod_index[s1_fs, best_contact[s1_fs]-1+9+9, 1], 'ob', label='FS')
 ax[1][1].set_title('S1 Best contact')
 ax[1][1].set_xlabel('No Light')
 ax[1][1].set_ylabel('S1 Silencing')
-ax[1][1].legend(loc='upper left')
+#ax[1][1].legend(loc='upper left')
 
 # set ylim to the max ylim of all subplots and plot line of unity
-ylim_max = 0
-xlim_max = 0
 for row in ax:
     for col in row:
-        ylim_temp = np.max(np.abs(col.get_ylim()))
-        xlim_temp = np.max(np.abs(col.get_xlim()))
-        if ylim_temp > ylim_max:
-            ylim_max = ylim_temp
-        if xlim_temp > xlim_max:
-            xlim_max = xlim_temp
-for row in ax:
-    for col in row:
-#        col.set_ylim(-ylim_max, ylim_max)
-#        col.set_xlim(-xlim_max, xlim_max)
-        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
-
-
+        col.set_ylim(-5, 5)
+        col.set_xlim(-5, 5)
+        col.plot([-5, 5], [-5, 5], 'k')
 
 
 
