@@ -1248,97 +1248,70 @@ fig.subplots_adjust(top=0.90, bottom=0.05, left=0.10, right=0.90, hspace=0.35, w
 
 control_pos = 9
 npand = np.logical_and
-m1_rs = npand(npand(shank_ids==0, driven==True), cell_type=='RS')
-s1_rs = npand(npand(shank_ids==1, driven==True), cell_type=='RS')
-m1_fs = npand(npand(shank_ids==0, driven==True), cell_type=='FS')
-s1_fs = npand(npand(shank_ids==1, driven==True), cell_type=='FS')
+
+rs_fs = 'FS'
+if rs_fs == 'RS':
+    c = 'ok'
+elif rs_fs == 'FS':
+    c = 'ob'
+
+m1_inds = npand(npand(shank_ids==0, driven==True), cell_type==rs_fs)
+s1_inds = npand(npand(shank_ids==1, driven==True), cell_type==rs_fs)
 
 fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
-fig.suptitle('spike-phase paired vector strength')
+fig.suptitle('spike-phase paired vector strength {} cells'.format(rs_fs))
 
 # top left: M1 control position
-ax[0][0].plot(mod_index[m1_rs, control_pos-1, 0],\
-        mod_index[m1_rs, control_pos-1+9, 0], 'ok', label='RS')
-#ax[0][0].plot(mod_index[m1_fs, control_pos-1, 0],\
-#        mod_index[m1_fs, control_pos-1+9, 0], 'ob', label='FS')
+ax[0][0].plot(mod_index[m1_inds, control_pos-1, 0],\
+        mod_index[m1_inds, control_pos-1+9, 0], c, label=rs_fs)
 ax[0][0].set_title('M1 No contact')
 ax[0][0].set_xlabel('No Light')
 ax[0][0].set_ylabel('S1 Silencing')
-#ax[0][0].legend(loc='upper left')
 
 # top right: M1 best positions
-ax[0][1].plot(mod_index[m1_rs, best_contact[m1_rs], 0],\
-        mod_index[m1_rs, best_contact[m1_rs]+9, 0], 'ok', label='RS')
-#ax[0][1].plot(mod_index[m1_fs, best_contact[m1_fs], 0],\
-#        mod_index[m1_fs, best_contact[m1_fs]+9, 0], 'ob', label='FS')
+ax[0][1].plot(mod_index[m1_inds, best_contact[m1_inds], 0],\
+        mod_index[m1_inds, best_contact[m1_inds]+9, 0], c, label=rs_fs)
 ax[0][1].set_title('M1 contact')
 ax[0][1].set_xlabel('No Light')
 ax[0][1].set_ylabel('S1 Silencing')
-#ax[1][0].legend()
 
-# bottom left: S1 positions
-ax[1][0].plot(mod_index[s1_rs, control_pos-1, 0],\
-        mod_index[s1_rs, control_pos-1+9+9, 0], 'ok', label='RS')
+# bottom left: S1 control positions
+ax[1][0].plot(mod_index[s1_inds, control_pos-1, 0],\
+        mod_index[s1_inds, control_pos-1+9+9, 0], c, label=rs_fs)
 #ax[1][0].plot(mod_index[s1_fs, control_pos-1, 0],\
 #        mod_index[s1_fs, control_pos-1+9+9, 0], 'ob', label='FS')
 ax[1][0].set_title('S1 No contact')
 ax[1][0].set_xlabel('No Light')
 ax[1][0].set_ylabel('S1 Silencing')
-#ax[0][1].legend(loc='upper left')
 
 # top right: S1 best positions
-ax[1][1].plot(mod_index[s1_rs, best_contact[s1_rs]-1, 0],\
-        mod_index[s1_rs, best_contact[s1_rs]-1+9+9, 0], 'ok', label='RS')
-#ax[1][1].plot(mod_index[s1_fs, best_contact[s1_fs]-1, 0],\
-#        mod_index[s1_fs, best_contact[s1_fs]-1+9+9, 0], 'ob', label='FS')
+ax[1][1].plot(mod_index[s1_inds, best_contact[s1_inds], 0],\
+        mod_index[s1_inds, best_contact[s1_inds]+9+9, 0], c, label=rs_fs)
 ax[1][1].set_title('S1 Best contact')
 ax[1][1].set_xlabel('No Light')
 ax[1][1].set_ylabel('S1 Silencing')
-#ax[1][1].legend(loc='upper left')
-# set ylim to the max ylim of all subplots and plot line of unity
-ylim_max = 0
-xlim_max = 0
+
+xlim_max, ylim_max = 0.5, 0.5
+xlim_min, ylim_min = 0, 0
 for row in ax:
     for col in row:
-        ylim_temp = np.max(np.abs(col.get_ylim()))
-        xlim_temp = np.max(np.abs(col.get_xlim()))
-        if ylim_temp > ylim_max:
-            ylim_max = ylim_temp
-        if xlim_temp > xlim_max:
-            xlim_max = xlim_temp
-for row in ax:
-    for col in row:
-#        col.set_ylim(-ylim_max, ylim_max)
-#        col.set_xlim(-xlim_max, xlim_max)
-        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
+        col.set_ylim(ylim_min, ylim_max)
+        col.set_xlim(xlim_min, xlim_max)
+        col.plot([xlim_min, xlim_max], [ylim_min, ylim_max], 'k')
 
 ##### Stats tests #####
 
-# RS M1 Units
+# M1 Units
 #no contact
-r, p = sp.stats.wilcoxon(mod_index[m1_rs, 8, 0], mod_index[m1_rs, 8+9, 0])
+r, p = sp.stats.wilcoxon(mod_index[m1_inds, control_pos-1, 0], mod_index[m1_inds, control_pos-1+9, 0])
 # best contact
-r, p = sp.stats.wilcoxon(mod_index[m1_rs, best_contact[m1_rs], 0], mod_index[m1_rs, best_contact[m1_rs]+9, 0])
+r, p = sp.stats.wilcoxon(mod_index[m1_inds, best_contact[m1_inds], 0], mod_index[m1_inds, best_contact[m1_inds]+9, 0])
 
-# RS S1 Units
+# S1 Units
 #no contact
-r, p = sp.stats.wilcoxon(mod_index[s1_rs, 8, 0], mod_index[s1_rs, 8+9+9, 0])
+r, p = sp.stats.wilcoxon(mod_index[s1_inds, control_pos-1, 0], mod_index[s1_inds, control_pos-1+9+9, 0])
 # best contact
-r, p = sp.stats.wilcoxon(mod_index[s1_rs, best_contact[s1_rs], 0], mod_index[s1_rs, best_contact[s1_rs]+9+9, 0])
-
-
-
-# FS M1 Units
-#no contact
-r, p = sp.stats.wilcoxon(mod_index[m1_fs, 8, 0], mod_index[m1_fs, 8+9, 0])
-# best contact
-r, p = sp.stats.wilcoxon(mod_index[m1_fs, best_contact[m1_fs], 0], mod_index[m1_fs,best_contact[m1_fs]+9, 0])
-
-# FS S1 Units
-#no contact
-r, p = sp.stats.wilcoxon(mod_index[s1_fs, 8, 0], mod_index[s1_fs, 8+9+9, 0])
-# best contact
-r, p = sp.stats.wilcoxon(mod_index[s1_fs, best_contact[s1_fs], 0], mod_index[s1_fs, best_contact[s1_fs]+9+9, 0])
+r, p = sp.stats.wilcoxon(mod_index[s1_inds, best_contact[s1_inds], 0], mod_index[s1_inds, best_contact[s1_inds]+9+9, 0])
 
 
 
