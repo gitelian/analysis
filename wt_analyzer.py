@@ -1138,6 +1138,8 @@ driven       = np.empty((1, ))
 best_contact = np.empty((1, ))
 mod_index    =  np.empty((1, 27, 3))
 mod_pval     =  np.empty((1, 27))
+abs_rate     = np.empty((1, 27, 2))
+evk_rate     = np.empty((1, 27, 2))
 
 for neuro in experiments:
     # calculate measures that weren't calculated at init
@@ -1151,6 +1153,20 @@ for neuro in experiments:
     driven       = np.append(driven, neuro.driven_units, axis=0)
     best_contact = np.append(best_contact, neuro.best_contact)
     mod_index    = np.concatenate( (mod_index, neuro.mod_index), axis=0)
+
+    for unit_index in range(neuro.num_units):
+
+        # compute absolute rate (mean and sem)
+        temp = np.zeros((1, 27, 2))
+        temp[0, :, 0] = np.array([np.mean(k[:, unit_index]) for k in neuro.abs_rate])[:]
+        temp[0, :, 1] = np.array([sp.stats.sem(k[:, unit_index]) for k in neuro.abs_rate])
+        abs_rate = np.append(abs_rate, temp, axis=0)
+
+        # compute evoked rate (mean and sem)
+        temp = np.zeros((1, 27, 2))
+        temp[0, :, 0] = np.array([np.mean(k[:, unit_index]) for k in neuro.evk_rate])[:]
+        temp[0, :, 1] = np.array([sp.stats.sem(k[:, unit_index]) for k in neuro.evk_rate])
+        evk_rate = np.append(evk_rate, temp, axis=0)
 
 cell_type = np.asarray(cell_type)
 
@@ -1167,6 +1183,8 @@ best_contact = best_contact.astype(int)
 
 mod_index = np.nan_to_num(mod_index[1:, :, :])
 
+abs_rate    = abs_rate[1:, :]
+evk_rate    = evk_rate[1:, :]
 
 ########################################
 ##### multiple experiment analysis #####
@@ -1202,6 +1220,7 @@ fig, ax = plt.subplots(2, 2, figsize=(10,6),subplot_kw=dict(polar=True)) #fig.su
 
 # top left: control position # M1 RS no light
 ## density plot
+# https://stackoverflow.com/questions/40327794/contour-density-plot-in-matplotlib-using-polar-coordinates
 #H, theta_edges, r_edges = np.histogram2d(mod_index[m1_inds, control_pos-1, 1],\
 #        mod_index[m1_inds, control_pos-1, 0], bins=(theta_bins, vstrength_bins))
 ##r_mid     = .5 * (r_edges[:-1] + r_edges[1:])
@@ -1214,8 +1233,8 @@ ax[0][0].scatter(mod_index[m1_inds, control_pos-1, 1],\
 
 # top right: best contact position # M1 RS no light
 #scatter
-ax[0][1].scatter(mod_index[m1_inds, best_contact[m1_inds], 1],\
-        mod_index[m1_inds, best_contact[m1_inds], 0], c='k', s=15)
+ax[0][1].scatter(mod_index[m1_inds, 6, 1],\
+        mod_index[m1_inds, 6, 0], c='k', s=15)
 
 
 # bottom left: control position # M1 RS units with S1 silencing
@@ -1226,8 +1245,8 @@ ax[1][0].scatter(mod_index[m1_inds, control_pos-1+9, 1],\
 
 # bottom right: best contact position # M1 RS units with S1 silencing
 #scatter
-ax[1][1].scatter(mod_index[m1_inds, best_contact[m1_inds]+9, 1],\
-        mod_index[m1_inds, best_contact[m1_inds]+9, 0], c='k', s=15)
+ax[1][1].scatter(mod_index[m1_inds, 6+9, 1],\
+        mod_index[m1_inds, 6+9, 0], c='k', s=15)
 
 
 # set plot labels
@@ -1279,8 +1298,7 @@ ax[1][0].scatter(mod_index[s1_inds, control_pos-1+9+9, 1],\
 
 
 # top right: best contact position # S1 RS units with and without light
-#scatter
-ax[1][1].scatter(mod_index[s1_inds, best_contact[s1_inds]+9+9, 1],\
+#scatter ax[1][1].scatter(mod_index[s1_inds, best_contact[s1_inds]+9+9, 1],\
         mod_index[s1_inds, best_contact[s1_inds]+9+9, 0], c='k', s=15)
 
 
@@ -1466,6 +1484,45 @@ ax[1].hist(mod_index[m1_fs, control_pos, 0], bins=bins, alpha=0.3, label='M1 FS'
 ax[1].hist(mod_index[s1_fs, control_pos, 0], bins=bins, alpha=0.3, label='S1 FS', color='r')
 ax[1].legend()
 ax[1].set_xlabel('vector strength')
+
+
+
+##################################################################
+##### multiple experiment spike vector strength correlations #####
+##################################################################
+
+
+control_pos = 9
+npand = np.logical_and
+
+rs_fs = 'FS'
+if rs_fs == 'RS':
+    c = 'ok'
+elif rs_fs == 'FS':
+    c = 'ob'
+
+m1_inds = npand(npand(shank_ids==0, driven==True), cell_type==rs_fs)
+s1_inds = npand(npand(shank_ids==1, driven==True), cell_type==rs_fs)
+#m1_inds = npand(shank_ids==0, cell_type==rs_fs)
+#s1_inds = npand(shank_ids==1, cell_type==rs_fs)
+
+
+nc_md    = mod_index[m1_inds, control_pos-1+9, 0]
+evk_temp = evk_rate[m1_inds, :, 0]
+evk_temp = evk_temp / np.max(np.abs(evk_temp), axis=1)[:, None]
+
+scatter(evk_temp[:, control_pos-1+9], nc_md)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
