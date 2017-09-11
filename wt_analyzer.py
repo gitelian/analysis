@@ -1177,68 +1177,130 @@ mod_index = np.nan_to_num(mod_index[1:, :, :])
 ##### multiple experiment plot spike spike-phase polar plots #####
 ##################################################################
 
-npand = np.logical_and
-m1_rs = npand(npand(shank_ids==0, driven==True), cell_type=='RS')
-s1_rs = npand(npand(shank_ids==1, driven==True), cell_type=='RS')
-m1_fs = npand(npand(shank_ids==0, driven==True), cell_type=='FS')
-s1_fs = npand(npand(shank_ids==1, driven==True), cell_type=='FS')
 control_pos = 9
+npand = np.logical_and
 
-m1_rs = npand(shank_ids==0, cell_type=='RS')
-s1_rs = npand(shank_ids==1, cell_type=='RS')
-m1_fs = npand(shank_ids==0, cell_type=='FS')
-s1_fs = npand(shank_ids==1, cell_type=='FS')
+rs_fs = 'FS'
+if rs_fs == 'RS':
+    c = 'ok'
+elif rs_fs == 'FS':
+    c = 'ob'
 
-bins = np.arange(0, 0.35, 0.025)
+m1_inds = npand(npand(shank_ids==0, driven==True), cell_type==rs_fs)
+s1_inds = npand(npand(shank_ids==1, driven==True), cell_type==rs_fs)
+#m1_inds = npand(shank_ids==0, cell_type==rs_fs)
+#s1_inds = npand(shank_ids==1, cell_type==rs_fs)
+
+## bins for density plot
+#dt = 2*np.pi/10
+#theta_bins    = np.linspace(-np.pi, np.pi+dt, 15)
+#vstrength_bins = np.arange(0, 1, 0.1)
+
+### M1 plot
+### M1 plot
 fig, ax = plt.subplots(2, 2, figsize=(10,6),subplot_kw=dict(polar=True)) #fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
 
-##### Leftcolumn is NO CONTACT
-# top left: control position # M1 RS units with and without light
-ax[0][0].scatter(mod_index[m1_rs, control_pos-1, 1],\
-        mod_index[m1_rs, control_pos-1, 0], c='k', s=15)
+# top left: control position # M1 RS no light
+## density plot
+#H, theta_edges, r_edges = np.histogram2d(mod_index[m1_inds, control_pos-1, 1],\
+#        mod_index[m1_inds, control_pos-1, 0], bins=(theta_bins, vstrength_bins))
+##r_mid     = .5 * (r_edges[:-1] + r_edges[1:])
+#theta_mid = .5 * (theta_edges[:-1] + theta_edges[1:])
+#ax[0][0].contourf(theta_mid, r_edges[:-1], H.T, 20, vmin=0, cmap=plt.cm.Spectral)
+# scatter plot
+ax[0][0].scatter(mod_index[m1_inds, control_pos-1, 1],\
+        mod_index[m1_inds, control_pos-1, 0], c='k', s=15)
 
-#ax[0][0].scatter(mod_index[m1_rs, control_pos-1+9, 1],\
-#        mod_index[m1_rs, control_pos-1+9, 0], c='b', s=15)
 
-# bottom left: control position # S1 RS units with and without light
-ax[1][0].scatter(mod_index[s1_rs, control_pos-1, 1],\
-        mod_index[s1_rs, control_pos-1, 0], c='k', s=15)
+# top right: best contact position # M1 RS no light
+#scatter
+ax[0][1].scatter(mod_index[m1_inds, best_contact[m1_inds], 1],\
+        mod_index[m1_inds, best_contact[m1_inds], 0], c='k', s=15)
 
-#ax[1][0].scatter(mod_index[s1_rs, control_pos-1+9+9, 1],\
-#        mod_index[s1_rs, control_pos-1+9+9, 0], c='b', s=15)
 
-##### Right column is BEST CONTACT
-# top right: best contact position # M1 RS units with and without light
-ax[0][1].scatter(mod_index[m1_rs, best_contact[m1_rs], 1],\
-        mod_index[m1_rs, best_contact[m1_rs], 0], c='k', s=15)
-#best_contact[m1_rs]
-#ax[0][1].scatter(mod_index[m1_rs, best_contact[m1_rs]+9, 1],\
-#        mod_index[m1_rs, best_contact[m1_rs], 0], c='r', s=15)
+# bottom left: control position # M1 RS units with S1 silencing
+# scatter
+ax[1][0].scatter(mod_index[m1_inds, control_pos-1+9, 1],\
+        mod_index[m1_inds, control_pos-1+9, 0], c='k', s=15)
 
-# top right: best contact position # S1 RS units with and without light
-ax[1][1].scatter(mod_index[s1_rs, best_contact[s1_rs], 1],\
-        mod_index[s1_rs, best_contact[s1_rs], 0], c='k', s=15)
 
-#ax[1][1].scatter(mod_index[s1_rs, best_contact[s1_rs]+9+9, 1],\
-#        mod_index[s1_rs, best_contact[s1_rs]+9+9, 0], c='r', s=15)
+# bottom right: best contact position # M1 RS units with S1 silencing
+#scatter
+ax[1][1].scatter(mod_index[m1_inds, best_contact[m1_inds]+9, 1],\
+        mod_index[m1_inds, best_contact[m1_inds]+9, 0], c='k', s=15)
+
 
 # set plot labels
+fig.suptitle('M1 {} units'.format(rs_fs))
 # top left
-ax[0][0].set_title('M1 RS units\nNo contact')
-ax[0][0].set_ylim(0,.25)
+ax[0][0].set_title('No contact')
+ax[0][0].set_ylim(0,.3)
 # bottom left
-ax[1][0].set_title('S1 RS units\nNo contact')
-ax[1][0].set_ylim(0,.25)
-#ax[1][0].set_ylim(0,0.3)
+ax[1][0].set_title('No contact + S1 silencing')
+ax[1][0].set_ylim(0,0.3)
 # top right
-ax[0][1].set_title('M1 RS units\nBest contact')
-ax[0][1].set_ylim(0,.25)
+ax[0][1].set_title('Best contact')
+ax[0][1].set_ylim(0,.3)
 # bottom right
-ax[1][1].set_title('S1 RS units\nBest contact')
+ax[1][1].set_title('Best contact + S1 silencing')
 ax[1][1].set_ylim(0,.3)
 
+fig.subplots_adjust(top=0.90, bottom=0.05, left=0.10, right=0.90, hspace=0.35, wspace=0.20)
+
+
+
+### S1 plot
+### S1 plot
+fig, ax = plt.subplots(2, 2, figsize=(10,6),subplot_kw=dict(polar=True)) #fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
+
+
+# top left: control position # S1 RS no light
+## density plot
+#H, theta_edges, r_edges = np.histogram2d(mod_index[s1_inds, control_pos-1, 1],\
+#        mod_index[s1_inds, control_pos-1, 0], bins=(theta_bins, vstrength_bins))
+##r_mid     = .5 * (r_edges[:-1] + r_edges[1:])
+#theta_mid = .5 * (theta_edges[:-1] + theta_edges[1:])
+#ax[0][0].contourf(theta_mid, r_edges[:-1], H.T, 20, vmin=0, cmap=plt.cm.)
+# scatter plot
+ax[0][0].scatter(mod_index[s1_inds, control_pos-1, 1],\
+        mod_index[s1_inds, control_pos-1, 0], c='k', s=15)
+
+
+# top right: best contact position # S1 RS no light
+#scatter
+ax[0][1].scatter(mod_index[s1_inds, best_contact[s1_inds], 1],\
+        mod_index[s1_inds, best_contact[s1_inds], 0], c='k', s=15)
+
+
+# bottom left: control position # S1 RS units with S1 silencing
+# scatter
+ax[1][0].scatter(mod_index[s1_inds, control_pos-1+9+9, 1],\
+        mod_index[s1_inds, control_pos-1+9+9, 0], c='k', s=15)
+
+
+# top right: best contact position # S1 RS units with and without light
+#scatter
+ax[1][1].scatter(mod_index[s1_inds, best_contact[s1_inds]+9+9, 1],\
+        mod_index[s1_inds, best_contact[s1_inds]+9+9, 0], c='k', s=15)
+
+
+# set plot labels
+fig.suptitle('S1 {} units'.format(rs_fs))
+# top left
+ax[0][0].set_title('No contact')
+ax[0][0].set_ylim(0,0.3)
+# bottom left
+ax[1][0].set_title('No contact + M1 silencing')
+ax[1][0].set_ylim(0,0.3)
+# top right
+ax[0][1].set_title('Best contact')
+ax[0][1].set_ylim(0,0.3)
+# bottom right
+ax[1][1].set_title('Best contact + M1 silencing')
+ax[1][1].set_ylim(0,.3)
 
 fig.subplots_adjust(top=0.90, bottom=0.05, left=0.10, right=0.90, hspace=0.35, wspace=0.20)
+
 
 
 
