@@ -245,7 +245,7 @@ for neuro in experiments:
         abs_rate = np.append(abs_rate, temp, axis=0)
         max_fr   = np.append(max_fr, np.max(temp))
 
-        # compute absolute rate (mean and sem)
+        # compute evoked rate (mean and sem)
         temp = np.zeros((1, 27, 2))
         temp[0, :, 0] = np.array([np.mean(k[:, unit_index]) for k in neuro.evk_rate])[:]
         temp[0, :, 1] = np.array([sp.stats.sem(k[:, unit_index]) for k in neuro.evk_rate])
