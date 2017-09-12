@@ -1366,7 +1366,8 @@ class NeuroAnalyzer(object):
             smooth_data[smooth_data < 0] = 0
         return smooth_data
 
-    def get_phase_modulation_depth(self, bins=np.linspace(-np.pi, np.pi, 40)): """
+    def get_phase_modulation_depth(self, bins=np.linspace(-np.pi, np.pi, 40)):
+        """
         computes spike-phase modulation depth for each unit
 
         Parameters
