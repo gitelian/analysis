@@ -731,43 +731,6 @@ wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
 #sample_period is how often a frame occurrs in seconds
 # deg*spike / deg*sample*2msec
 
-# ADD THIS TO THE NEURO CLASS
-def st_norm(st_vals, all_vals, wt_type, bins, dt):
-    st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
-    all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
-    count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
-    return count_norm
-
-def sg_smooth(data, win_len, poly, neg_vals=False):
-    """
-    Smooth a 1-d array with a Savitzky–Golay filter
-
-    Arguments
-    Data: the 1-d array to be smoothed
-    win_len: the size of the smoothing window to be used. It MUST be an odd.
-    poly: order of the smoothing polynomial. Must be less than win_len
-    neg_vals: whether to convert negative values to zero.
-
-    Returns smoothed array
-    """
-    smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly)
-    if neg_vals is False:
-        smooth_data[smooth_data < 0] = 0
-    return smooth_data
-
-#def kde_pre(bins, count_norm):
-#    '''
-#    scales the number of bins by the count...this way you can use data that
-#    has already been biined in a kde function
-#    '''
-#    all_vals = list()
-#    for k, b in enumerate(bins[:-1]):
-#        # place in list and multiply by the normed count
-#        all_vals.extend([b]*count_norm[k])
-#    all_vals = np.asarray(all_vals)
-#    return all_vals
-#win_len=5
-
 win_len=5 # for phase poly=3
 poly=3
 md  = neuro.mod_index
@@ -792,45 +755,45 @@ with PdfPages('/media/greg/data/neuro/' + fid + '_spike_phase_histogram.pdf') as
 
         # control position no light
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
-        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+        count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[0][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[0][0].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+        ax[0][0].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][0], color=c, shade=True)
 
         # control position S1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
-        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+        count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[0][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[0][1].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+        ax[0][1].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #       sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][1], color=c, shade=True)
 
         # control position M1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
-        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+        count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[0][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[0][2].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+        ax[0][2].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][2], color=c, shade=True)
 
         # best position no light
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid], unit_ind=uid) # analysis_window=[0.5, 1.5]
-        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+        count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[1][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[1][0].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+        ax[1][0].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][0], color=c, shade=True)
 
         # best position S1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
-        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+        count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[1][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[1][1].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+        ax[1][1].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][1], color=c, shade=True)
 
         # best position M1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
-        count_norm = st_norm(st_vals, all_vals, wt_type, bins, dt)
+        count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[1][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[1][2].bar(bins[:-1], sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
+        ax[1][2].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
 #        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][2], color=c, shade=True)
 
         ylim_max = 0
@@ -968,7 +931,6 @@ fig.subplots_adjust(top=0.90, bottom=0.05, left=0.10, right=0.90, hspace=0.35, w
 
 neuro.get_phase_modulation_index()
 
-
 m1_rs = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='RS')
 s1_rs = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='RS')
 m1_fs = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='FS')
@@ -1041,7 +1003,6 @@ for row in ax:
 ################################################################
 
 neuro.get_phase_modulation_index()
-
 
 m1_rs = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='RS')
 s1_rs = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='RS')
