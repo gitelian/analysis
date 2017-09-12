@@ -1337,8 +1337,36 @@ class NeuroAnalyzer(object):
 
         return st_vals, all_vals
 
-    def get_phase_modulation_depth(self, bins=np.linspace(-np.pi, np.pi, 40)):
+    def st_norm(st_vals, all_vals, wt_type, bins, dt):
         """
+        normalizes phase/spike counts
+
+        Divides each phase bin by the occupancy of that bin. That is, it
+        divides by the number of times the whiskers happened to occupy each bin
+        """
+        st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
+        all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
+        count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
+        return count_norm
+
+    def sg_smooth(data, win_len=5, poly=3, neg_vals=False):
+        """
+        Smooth a 1-d array with a Savitzky-Golay filter
+
+        Arguments
+        Data: the 1-d array to be smoothed
+        win_len: the size of the smoothing window to be used. It MUST be an odd.
+        poly: order of the smoothing polynomial. Must be less than win_len
+        neg_vals: whether to convert negative values to zero.
+
+        Returns smoothed array
+        """
+        smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly, mode='wrap')
+        if neg_vals is False:
+            smooth_data[smooth_data < 0] = 0
+        return smooth_data
+
+    def get_phase_modulation_depth(self, bins=np.linspace(-np.pi, np.pi, 40)): """
         computes spike-phase modulation depth for each unit
 
         Parameters
@@ -1356,36 +1384,6 @@ class NeuroAnalyzer(object):
             The array is added to the neuro class and can be called with dot
             notations <name of class object>.mod_index
         """
-
-        # helper functions
-        def st_norm(st_vals, all_vals, wt_type, bins, dt):
-            """
-            normalizes phase/spike counts
-
-            Divides each phase bin by the occupancy of that bin. That is, it
-            divides by the number of times the whiskers happened to occupy each bin
-            """
-            st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
-            all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
-            count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
-            return count_norm
-
-        def sg_smooth(data, win_len=5, poly=3, neg_vals=False):
-            """
-            Smooth a 1-d array with a Savitzky-Golay filter
-
-            Arguments
-            Data: the 1-d array to be smoothed
-            win_len: the size of the smoothing window to be used. It MUST be an odd.
-            poly: order of the smoothing polynomial. Must be less than win_len
-            neg_vals: whether to convert negative values to zero.
-
-            Returns smoothed array
-            """
-            smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly, mode='wrap')
-            if neg_vals is False:
-                smooth_data[smooth_data < 0] = 0
-            return smooth_data
 
         # Main function code
         print('\n-----get_phase_modulation_depth-----')
