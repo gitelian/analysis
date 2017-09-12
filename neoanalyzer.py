@@ -1337,7 +1337,7 @@ class NeuroAnalyzer(object):
 
         return st_vals, all_vals
 
-    def st_norm(st_vals, all_vals, wt_type, bins, dt):
+    def st_norm(self, st_vals, all_vals, wt_type, bins, dt):
         """
         normalizes phase/spike counts
 
@@ -1349,7 +1349,7 @@ class NeuroAnalyzer(object):
         count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
         return count_norm
 
-    def sg_smooth(data, win_len=5, poly=3, neg_vals=False):
+    def sg_smooth(self, data, win_len=5, poly=3, neg_vals=False):
         """
         Smooth a 1-d array with a Savitzky-Golay filter
 
@@ -1403,7 +1403,7 @@ class NeuroAnalyzer(object):
 
                 # compute spike-rate per phase bin
                 st_vals, all_vals = self.sta_wt(cond=k, unit_ind=uid) # analysis_window=[0.5, 1.5]
-                count_norm        = st_norm(st_vals, all_vals, wt_type, bins, dt)
+                count_norm        = self.st_norm(st_vals, all_vals, wt_type, bins, dt)
                 smooth_data       = sg_smooth(count_norm)
 
                 # pycircstat returns positive values (yes, verified). So zero
