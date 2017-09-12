@@ -1344,8 +1344,13 @@ class NeuroAnalyzer(object):
         Divides each phase bin by the occupancy of that bin. That is, it
         divides by the number of times the whiskers happened to occupy each bin
         """
-        st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
-        all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
+        if wt_type == 0:
+            st_count = np.histogram(st_vals, bins=bins)[0].astype(float)
+            all_count = np.histogram(all_vals, bins=bins)[0].astype(float)
+        else:
+            st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
+            all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
+
         count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
         return count_norm
 
