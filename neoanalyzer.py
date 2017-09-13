@@ -1344,6 +1344,7 @@ class NeuroAnalyzer(object):
         Divides each phase bin by the occupancy of that bin. That is, it
         divides by the number of times the whiskers happened to occupy each bin
         """
+
         if wt_type == 0:
             st_count = np.histogram(st_vals, bins=bins)[0].astype(float)
             all_count = np.histogram(all_vals, bins=bins)[0].astype(float)
@@ -1352,6 +1353,10 @@ class NeuroAnalyzer(object):
             all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
 
         count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
+
+        if st_vals.shape[0] == 0:
+            count_norm = np.zeros((bins.shape-1))
+
         return count_norm
 
     def sg_smooth(self, data, win_len=5, poly=3, neg_vals=False):
@@ -1409,7 +1414,7 @@ class NeuroAnalyzer(object):
                 # compute spike-rate per phase bin
                 st_vals, all_vals = self.sta_wt(cond=k, unit_ind=uid) # analysis_window=[0.5, 1.5]
                 count_norm        = self.st_norm(st_vals, all_vals, wt_type, bins, dt)
-                smooth_data       = sg_smooth(count_norm)
+                smooth_data       = self.sg_smooth(count_norm)
 
                 # pycircstat returns positive values (yes, verified). So zero
                 # corresponds to negative pi and six is close to positive pi
