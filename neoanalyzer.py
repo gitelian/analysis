@@ -1354,9 +1354,6 @@ class NeuroAnalyzer(object):
 
         count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
 
-        if st_vals.shape[0] == 0:
-            count_norm = np.zeros((bins.shape-1))
-
         return count_norm
 
     def sg_smooth(self, data, win_len=5, poly=3, neg_vals=False):
@@ -1371,7 +1368,7 @@ class NeuroAnalyzer(object):
 
         Returns smoothed array
         """
-        smooth_data = sp.signal.savgol_filter(count_norm,win_len,poly, mode='wrap')
+        smooth_data = sp.signal.savgol_filter(data, win_len, poly, mode='wrap')
         if neg_vals is False:
             smooth_data[smooth_data < 0] = 0
         return smooth_data
@@ -1424,7 +1421,6 @@ class NeuroAnalyzer(object):
 
                 # compute vector angle (mean direction)
                 mod_mat[uid, k, 1] = pycirc.descriptive.mean(bins_pos[:-1], smooth_data) - np.pi # angles in radian, weightings (counts)
-
                 # compute coefficient of variation
                 mod_mat[uid, k, 2] = np.std(smooth_data)/np.mean(smooth_data)
 
