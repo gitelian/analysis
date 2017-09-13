@@ -816,7 +816,7 @@ class NeuroAnalyzer(object):
 
         return f, frq_mat_temp
 
-    def make_design_matrix(self, rate_type='evk_count', cond_inds=None, trode=None, cell_type=None, trim_trials=True):
+    def get_design_matrix(self, rate_type='evk_count', cond_inds=None, trode=None, cell_type=None, trim_trials=True):
         """make design matrix for classification and regressions"""
         """
         creates design matrix for classification and regressions
