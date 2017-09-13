@@ -816,8 +816,37 @@ class NeuroAnalyzer(object):
 
         return f, frq_mat_temp
 
-    def make_design_matrix(self, rate_type='evk_count', trode=None, trim_trials=True):
+    def make_design_matrix(self, rate_type='evk_count', cond_inds=None, trode=None, cell_type=None, trim_trials=True):
         """make design matrix for classification and regressions"""
+        """
+        creates design matrix for classification and regressions
+
+        produces a design matrix where each row is data from a single trial and
+        each column is a single unit.
+
+        Parameters
+        _________
+        cond_inds: optional, default (None)
+            Specify which trial types to extract data from
+        trode: optional, default (None)
+            Specify which electrode to extract data from
+            TODO: allow user to specify more than one electrode
+        cell_type: optional, default (None)
+            Specify which cell types ('RS' or 'FS') to extract data from
+        trim_trials: boolean, default (True)
+            Specify whether to extract an equal number of trials from each
+            condition using the condition with the least amount of trials.
+
+        Returns
+        -------
+        X: 2-d array
+            The design matrix containing all of the spike rates for all trials
+            and units
+        y: 1-d array
+            The stimulus array where each element corresponds to a row in the
+            desing matrix. This is necessary in order to specify which rates
+            come from where.
+        """
 
         print('\n-----make design matrix----')
         min_trials     = np.min(self.num_good_trials)
@@ -826,14 +855,30 @@ class NeuroAnalyzer(object):
         kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
         rates          = kind_of_tuning[kind_dict[rate_type]]
 
-        if trode:
-            trode_inds = np.where(self.shank_ids == trode-1)[0]
-            num_units = len(trode_inds)
-        else:
-            print('Collecting data from electrode {}'.format(str(trode)))
-            trode_inds = np.where(self.shank_ids >= 0)[0]
-            num_units  = self.num_units
+        # Find indices for units to be included. user can selected a specific
+        # electrode/region, cell type (e.g. 'RS', 'FS') or a combinations of
+        # both ('RS' cells from 'S1')
 
+        if trode is not None and cell_type is not None:
+            unit_inds = np.where(
+                    np.logical_and(\
+                    neuro.shank_ids == trode, neuro.cell_type == cell_type))[0]
+            print('Collecting data from {} units and electrode {}'.format(cell_type, trode))
+        elif trode is not None:
+            unit_inds = np.where(self.shank_ids == trode)[0]
+            print('Collecting data from all units and electrode {}'.format(trode))
+
+        elif cell_type is not None:
+            print('Collecting data from all electrodes and {} units'.format(cell_type))
+            unit_inds = np.where(self.cell_type == cell_type)[0]
+
+        else:
+            print('Collecting data from all units and all electrodes')
+            unit_inds = np.where(self.shank_ids >= 0)[0]
+
+        num_units = len(unit_inds)
+
+        # Preallocate the design matrix and stimulus ID array
         if trim_trials:
             X = np.zeros((num_cond*min_trials, num_units))
             y = np.ones((num_cond*min_trials, ))
@@ -841,16 +886,32 @@ class NeuroAnalyzer(object):
             X = np.zeros((np.sum(self.num_good_trials), num_units))
             y = np.ones((np.sum(self.num_good_trials), ))
 
+        # Create design matrix: go through all trials and add specified data to
+        # the design and stimulus arrays
         last_t_ind = 0
         for k, cond in enumerate(rates):
             if trim_trials:
-                X[min_trials*k:min_trials*(k+1)] = cond[0:min_trials, trode_inds]
+                X[min_trials*k:min_trials*(k+1)] = cond[0:min_trials, unit_inds]
                 y[min_trials*k:min_trials*(k+1)] = k*y[min_trials*k:min_trials*(k+1)]
             else:
                 min_trials = cond.shape[0]
-                X[last_t_ind:(min_trials + last_t_ind)] = cond[:, trode_inds]
+                X[last_t_ind:(min_trials + last_t_ind)] = cond[:, unit_inds]
                 y[last_t_ind:(min_trials + last_t_ind)] = k*y[last_t_ind:(min_trials + last_t_ind)]
                 last_t_ind = min_trials + last_t_ind
+
+        # Limit trial types:  only include data if it is apart of the specified
+        # trial types/conditions
+        good_inds = list()
+        if cond_inds is not None:
+
+            for cond_ind in cond_inds:
+                # get indices from specified trial types/conditions
+                good_inds.append(np.where(y == cond_ind)[0])
+
+            X = X[good_inds, :]
+            y = y[good_inds, :]
+
+        # else do nothing and return all the data
 
         return X, y
 
