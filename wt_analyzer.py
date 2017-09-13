@@ -733,10 +733,36 @@ wt_type = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
 
 win_len=5 # for phase poly=3
 poly=3
+num_boot_samples=1000
 md  = neuro.mod_index
 mdp = neuro.mod_pval
 
-with PdfPages('/media/greg/data/neuro/' + fid + '_spike_phase_histogram.pdf') as pdf:
+def sta_bootstrap(data, data_all, wt_type, bins, dt, num_boot_samples):
+    num_bins          = count_norm.shape[0]
+    boot_dist         = np.zeros((num_boot_samples, num_bins))
+    ci_mat            = np.zeros((num_bins, 2))
+
+
+    if data.shape[0] != 0:
+        for k in range(num_boot_samples):
+            # collect random samples with replacement
+            data_samp         = np.random.choice(data, size=data.shape[0], replace=True)
+            data_all_samp        = np.random.choice(data_all, size=data_all.shape[0], replace=True)
+            count_norm_samp = neuro.st_norm(data_samp, data_all_samp, 0, bins, dt)
+            boot_dist[k, :] = count_norm_samp
+
+        for bin_ind in range(num_bins):
+            bin_temp = boot_dist[:, bin_ind]
+            ci_mat[bin_ind, 0] = np.percentile(bin_temp, 2.5)
+            ci_mat[bin_ind, 1] = np.percentile(bin_temp, 97.5)
+
+    elif data.shape[0] == 0:
+        # return ci_mat with zeros
+        print('data array is empty...must be good silencing')
+
+    return ci_mat
+
+with PdfPages('/media/greg/data/neuro/' + fid + '_spike_phase_histogram_CIs.pdf') as pdf:
     print('Working on unit:')
     for uid in range(neuro.num_units):
         print(uid)
@@ -757,61 +783,91 @@ with PdfPages('/media/greg/data/neuro/' + fid + '_spike_phase_histogram.pdf') as
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[0][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[0][0].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
-
-#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][0], color=c, shade=True)
+        smooth_data = neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False)
+#        ax[0][0].bar(bins[:-1], smooth_data, width=dt, edgecolor=c, color=c)
+        # new plotting
+        ci_mat = sta_bootstrap(st_vals[:, wt_type], all_vals[:, wt_type], wt_type, bins, dt, num_boot_samples)
+        ax[0][0].plot(bins[:-1], smooth_data, 'k', alpha=1)
+        ax[0][0].fill_between(bins[:-1], ci_mat[:, 0], ci_mat[:, 1], facecolor=c, alpha=0.5)
 
         # control position S1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[0][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[0][1].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
-#       sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][1], color=c, shade=True)
+        smooth_data = neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False)
+#        ax[0][1].bar(bins[:-1], smooth_data, width=dt, edgecolor=c, color=c)
+        # new plotting
+
+        ## Code it like this!
+#        ci_mat = neuro.sta_wt_bootstrap(st_vals[:, wt_type], all_vals[:, wt_type], wt_type, bins, dt, num_boot_samples)
+        ci_mat = sta_bootstrap(st_vals[:, wt_type], all_vals[:, wt_type], wt_type, bins, dt, num_boot_samples)
+        ax[0][1].plot(bins[:-1], smooth_data, 'k', alpha=1)
+        ax[0][1].fill_between(bins[:-1], ci_mat[:, 0], ci_mat[:, 1], facecolor=c, alpha=0.5)
+
 
         # control position M1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.control_pos-1+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[0][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[0][2].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
-#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[0][2], color=c, shade=True)
+        smooth_data = neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False)
+#        ax[0][2].bar(bins[:-1], smooth_data, width=dt, edgecolor=c, color=c)
+        # new plotting
+        ci_mat = sta_bootstrap(st_vals[:, wt_type], all_vals[:, wt_type], wt_type, bins, dt, num_boot_samples)
+        ax[0][2].plot(bins[:-1], smooth_data, 'k', alpha=1)
+        ax[0][2].fill_between(bins[:-1], ci_mat[:, 0], ci_mat[:, 1], facecolor=c, alpha=0.5)
 
         # best position no light
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid], unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[1][0].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[1][0].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
-#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][0], color=c, shade=True)
+        smooth_data = neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False)
+#        ax[1][0].bar(bins[:-1], smooth_data, width=dt, edgecolor=c, color=c)
+        # new plotting
+        ci_mat = sta_bootstrap(st_vals[:, wt_type], all_vals[:, wt_type], wt_type, bins, dt, num_boot_samples)
+        ax[1][0].plot(bins[:-1], smooth_data, 'k', alpha=1)
+        ax[1][0].fill_between(bins[:-1], ci_mat[:, 0], ci_mat[:, 1], facecolor=c, alpha=0.5)
+
 
         # best position S1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[1][1].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[1][1].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
-#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][1], color=c, shade=True)
+        smooth_data = neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False)
+#        ax[1][1].bar(bins[:-1], smooth_data, width=dt, edgecolor=c, color=c)
+        # new plotting
+        ci_mat = sta_bootstrap(st_vals[:, wt_type], all_vals[:, wt_type], wt_type, bins, dt, num_boot_samples)
+        ax[1][1].plot(bins[:-1], smooth_data, 'k', alpha=1)
+        ax[1][1].fill_between(bins[:-1], ci_mat[:, 0], ci_mat[:, 1], facecolor=c, alpha=0.5)
+
 
         # best position M1 silencing
         st_vals, all_vals   = neuro.sta_wt(cond=neuro.best_contact[uid]+9+9, unit_ind=uid) # analysis_window=[0.5, 1.5]
         count_norm = neuro.st_norm(st_vals, all_vals, wt_type, bins, dt)
 #        ax[1][2].bar(bins[:-1], count_norm, width=dt, edgecolor=c, color=c)
-        ax[1][2].bar(bins[:-1], neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False), width=dt, edgecolor=c, color=c)
-#        sns.kdeplot(kde_pre(bins, count_norm), ax=ax[1][2], color=c, shade=True)
+        smooth_data = neuro.sg_smooth(count_norm, win_len, poly, neg_vals=False)
+#        ax[1][2].bar(bins[:-1], smooth_data, width=dt, edgecolor=c, color=c)
+        # new plotting
+        ci_mat = sta_bootstrap(st_vals[:, wt_type], all_vals[:, wt_type], wt_type, bins, dt, num_boot_samples)
+        ax[1][2].plot(bins[:-1], smooth_data, 'k', alpha=1)
+        ax[1][2].fill_between(bins[:-1], ci_mat[:, 0], ci_mat[:, 1], facecolor=c, alpha=0.5)
 
-        ylim_max = 0
-        for rowi, row in enumerate(ax):
-            for coli, col in enumerate(row):
-                ylim_temp = col.get_ylim()[1]
-                if ylim_temp > ylim_max:
-                    ylim_max = ylim_temp
-        for rowi, row in enumerate(ax):
-            for coli, col in enumerate(row):
-                col.set_ylim(0, ylim_max)
-                col.set_xlim(bins[0], bins[-1])
-                #col.set_xlim(bins[0], 160)
-                col.spines['top'].set_visible(False)
-                col.spines['right'].set_visible(False)
-                col.tick_params(axis='both', direction='out')
-                col.get_xaxis().tick_bottom()
-                col.get_yaxis().tick_left()
+
+#        ylim_max = 0
+#        for rowi, row in enumerate(ax):
+#            for coli, col in enumerate(row):
+#                ylim_temp = col.get_ylim()[1]
+#                if ylim_temp > ylim_max:
+#                    ylim_max = ylim_temp
+#        for rowi, row in enumerate(ax):
+#            for coli, col in enumerate(row):
+#                col.set_ylim(0, ylim_max)
+#                col.set_xlim(bins[0], bins[-1])
+#                #col.set_xlim(bins[0], 160)
+#                col.spines['top'].set_visible(False)
+#                col.spines['right'].set_visible(False)
+#                col.tick_params(axis='both', direction='out')
+#                col.get_xaxis().tick_bottom()
+#                col.get_yaxis().tick_left()
 
         # top left
         fig.subplots_adjust(left=0.12, bottom=0.10, right=0.90, top=0.90, wspace=0.20, hspace=0.30)
@@ -1434,45 +1490,27 @@ m1_fs = npand(shank_ids==0, cell_type=='FS')
 s1_fs = npand(shank_ids==1, cell_type=='FS')
 bins = np.arange(0, 0.35, 0.025)
 
+
+##### Changed plot setting to normed and cumulative to True
+#####  DEBUG THIS!
 fig, ax = plt.subplots(1, 2, figsize=(10,4), sharex=True, sharey=True)
 fig.suptitle('spike-phase paired vector strength')
-ax[0].hist(mod_index[m1_rs, control_pos, 0], bins=bins, alpha=0.3, label='M1 RS', color='k')
-ax[0].hist(mod_index[s1_rs, control_pos, 0], bins=bins, alpha=0.3, label='S1 RS', color='r')
+ax[0].hist(mod_index[m1_rs, control_pos, 0], bins=bins, alpha=0.3, label='M1 RS', color='k', normed=True)
+ax[0].hist(mod_index[s1_rs, control_pos, 0], bins=bins, alpha=0.3, label='S1 RS', color='r', normed=True)
+ax[0].hist(mod_index[m1_rs, control_pos, 0], bins=bins, alpha=0.3, label='M1 RS', color='k', normed=True, cumulative=True)
+ax[0].hist(mod_index[s1_rs, control_pos, 0], bins=bins, alpha=0.3, label='S1 RS', color='r', normed=True, cumulative=True)
 ax[0].legend()
 ax[0].set_xlabel('vector strength')
 
-ax[1].hist(mod_index[m1_fs, control_pos, 0], bins=bins, alpha=0.3, label='M1 FS', color='k')
-ax[1].hist(mod_index[s1_fs, control_pos, 0], bins=bins, alpha=0.3, label='S1 FS', color='r')
+ax[1].hist(mod_index[m1_fs, control_pos, 0], bins=bins, alpha=0.3, label='M1 FS', color='k', normed=True)
+ax[1].hist(mod_index[s1_fs, control_pos, 0], bins=bins, alpha=0.3, label='S1 FS', color='r', normed=True)
+ax[1].hist(mod_index[m1_fs, control_pos, 0], bins=bins, alpha=0.3, label='M1 FS', color='k', normed=True, cumulative=True)
+ax[1].hist(mod_index[s1_fs, control_pos, 0], bins=bins, alpha=0.3, label='S1 FS', color='r', normed=True, cumulative=True)
 ax[1].legend()
 ax[1].set_xlabel('vector strength')
 
 
 
-##################################################################
-##### multiple experiment spike vector strength correlations #####
-##################################################################
-
-
-control_pos = 9
-npand = np.logical_and
-
-rs_fs = 'FS'
-if rs_fs == 'RS':
-    c = 'ok'
-elif rs_fs == 'FS':
-    c = 'ob'
-
-m1_inds = npand(npand(shank_ids==0, driven==True), cell_type==rs_fs)
-s1_inds = npand(npand(shank_ids==1, driven==True), cell_type==rs_fs)
-#m1_inds = npand(shank_ids==0, cell_type==rs_fs)
-#s1_inds = npand(shank_ids==1, cell_type==rs_fs)
-
-
-nc_md    = mod_index[m1_inds, control_pos-1+9, 0]
-evk_temp = evk_rate[m1_inds, :, 0]
-evk_temp = evk_temp / np.max(np.abs(evk_temp), axis=1)[:, None]
-
-scatter(evk_temp[:, control_pos-1+9], nc_md)
 
 
 
@@ -1484,7 +1522,25 @@ scatter(evk_temp[:, control_pos-1+9], nc_md)
 
 
 
+##### simulate vector strength distribution
 
+import pycircstat as pycirc
+
+num_samples = 5000
+vec_dist    = np.zeros((num_samples,))
+dt          = 0.001
+
+for k in range(num_samples):
+
+    # randomly select angles
+    rand_angles = 2*np.pi*np.random.uniform(size=500)
+
+    # calculate vector strength
+    vec_dist[k] = pycirc.descriptive.resultant_vector_length(rand_angles) # angles in radian, weightings (counts)
+
+fig, ax = plt.subplots(1, 1)
+ax.hist(vec_dist, bins=np.arange(0, 1, dt), width=dt, normed=True)
+ax.hist(vec_dist, bins=np.arange(0, 1, dt), normed=True, cumulative=True, histtype='step')
 
 
 
