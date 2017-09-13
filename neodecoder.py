@@ -1,67 +1,202 @@
 import seaborn as sns
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.lda import LDA
 from sklearn import cross_validation
 
-def reorganize_bin_data(mat_list):
+class NeuroDecoder(object):
+    """
+    Decodes positions from data contained in a desing matrix
+    This is a child of NeuroAnalyzer
+
+    REMEMBER: any changes to the passed in neo object also occur to the original
+    object. They point to the same place in memory. No copy is made.
+    """
+
+    def __init__(self, X, y):
+
+        print('\n-----__init__-----')
+        # Add design matrix and position data to the class
+        self.X = X
+        self.y = y
+        self.num_cond = len(np.unique(y))
+        self.num_trials = X.shape[0]
+
+
+#        # sort by shank/region and then by depth
+#        self.__sort_units(neo_obj)
+#
+#        # add neo object to class instance
+#        self.neo_obj         = neo_obj
+
+    def __permute_data(self):
+        '''
+        permutes data in the design matrix and position arrays
+        '''
+
+        perm_inds = np.random.permutation(self.num_trials)
+
+        if self.kind == 'ole':
+            # mape linear positions to circular positions (i.e. scale values to be
+            # between 0 and 2pi).
+            step_size       = 2*np.pi/self.num_cond
+            theta           = self.y*step_size
+            self.perm_theta = theta[permuted_inds]
+        # else: do nothing for now
+
+        self.perm_X    = self.X[perm_inds,:]
+        self.perm_y    = self.y[permuted_inds]
+
+    def fit(self, kind, nfolds=10):
+        """
+        fit the specified decoder to the data AND specify number of folds???
+        """
+
+    def predict(self):
+        """
+        ughhh
+        """
+
+def __basis_vals(kappa,theta,theta_k):
     '''
-    Reorganizes binned spike data to the appropriate format for use in linear
-    regression.
+    Returns a txk array of basis values.
+    Input: theta is a tx1 array of stimulus position values. theta_k is a kx1
+    array of position coefficients for the von mises basis functions.
+    Output: a txk array of basis values where each row corresponds to a time
+    point in the position and data arrays.
 
-    Input: binned spike data list. The list contains 3-d numpy array where each
-    entry in the list corresponds to a particular stimulus type. The row of the
-    arrays correspond to an individual unit. Columns correspond to a bin with
-    the number of spikes for that bin. The 3-d dimension corresponds to repeated
-    trials.
 
-    Output: A txn permuted array where t corresponds to a particular bin and n
-    is an individual unit. A tx1 position array is returned. Each row in the
-    target vector corresponds to the same row or time point in the data vector.
-    The columns correspond to the basis values for the given stimulus. A tx1
-    array that is the position vector converted to circuilar coordinates.
+    Used by fit_ole_decoder AND predict position
     '''
-    num_trials = mat_list[0].shape[2]
-    num_pos = len(mat_list)
-    num_units = mat_list[0].shape[0]
-    num_bins = mat_list[0].shape[1]
 
-    num_rows = (num_bins)*num_trials*num_pos
-    num_cols = num_units
-    X = np.zeros((num_rows,num_cols))
-    pos_array = np.zeros((num_rows,))
+    B = np.zeros((theta.shape[0],theta_k.shape[0]))
     count = 0
 
-    for trial in range(num_trials):
-        for pos in range(num_pos):
-            X[count*num_bins:(count+1)*num_bins,:] = mat_list[pos][:,:,trial].T
-            pos_array[count*num_bins:(count+1)*num_bins] = np.ones((num_bins,))*pos
-            count += 1
-        # end pos
-    # end trial
+    for pos in theta:
+        B[count,:] = np.exp(kappa*np.cos(pos - theta_k)).reshape(1,theta_k.shape[0])
+        count += 1
 
-    step_size = 2*np.pi/num_pos
-    theta = pos_array*step_size
+    return B
 
-    permuted_inds = np.random.permutation(X.shape[0])
-    perm_X = X[permuted_inds,:]
-    perm_pos = pos_array[permuted_inds]
-    perm_theta = theta[permuted_inds]
+def fit_ole_decoder(X, pos, theta, kappa_to_try, k_folds=10):
+    '''
+    Use optimal linear estimation (OLE) to model the instantaneous stimulus
+    position using data from many single units using k-fold cross validation.
+    '''
 
-    return perm_X, perm_pos, perm_theta
+    best_kappa = None
+    best_pc = 0
+    best_weights = None
+    best_intercept = None
 
-def reorganize_single_unit_data(X, y):
-    num_pos = len(np.unique(y))
-    pos_array = y
+    theta_k = np.unique(theta)
+    labels  = np.unique(pos)
+    num_pos = float(len(theta_k))
 
-    step_size = 2*np.pi/num_pos
-    theta = pos_array*step_size
+    for kappa in kappa_to_try:
+        weights = list()
+        intercepts = list()
+        cmats = list()
+        perc_correct = list()
+        y = basis_vals(kappa,theta,theta_k)
 
-    permuted_inds = np.random.permutation(X.shape[0])
-    perm_X = X[permuted_inds,:]
-    perm_pos = pos_array[permuted_inds]
-    perm_theta = theta[permuted_inds]
+        for train_inds, test_inds in KFold(X.shape[0],k_folds):
+            assert len(np.intersect1d(train_inds,test_inds)) == 0
+            #break the data matrix up into training and test sets
+            Xtrain, Xtest, ytrain, _  = X[train_inds,:], X[test_inds,:], y[train_inds,:], y[test_inds,:]
 
-    return perm_X, perm_pos, perm_theta
+            # make  regression object
+            clf = Ridge(alpha=1.0,fit_intercept=False)
+            clf.fit(Xtrain,ytrain)
+            W = clf.coef_.T
+
+            # predict the stimulus with the test set
+            ypred = list()
+
+            for test_ind in range(Xtest.shape[0]):
+                ypred.append(predict_position(Xtest[test_ind,:],kappa,theta_k,W))
+
+            ypred = np.array(ypred)
+#           print('predicted: ' + str(ypred))
+#           print('actual   : ' + str(pos[test_inds]))
+
+            # compute confusion matrix
+            cmat = confusion_matrix(pos[test_inds],ypred,labels)
+            cmat = cmat.astype(float)
+
+            # normalize each row of the confusion matrix so they represent
+            # probabilities
+            cmat = (cmat.T/cmat.sum(axis=1)).T
+            cmat = np.nan_to_num(cmat)
+
+            # compute the percent correct
+            perc_correct.append(np.trace(cmat, offset=0)/num_pos)
+
+            # record confusino matrix for this fold
+            cmats.append(cmat)
+
+            # record the weights and intercept
+            weights.append(W)
+            intercepts.append(clf.intercept_)
+
+        # Compute the mean confusion matrix
+        # cmats and mean_pc get overwritten with ever iteration of the C parameter
+        cmats = np.array(cmats)
+        Cmean = cmats.mean(axis=0)
+
+        # Compute the mean percent correct
+        mean_pc = np.mean(perc_correct)
+        std_pc  = np.std(perc_correct,ddof=1)
+
+        # Compute the mean weights
+        weights = np.array(weights)
+        mean_weights = weights.mean(axis=0)
+        mean_intercept = np.mean(intercepts)
+
+        # Determine if we've found the best model thus far
+        if mean_pc > best_pc:
+            best_pc = mean_pc
+            best_kappa = kappa
+            best_Cmat = Cmean
+            best_weights = mean_weights
+            best_intercept = mean_intercept
+
+    # Print best percent correct and plot confusion matrix
+    print('Mean percent correct: ' + str(mean_pc*100) + str('%'))
+    print('Best kappa: ' + str(best_kappa))
+#   print('Mean confusion matrix: ' + str(best_Cmat))
+    plt.figure()
+    plt.imshow(best_Cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
+    plt.title('PCC: ' + "{:.2f}".format(mean_pc*100))
+    plt.colorbar()
+    plt.show()
+    print('sum: ' + str(best_Cmat.sum(axis=1)))
+
+    return best_weights, mean_pc, best_Cmat
+
+
+def predict_position(data,kappa,theta_k,W):
+
+    # Make sure data is a 1xn vector (n: number of neurons)
+    # W is the weight matrix of size nxk (k: number of positions/von_mises
+    # functions)
+
+    theta_val_mat = np.zeros((theta_k.shape[0],2))
+    count = 0
+    for theta in theta_k:
+        theta = theta.reshape(1,)
+        B = basis_vals(kappa,theta,theta_k)
+        theta_val_mat[count,0] = theta
+        theta_val_mat[count,1] = data.dot(W.dot(B.T))
+
+        count += 1
+
+    max_ind = np.argmax(theta_val_mat[:,1])
+    theta_hat = theta_val_mat[max_ind,0]
+    #print('predicted position: ' + str(max_ind))
+    return max_ind
+
+
+
+
+
 
 def psth_decoder(X):
     num_trials = X.shape[0]
@@ -192,45 +327,6 @@ def gen_fake_data(num_trials=10,num_pos=7.0,bin_size=0.005,trial_duration=1.0,st
 
     return perm_data_mat, perm_trial_mat
 
-def basis_vals(kappa,theta,theta_k):
-    '''
-    Returns a txk array of basis values.
-    Input: theta is a tx1 array of stimulus position values. theta_k is a kx1
-    array of position coefficients for the von mises basis functions.
-    Output: a txk array of basis values where each row corresponds to a time
-    point in the position and data arrays.
-    '''
-
-    B = np.zeros((theta.shape[0],theta_k.shape[0]))
-    count = 0
-
-    for pos in theta:
-        B[count,:] = np.exp(kappa*np.cos(pos - theta_k)).reshape(1,theta_k.shape[0])
-        count += 1
-
-    return B
-
-def predict_position(data,kappa,theta_k,W):
-
-    # Make sure data is a 1xn vector (n: number of neurons)
-    # W is the weight matrix of size nxk (k: number of positions/von_mises
-    # functions)
-
-    theta_val_mat = np.zeros((theta_k.shape[0],2))
-    count = 0
-    for theta in theta_k:
-        theta = theta.reshape(1,)
-        B = basis_vals(kappa,theta,theta_k)
-        theta_val_mat[count,0] = theta
-        theta_val_mat[count,1] = data.dot(W.dot(B.T))
-
-        count += 1
-
-    max_ind = np.argmax(theta_val_mat[:,1])
-    theta_hat = theta_val_mat[max_ind,0]
-    #print('predicted position: ' + str(max_ind))
-    return max_ind
-
 def fit_logistic_regression(unit_data,pos_data,C_to_try=[1e-3,1e-2,1e-1,1.0],k_folds=10):
     '''
     Use logistic regression to fit data from a single unit in order to try and predict
@@ -325,102 +421,6 @@ def fit_logistic_regression(unit_data,pos_data,C_to_try=[1e-3,1e-2,1e-1,1.0],k_f
     print('sum: ' + str(best_Cmat.sum(axis=1)))
 
     return best_Cmat, best_C
-
-def fit_ole_decoder(X, pos, theta, kappa_to_try, k_folds=10):
-    '''
-    Use optimal linear estimation (OLE) to model the instantaneous stimulus
-    position using data from many single units using k-fold cross validation.
-    '''
-
-    best_kappa = None
-    best_pc = 0
-    best_weights = None
-    best_intercept = None
-
-    theta_k = np.unique(theta)
-    labels  = np.unique(pos)
-    num_pos = float(len(theta_k))
-
-    for kappa in kappa_to_try:
-        weights = list()
-        intercepts = list()
-        cmats = list()
-        perc_correct = list()
-        y = basis_vals(kappa,theta,theta_k)
-
-        for train_inds, test_inds in KFold(X.shape[0],k_folds):
-            assert len(np.intersect1d(train_inds,test_inds)) == 0
-            #break the data matrix up into training and test sets
-            Xtrain, Xtest, ytrain, _  = X[train_inds,:], X[test_inds,:], y[train_inds,:], y[test_inds,:]
-
-            # make  regression object
-            clf = Ridge(alpha=1.0,fit_intercept=False)
-            clf.fit(Xtrain,ytrain)
-            W = clf.coef_.T
-
-            # predict the stimulus with the test set
-            ypred = list()
-
-            for test_ind in range(Xtest.shape[0]):
-                ypred.append(predict_position(Xtest[test_ind,:],kappa,theta_k,W))
-
-            ypred = np.array(ypred)
-#           print('predicted: ' + str(ypred))
-#           print('actual   : ' + str(pos[test_inds]))
-
-            # compute confusion matrix
-            cmat = confusion_matrix(pos[test_inds],ypred,labels)
-            cmat = cmat.astype(float)
-
-            # normalize each row of the confusion matrix so they represent
-            # probabilities
-            cmat = (cmat.T/cmat.sum(axis=1)).T
-            cmat = np.nan_to_num(cmat)
-
-            # compute the percent correct
-            perc_correct.append(np.trace(cmat, offset=0)/num_pos)
-
-            # record confusino matrix for this fold
-            cmats.append(cmat)
-
-            # record the weights and intercept
-            weights.append(W)
-            intercepts.append(clf.intercept_)
-
-        # Compute the mean confusion matrix
-        # cmats and mean_pc get overwritten with ever iteration of the C parameter
-        cmats = np.array(cmats)
-        Cmean = cmats.mean(axis=0)
-
-        # Compute the mean percent correct
-        mean_pc = np.mean(perc_correct)
-        std_pc  = np.std(perc_correct,ddof=1)
-
-        # Compute the mean weights
-        weights = np.array(weights)
-        mean_weights = weights.mean(axis=0)
-        mean_intercept = np.mean(intercepts)
-
-        # Determine if we've found the best model thus far
-        if mean_pc > best_pc:
-            best_pc = mean_pc
-            best_kappa = kappa
-            best_Cmat = Cmean
-            best_weights = mean_weights
-            best_intercept = mean_intercept
-
-    # Print best percent correct and plot confusion matrix
-    print('Mean percent correct: ' + str(mean_pc*100) + str('%'))
-    print('Best kappa: ' + str(best_kappa))
-#   print('Mean confusion matrix: ' + str(best_Cmat))
-    plt.figure()
-    plt.imshow(best_Cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
-    plt.title('PCC: ' + "{:.2f}".format(mean_pc*100))
-    plt.colorbar()
-    plt.show()
-    print('sum: ' + str(best_Cmat.sum(axis=1)))
-
-    return best_weights, mean_pc, best_Cmat
 
 def calc_global_selectivity(cmat):
     num_pos = float(cmat.shape[0])
