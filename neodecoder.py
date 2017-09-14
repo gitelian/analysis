@@ -35,7 +35,7 @@ class NeuroDecoder(object):
 
         perm_inds = np.random.permutation(self.num_trials)
 
-        if self.kind == 'ole':
+        if self.decoder_type == 'ole':
             # mape linear positions to circular positions (i.e. scale values to be
             # between 0 and 2pi).
             step_size       = 2*np.pi/self.num_cond
@@ -46,10 +46,30 @@ class NeuroDecoder(object):
         self.perm_X    = self.X[perm_inds,:]
         self.perm_y    = self.y[permuted_inds]
 
-    def fit(self, kind, nfolds=10):
+    def fit(self, kind='ole', nfolds=10, kappa_to_try=None):
         """
         fit the specified decoder to the data AND specify number of folds???
         """
+
+        # check inputs
+        if kind == 'ole' and kappa_to_try is not None:
+            print('using optimal linear estimator')
+            self.kappa_to_try = np.asarray(kappa_to_try)
+
+        elif kind == 'ole' and kappa_to_try is None:
+            print('optimal linear estimator selected but kappa_to_try is None\
+                    \nusing default values for kappa: range(0, 100, 1)')
+            self.kappa_to_try = np.arange(0, 100)
+
+        elif kind == 'lr':
+            print('using logistic regression')
+
+        # prepare data by permuting data
+        # create theta array for OLE decoder
+        self.decoder_type = kind
+        self.__permute_data()
+
+
 
     def predict(self):
         """
