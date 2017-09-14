@@ -1,6 +1,8 @@
 import seaborn as sns
 from sklearn import cross_validation
 
+#kappa_to_try = np.arange(1,101,1) # from old code file
+
 class NeuroDecoder(object):
     """
     Decodes positions from data contained in a desing matrix
