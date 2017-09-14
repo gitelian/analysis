@@ -1,4 +1,5 @@
 import seaborn as sns
+import sklearn as sk
 from sklearn import cross_validation
 
 #kappa_to_try = np.arange(1,101,1) # from old code file
@@ -30,17 +31,18 @@ class NeuroDecoder(object):
 
     def __permute_data(self):
         '''
-        permutes data in the design matrix and position arrays
+        permutes data in the design matrix and stimulus ID arrays
         '''
 
         perm_inds = np.random.permutation(self.num_trials)
 
         if self.decoder_type == 'ole':
-            # mape linear positions to circular positions (i.e. scale values to be
-            # between 0 and 2pi).
+            # map linear positions to circular positions
+            # That is, scale values to be between 0 and 2pi.
             step_size       = 2*np.pi/self.num_cond
-            theta           = self.y*step_size
-            self.perm_theta = theta[permuted_inds]
+            self.theta      = self.y*step_size
+            self.perm_theta = self.theta[permuted_inds]
+
         # else: do nothing for now
 
         self.perm_X    = self.X[perm_inds,:]
@@ -48,10 +50,26 @@ class NeuroDecoder(object):
 
     def fit(self, kind='ole', nfolds=10, kappa_to_try=None):
         """
-        fit the specified decoder to the data AND specify number of folds???
+        fit the specified decoder to the data and specify number of folds
+
+        This fits the specified neural decoder and performs k-fold
+        cross-validation to the data. The mean confusion matrix and model
+        weights will be added to the class, use dot notation to access them.
+
+        Parameters
+        __________
+        kind: string
+            specify whether to use an optimal linear estimator ('ole') or
+            logistic regression ('lr')
+        nfolds: int
+            how many k-folds to use
+        kappa_to_try: array like
+            values of kappa to try when using OLE decoder
+            Leave set to None when using logistic regression
         """
 
         # check inputs
+        # OLE parameters
         if kind == 'ole' and kappa_to_try is not None:
             print('using optimal linear estimator')
             self.kappa_to_try = np.asarray(kappa_to_try)
@@ -61,81 +79,74 @@ class NeuroDecoder(object):
                     \nusing default values for kappa: range(0, 100, 1)')
             self.kappa_to_try = np.arange(0, 100)
 
-        elif kind == 'lr':
+        # logistic regression parameters
+        elif kind == 'lr' and kappa_to_try is None:
             print('using logistic regression')
+
+        elif kind == 'lr' and kappa_to_try is not None:
+            print('logistic regression selected but kappa_to_try is not None\
+                    \nsetting kappa_to_try to None')
+            kappa_to_try = None
 
         # prepare data by permuting data
         # create theta array for OLE decoder
         self.decoder_type = kind
         self.__permute_data()
 
+        # use k-fold cross-validation to fit decoders and generate initial
+        # confusion matrices
 
+        if self.decoder_type == 'ole':
+            print('fitting OLE decoder')
+            self.fit_ole_decoder()
 
-    def predict(self):
-        """
-        ughhh
-        """
-
-def __basis_vals(kappa,theta,theta_k):
-    '''
-    Returns a txk array of basis values.
-    Input: theta is a tx1 array of stimulus position values. theta_k is a kx1
-    array of position coefficients for the von mises basis functions.
-    Output: a txk array of basis values where each row corresponds to a time
-    point in the position and data arrays.
-
-
-    Used by fit_ole_decoder AND predict position
-    '''
-
-    B = np.zeros((theta.shape[0],theta_k.shape[0]))
-    count = 0
-
-    for pos in theta:
-        B[count,:] = np.exp(kappa*np.cos(pos - theta_k)).reshape(1,theta_k.shape[0])
-        count += 1
-
-    return B
-
-def fit_ole_decoder(X, pos, theta, kappa_to_try, k_folds=10):
+def fit_ole_decoder(self):
+#(X, pos, theta, kappa_to_try, k_folds=10):
     '''
     Use optimal linear estimation (OLE) to model the instantaneous stimulus
     position using data from many single units using k-fold cross validation.
     '''
 
-    best_kappa = None
-    best_pc = 0
-    best_weights = None
+    # initialize values used to compare and save parameters from well
+    # performing decoding runs
+    best_pcc       = 0
+    best_kappa     = None
+    best_weights   = None
     best_intercept = None
 
-    theta_k = np.unique(theta)
-    labels  = np.unique(pos)
-    num_pos = float(len(theta_k))
+    # theta will be a matrix is used for temporal decoding. theta_k is the mean
+    # value of each unique von misses function
+    labels  = np.unique(self.y)
+    theta_k = np.unique(self.theta)
 
-    for kappa in kappa_to_try:
-        weights = list()
+    for kappa in self.kappa_to_try:
+        weights    = list()
         intercepts = list()
-        cmats = list()
-        perc_correct = list()
-        y = basis_vals(kappa,theta,theta_k)
+        cmats      = list()
+        pcc        = list()
+        y          = self.__basis_vals(kappa, self.perm_theta, theta_k)
 
-        for train_inds, test_inds in KFold(X.shape[0],k_folds):
+        # perform k-fold cross-validation for the current value of kappa
+        # save the parameters for the best performing model
+        for train_inds, test_inds in KFold(self.num_trials, k_folds):
             assert len(np.intersect1d(train_inds,test_inds)) == 0
+
             #break the data matrix up into training and test sets
             Xtrain, Xtest, ytrain, _  = X[train_inds,:], X[test_inds,:], y[train_inds,:], y[test_inds,:]
 
             # make  regression object
-            clf = Ridge(alpha=1.0,fit_intercept=False)
-            clf.fit(Xtrain,ytrain)
+            clf = Ridge(alpha=1.0, fit_intercept=False)
+            clf.fit(Xtrain, ytrain)
             W = clf.coef_.T
 
             # predict the stimulus with the test set
             ypred = list()
 
             for test_ind in range(Xtest.shape[0]):
-                ypred.append(predict_position(Xtest[test_ind,:],kappa,theta_k,W))
+                # iterate through all test trials and predict position
+                ypred.append( self.predict_position(Xtest[test_ind,:], kappa, theta_k, W) )
 
-            ypred = np.array(ypred)
+            ypred = np.asarray(ypred)
 #           print('predicted: ' + str(ypred))
 #           print('actual   : ' + str(pos[test_inds]))
 
@@ -149,7 +160,7 @@ def fit_ole_decoder(X, pos, theta, kappa_to_try, k_folds=10):
             cmat = np.nan_to_num(cmat)
 
             # compute the percent correct
-            perc_correct.append(np.trace(cmat, offset=0)/num_pos)
+            pcc.append(np.trace(cmat, offset=0)/self.num_cond)
 
             # record confusino matrix for this fold
             cmats.append(cmat)
@@ -159,13 +170,13 @@ def fit_ole_decoder(X, pos, theta, kappa_to_try, k_folds=10):
             intercepts.append(clf.intercept_)
 
         # Compute the mean confusion matrix
-        # cmats and mean_pc get overwritten with ever iteration of the C parameter
+        # cmats and mean_pcc get overwritten with ever iteration of the C parameter
         cmats = np.array(cmats)
         Cmean = cmats.mean(axis=0)
 
         # Compute the mean percent correct
-        mean_pc = np.mean(perc_correct)
-        std_pc  = np.std(perc_correct,ddof=1)
+        mean_pcc = np.mean(pcc)
+        std_pc  = np.std(pcc,ddof=1)
 
         # Compute the mean weights
         weights = np.array(weights)
@@ -173,31 +184,76 @@ def fit_ole_decoder(X, pos, theta, kappa_to_try, k_folds=10):
         mean_intercept = np.mean(intercepts)
 
         # Determine if we've found the best model thus far
-        if mean_pc > best_pc:
-            best_pc = mean_pc
+        if mean_pcc > best_pc:
+            best_pc = mean_pcc
             best_kappa = kappa
             best_Cmat = Cmean
             best_weights = mean_weights
             best_intercept = mean_intercept
 
     # Print best percent correct and plot confusion matrix
-    print('Mean percent correct: ' + str(mean_pc*100) + str('%'))
+    print('Mean percent correct: ' + str(mean_pcc*100) + str('%'))
     print('Best kappa: ' + str(best_kappa))
 #   print('Mean confusion matrix: ' + str(best_Cmat))
     plt.figure()
     plt.imshow(best_Cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
-    plt.title('PCC: ' + "{:.2f}".format(mean_pc*100))
+    plt.title('PCC: ' + "{:.2f}".format(mean_pcc*100))
     plt.colorbar()
     plt.show()
     print('sum: ' + str(best_Cmat.sum(axis=1)))
 
-    return best_weights, mean_pc, best_Cmat
+    return best_weights, mean_pcc, best_Cmat
 
 
-def predict_position(data,kappa,theta_k,W):
+
+    def __basis_vals(self, kappa, theta, theta_k):
+        '''
+        Returns a txk array of basis values.
+
+        Used by fit_ole_decoder AND predict stimulus
+
+
+        Parameters
+        __________
+
+        theta: array
+            Theta is a tx1 array of stimulus values. That is, theta is an array
+            where the stimulus condition/trial type value has been mapped to be
+            between 0 and 2pi.
+        theta_k: array
+            theta_k is a kx1 array of coefficients for the von mises basis
+            functions. Each stimulus condition has its own von mises function
+            and therefor has a corresponding coefficient
+
+        Output
+        _____
+        B: array
+            B is a txk array of basis values where each row corresponds to a
+            time point (row) in the condition and data arrays.
+
+
+        '''
+
+            #B = np.zeros((theta.shape[0], theta_k.shape[0]))
+        B = np.zeros((self.num_trials, theta_k.shape[0]))
+        count = 0
+
+        for cond in theta:
+            B[count,:] = np.exp(kappa*np.cos(cond- theta_k)).reshape(1,theta_k.shape[0])
+            count += 1
+
+        return B
+
+
+def predict(self):
+    """
+    ughhh
+    """
+
+def predict_stimulus(data, kappa, theta_k, W):
 
     # Make sure data is a 1xn vector (n: number of neurons)
-    # W is the weight matrix of size nxk (k: number of positions/von_mises
+    # W is the weight matrix of size nxk (k: number of conditions/von_mises
     # functions)
 
     theta_val_mat = np.zeros((theta_k.shape[0],2))
@@ -212,7 +268,7 @@ def predict_position(data,kappa,theta_k,W):
 
     max_ind = np.argmax(theta_val_mat[:,1])
     theta_hat = theta_val_mat[max_ind,0]
-    #print('predicted position: ' + str(max_ind))
+    #print('predicted condition: ' + str(max_ind))
     return max_ind
 
 
@@ -355,7 +411,7 @@ def fit_logistic_regression(unit_data,pos_data,C_to_try=[1e-3,1e-2,1e-1,1.0],k_f
     the stimulus using k-fold cross validation.
     '''
     best_C = None
-    best_pc = 0
+    best_pcc = 0
     best_weights = None
     best_intercept = None
     labels = np.unique(pos_data)
@@ -369,7 +425,7 @@ def fit_logistic_regression(unit_data,pos_data,C_to_try=[1e-3,1e-2,1e-1,1.0],k_f
         weights = list()
         intercepts = list()
         cmats = list()
-        perc_correct = list()
+        pcc= list()
         for a in range(100):
 
             # Randomize data
@@ -403,7 +459,7 @@ def fit_logistic_regression(unit_data,pos_data,C_to_try=[1e-3,1e-2,1e-1,1.0],k_f
             #    cmat = np.nan_to_num(cmat)
 
                 # compute the percent correct
-                perc_correct.append(np.trace(cmat, offset=0)/num_pos)
+                pcc.append(np.trace(cmat, offset=0)/num_pos)
 
                 # record confusino matrix for this fold
                 cmats.append(cmat)
@@ -413,13 +469,13 @@ def fit_logistic_regression(unit_data,pos_data,C_to_try=[1e-3,1e-2,1e-1,1.0],k_f
                 intercepts.append(lr.intercept_)
 
         # Compute the mean confusion matrix
-        # cmats and mean_pc get overwritten with ever iteration of the C parameter
+        # cmats and mean_pcc get overwritten with ever iteration of the C parameter
         cmats = np.array(cmats)
         Cmean = cmats.mean(axis=0)
 
         # Compute the mean percent correct
-        mean_pc = np.mean(perc_correct)
-        std_pc  = np.std(perc_correct,ddof=1)
+        mean_pcc = np.mean(pcc)
+        std_pc  = np.std(pcc,ddof=1)
 
         # Compute the mean weights
         weights = np.array(weights)
@@ -427,15 +483,15 @@ def fit_logistic_regression(unit_data,pos_data,C_to_try=[1e-3,1e-2,1e-1,1.0],k_f
         mean_intercept = np.mean(intercepts)
 
         # Determine if we've found the best model thus far
-        if mean_pc > best_pc:
-            best_pc = mean_pc
+        if mean_pcc > best_pcc:
+            best_pcc = mean_pcc
             best_C = C
             best_Cmat = Cmean
             best_weights = mean_weights
             best_intercept = mean_intercept
 
     # Print best percent correct and plot confusion matrix
-    print('Mean percent correct: ' + str(mean_pc*100) + str('%'))
+    print('Mean percent correct: ' + str(mean_pcc*100) + str('%'))
 #    plt.figure()
 #    plt.imshow(best_Cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
 #    plt.colorbar()
