@@ -901,15 +901,17 @@ class NeuroAnalyzer(object):
 
         # Limit trial types:  only include data if it is apart of the specified
         # trial types/conditions
-        good_inds = list()
         if cond_inds is not None:
+            good_inds = np.empty(())
 
             for cond_ind in cond_inds:
                 # get indices from specified trial types/conditions
-                good_inds.append(np.where(y == cond_ind)[0])
+                good_inds = np.append(good_inds, np.where(y == cond_ind)[0])
 
+            good_inds = good_inds[1::]
+            good_inds = good_inds.astype(int)
             X = X[good_inds, :]
-            y = y[good_inds, :]
+            y = y[good_inds,]
 
         # else do nothing and return all the data
 
