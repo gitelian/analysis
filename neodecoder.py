@@ -2,6 +2,7 @@ import seaborn as sns
 from sklearn.linear_model import Ridge
 import sklearn.metrics as skmetrics
 from sklearn.model_selection import KFold
+from progress.bar import Bar
 
 
 #kappa_to_try = np.arange(1,101,1) # from old code file
@@ -50,7 +51,7 @@ class NeuroDecoder(object):
         self.perm_X    = self.X[perm_inds,:]
         self.perm_y    = self.y[perm_inds]
 
-    def fit(self, kind='ole', nfolds=10, kappa_to_try=None):
+    def fit(self, kind='ole', nfolds=10, kappa_to_try=None, plot_cmat=False):
         """
         fit the specified decoder to the data and specify number of folds
 
@@ -79,7 +80,7 @@ class NeuroDecoder(object):
         elif kind == 'ole' and kappa_to_try is None:
             print('optimal linear estimator selected but kappa_to_try is None\
                     \nusing default values for kappa: range(0, 100, 1)')
-            self.kappa_to_try = np.arange(0, 100)
+            self.kappa_to_try = np.arange(0, 50, 0.25)
 
         # logistic regression parameters
         elif kind == 'lr' and kappa_to_try is None:
@@ -103,9 +104,9 @@ class NeuroDecoder(object):
 
         if self.decoder_type == 'ole':
             print('fitting OLE decoder')
-            self.fit_ole_decoder()
+            self.fit_ole_decoder(plot_cmat)
 
-    def fit_ole_decoder(self):
+    def fit_ole_decoder(self, plot_cmat):
     #(X, pos, theta, kappa_to_try, k_folds=10):
         '''
         Use optimal linear estimation (OLE) to model the instantaneous stimulus
@@ -119,98 +120,117 @@ class NeuroDecoder(object):
         best_weights   = None
         best_intercept = None
 
+        all_kappas = list()
+        all_pcc    = list()
+
         # theta will be a matrix is used for temporal decoding. theta_k is the mean
         # value of each unique von misses function
         labels  = np.unique(self.y)
         theta_k = np.unique(self.theta)
 
         kf = KFold(n_splits=self.nfolds)
-        for kappa in self.kappa_to_try:
-            weights    = list()
-            intercepts = list()
-            cmats      = list()
-            pcc        = list()
-            y          = self.__basis_vals(kappa, self.perm_theta, theta_k)
+        num_runs = 5
+        bar = Bar('Iterating through runs', max=num_runs)
+        for run in range(num_runs):
+            bar.next()
+            self.__permute_data()
 
-            # perform k-fold cross-validation for the current value of kappa
-            # save the parameters for the best performing model
-            for train_inds, test_inds in kf.split(self.perm_X):
-                assert len(np.intersect1d(train_inds,test_inds)) == 0
+            for kappa in self.kappa_to_try:
+                weights    = list()
+                intercepts = list()
+                cmats      = list()
+                pcc        = list()
+                y          = self.__basis_vals(kappa, self.perm_theta, theta_k)
 
-                #break the data matrix up into training and test sets
-                Xtrain, Xtest, ytrain, _  = self.perm_X[train_inds,:], self.perm_X[test_inds,:],\
-                        y[train_inds,], y[test_inds,]
+                # perform k-fold cross-validation for the current value of kappa
+                # save the parameters for the best performing model
+                for train_inds, test_inds in kf.split(self.perm_X):
+                    assert len(np.intersect1d(train_inds,test_inds)) == 0
 
-                # make regression object, fit, and get weights
-                clf = Ridge(alpha=1.0, fit_intercept=False)
-                clf.fit(Xtrain, ytrain)
-                W = clf.coef_.T
+                    #break the data matrix up into training and test sets
+                    Xtrain, Xtest, ytrain, _  = self.perm_X[train_inds,:], self.perm_X[test_inds,:],\
+                            y[train_inds,], y[test_inds,]
 
-                # predict the stimulus with the test set
-                ypred = list()
-                for test_ind in range(Xtest.shape[0]):
-                    # iterate through all test trials and predict position
-                    ypred.append( self.__predict_stimulus(Xtest[test_ind,:], kappa, theta_k, W) )
+                    # make regression object, fit, and get weights
+                    clf = Ridge(alpha=1.0, fit_intercept=False)
+                    clf.fit(Xtrain, ytrain)
+                    W = clf.coef_.T
 
-                ypred = np.asarray(ypred)
-    #           print('predicted: ' + str(ypred))
-    #           print('actual   : ' + str(pos[test_inds]))
+                    # predict the stimulus with the test set
+                    ypred = list()
+                    for test_ind in range(Xtest.shape[0]):
+                        # iterate through all test trials and predict position
+                        ypred.append( self.__predict_stimulus(Xtest[test_ind,:], kappa, theta_k, W) )
 
-                # compute confusion matrix
-                cmat = skmetrics.confusion_matrix(self.perm_y[test_inds], ypred, labels)
-                cmat = cmat.astype(float)
+                    ypred = np.asarray(ypred)
+        #           print('predicted: ' + str(ypred))
+        #           print('actual   : ' + str(pos[test_inds]))
 
-                # normalize each row of the confusion matrix so they represent
-                # probabilities
-                cmat = (cmat.T/cmat.sum(axis=1)).T
-                cmat = np.nan_to_num(cmat)
+                    # compute confusion matrix
+                    cmat = skmetrics.confusion_matrix(self.perm_y[test_inds], ypred, labels)
+                    cmat = cmat.astype(float)
 
-                # compute the percent correct
-                pcc.append(np.trace(cmat, offset=0)/self.num_cond)
+                    # normalize each row of the confusion matrix so they represent
+                    # probabilities
+                    cmat = (cmat.T/cmat.sum(axis=1)).T
+                    cmat = np.nan_to_num(cmat)
 
-                # record confusino matrix for this fold
-                cmats.append(cmat)
+                    # compute the percent correct
+                    pcc.append(np.trace(cmat, offset=0)/self.num_cond)
 
-                # record the weights and intercept
-                weights.append(W)
-                intercepts.append(clf.intercept_)
+                    # record confusino matrix for this fold
+                    cmats.append(cmat)
 
-            # Compute the mean confusion matrix
-            # cmats and mean_pcc get overwritten with ever iteration of the C parameter
-            cmats = np.array(cmats)
-            cmean = cmats.mean(axis=0)
+                    # record the weights and intercept
+                    weights.append(W)
+                    intercepts.append(clf.intercept_)
 
-            # Compute the mean percent correct
-            mean_pcc = np.mean(pcc)
-            std_pc   = np.std(pcc, ddof=1)
+                # Compute the mean confusion matrix
+                # cmats and mean_pcc get overwritten with ever iteration of the C parameter
+                cmats = np.array(cmats)
+                cmean = cmats.mean(axis=0)
 
-            # Compute the mean weights
-            weights        = np.array(weights)
-            mean_weights   = weights.mean(axis=0)
-            mean_intercept = np.mean(intercepts)
+                # Compute the mean percent correct
+                mean_pcc = np.mean(pcc)
+                std_pc   = np.std(pcc, ddof=1)
 
-            # Determine if we've found the best model thus far
-            if mean_pcc > best_pcc:
-                best_pc        = mean_pcc
-                best_kappa     = kappa
-                best_cmat      = cmean
-                best_weights   = mean_weights
-                best_intercept = mean_intercept
+                # Compute the mean weights
+                weights        = np.array(weights)
+                mean_weights   = weights.mean(axis=0)
+                mean_intercept = np.mean(intercepts)
+
+                # save kappa and mean_pcc for each iteration of kappa tried
+                all_kappas.append(kappa)
+                all_pcc.append(mean_pcc)
+
+                # Determine if we've found the best model thus far
+                if mean_pcc > best_pcc:
+                    #print('best so far: {}'.format(mean_pcc))
+                    best_pcc       = mean_pcc
+                    best_kappa     = kappa
+                    best_cmat      = cmean
+                    best_weights   = mean_weights
+                    best_intercept = mean_intercept
 
         # Print best percent correct and plot confusion matrix
-        print('Mean percent correct: ' + str(mean_pcc*100) + str('%'))
+        print('Mean percent correct: ' + str(best_pcc*100) + str('%'))
 
-#        plt.figure()
-#        plt.imshow(best_cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
-#        plt.title('PCC: ' + "{:.2f}".format(mean_pcc*100))
-#        plt.colorbar()
-#        plt.show()
-#        print('sum: ' + str(best_cmat.sum(axis=1)))
+        if plot_cmat == True:
+            plt.figure()
+            plt.imshow(best_cmat,vmin=0,vmax=1,interpolation='none',cmap='afmhot')
+            plt.title('PCC: ' + "{:.2f}".format(best_pcc*100))
+            plt.colorbar()
+            plt.show()
+            print('sum: ' + str(best_cmat.sum(axis=1)))
 
         self.w        = best_weights
-        self.mean_pcc = mean_pcc
+        self.best_pcc = best_pcc
         self.cmat     = best_cmat
 
+        self.all_kappas = all_kappas
+        self.all_pcc    = all_pcc
+
+        bar.finish()
 
 
     def __basis_vals(self, kappa, theta, theta_k):
@@ -277,47 +297,73 @@ class NeuroDecoder(object):
 ##### scratch space #####
 ##### scratch space #####
 
-fig, ax = plt.subplots(2, 2)
-
 # M1
 pos_inds = np.arange(8)
-X, y     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds)
+X, y     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
-
-im = ax[0][0].imshow(decoder.cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
-ax[0][0].set_title('PCC: ' + "{:.2f}".format(decoder.mean_pcc*100))
-fig.colorbar(im, ax=ax[0][0])
+m1_cmat = decoder.cmat
+m1_pcc  = decoder.best_pcc
 
 # S1
 pos_inds = np.arange(8)
-X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds)
+X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
-
-im = ax[1][0].imshow(decoder.cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
-ax[1][0].set_title('PCC: ' + "{:.2f}".format(decoder.mean_pcc*100))
-fig.colorbar(im, ax=ax[1][0])
+s1_cmat = decoder.cmat
+s1_pcc  = decoder.best_pcc
 
 # M1 + S1 light
 pos_inds = np.arange(8)+9
-X, y     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds)
+X, y     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
-
-im = ax[0][1].imshow(decoder.cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
-ax[0][1].set_title('PCC: ' + "{:.2f}".format(decoder.mean_pcc*100))
-fig.colorbar(im, ax=ax[0][1])
+m1L_cmat = decoder.cmat
+m1L_pcc  = decoder.best_pcc
 
 # S1 + M1 light
 pos_inds = np.arange(8)+9+9
-X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds)
+X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
+s1L_cmat = decoder.cmat
+s1L_pcc  = decoder.best_pcc
 
-im = ax[1][1].imshow(decoder.cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
-ax[1][1].set_title('PCC: ' + "{:.2f}".format(decoder.mean_pcc*100))
+
+##### plot confusion matrices
+
+fig, ax = plt.subplots(2, 2)
+cmap ='afmhot' # 'inferno' 'afmhot', 'hot'
+vmax = 0.7
+#vmax = np.max(np.asarray([m1_cmat.ravel(), s1_cmat.ravel(), m1L_cmat.ravel(), s1L_cmat.ravel()]))
+
+
+# top left M1 no light
+im = ax[0][0].imshow(m1_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
+ax[0][0].set_title('PCC: ' + "{:.2f}".format(m1_pcc*100))
+fig.colorbar(im, ax=ax[0][0])
+
+# bottom left S1 no light
+im = ax[1][0].imshow(s1_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
+ax[1][0].set_title('PCC: ' + "{:.2f}".format(s1_pcc*100))
+fig.colorbar(im, ax=ax[1][0])
+
+# top right M1 with S1 light
+im = ax[0][1].imshow(m1L_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
+ax[0][1].set_title('PCC: ' + "{:.2f}".format(m1L_pcc*100))
+fig.colorbar(im, ax=ax[0][1])
+
+# bottom right S1 with M1 light
+im = ax[1][1].imshow(s1L_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
+ax[1][1].set_title('PCC: ' + "{:.2f}".format(s1L_pcc*100))
 fig.colorbar(im, ax=ax[1][1])
+
+
+
+
+
+
+
 
 
 
@@ -894,4 +940,56 @@ if __name__ == "__main__":
                 best_pcc_Post = np.append(best_pcc_Post, bb_post)
                 pos_pred_pre  = np.append(pos_pred_pre, num_pred_pos_pre)
                 pos_pred_post = np.append(pos_pred_post, num_pred_pos_post)
+
+
+
+
+
+
+
+# how to make a simple text progress bar
+
+#import time
+#import sys
+#
+#toolbar_width = 40
+#
+## setup toolbar
+#sys.stdout.write("[{}]".format(" " * toolbar_width))
+#sys.stdout.flush()
+#sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
+#
+#for i in xrange(toolbar_width):
+#    time.sleep(0.1) # do real work here
+#    # update the bar
+#    sys.stdout.write("-")
+#    sys.stdout.flush()
+#
+#sys.stdout.write("\n")
+#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
