@@ -3,6 +3,7 @@ from sklearn.linear_model import Ridge
 import sklearn.metrics as skmetrics
 from sklearn.model_selection import KFold
 from progress.bar import Bar
+import multiprocessing as mp
 
 
 #kappa_to_try = np.arange(1,101,1) # from old code file
@@ -223,9 +224,11 @@ class NeuroDecoder(object):
             plt.show()
             print('sum: ' + str(best_cmat.sum(axis=1)))
 
-        self.w        = best_weights
-        self.best_pcc = best_pcc
-        self.cmat     = best_cmat
+        self.best_pcc   = best_pcc
+        self.best_kappa = kappa
+        self.cmat       = best_cmat
+        self.w          = best_weights
+        self.best_intercept = mean_intercept
 
         self.all_kappas = all_kappas
         self.all_pcc    = all_pcc
@@ -312,6 +315,8 @@ decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 s1_cmat = decoder.cmat
 s1_pcc  = decoder.best_pcc
+all_kappas = decoder.all_kappas
+all_pcc    = decoder.all_pcc
 
 # M1 + S1 light
 pos_inds = np.arange(8)+9
@@ -329,6 +334,9 @@ decoder.fit(kind='ole')
 s1L_cmat = decoder.cmat
 s1L_pcc  = decoder.best_pcc
 
+##### plot scatter plot
+fig, ax = plt.subplots(1, 1)
+ax.scatter(all_kappas, all_pcc, s=1.0)
 
 ##### plot confusion matrices
 
@@ -970,10 +978,32 @@ if __name__ == "__main__":
 
 
 
-
-
-
-
+# basic multiprocessing parallel processing code format
+#
+#processes = 4
+#pool = mp.Pool(processes)
+#t = time.time()
+#
+#print('computing run speed with {0} processes'.format(processes))
+#results = [pool.apply_async(calculate_runspeed_derivative, args=(x_t[i][:], gauss_window,window_len,down_samp_fs,i)) for i in range(len(x_t))]
+#results = [p.get() for p in results]
+## ensure output is in correct order. 'apply_async' does not ensure order preservation
+#order,data = zip(*[(entry[0],entry[1]) for entry in results])
+#sort_ind = np.argsort(order)
+#for ind in sort_ind:
+#        vel_list[ind] = data[ind]
+#
+#elapsed = time.time() - t
+#pool.close()
+#print('total time: ' + str(elapsed))
+#
+#return vel_list, trtime_list
+#
+#
+#pool = mp.Pool(nprocesses)
+#t    = time.time()
+#results = [pool.apply(function, args=args) for x in values_to_try]
+#return results
 
 
 
