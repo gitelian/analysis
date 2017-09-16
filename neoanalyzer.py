@@ -846,6 +846,8 @@ class NeuroAnalyzer(object):
             The stimulus array where each element corresponds to a row in the
             desing matrix. This is necessary in order to specify which rates
             come from where.
+        unit_inds: 1-d array
+            The indices of the units selected.
         """
 
         print('\n-----make design matrix----')
@@ -915,7 +917,7 @@ class NeuroAnalyzer(object):
 
         # else do nothing and return all the data
 
-        return X, y
+        return X, y, unit_inds
 
     def get_burst_isi(self, kind='run_boolean'):
         """
