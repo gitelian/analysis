@@ -25,6 +25,7 @@ class NeuroDecoder(object):
         self.y = y - np.min(y) #must start with stimulus ID of zero
         self.num_cond = len(np.unique(y))
         self.num_trials = X.shape[0]
+        self.num_units  = X.shape[1]
 
 
 #        # sort by shank/region and then by depth
@@ -33,7 +34,7 @@ class NeuroDecoder(object):
 #        # add neo object to class instance
 #        self.neo_obj         = neo_obj
 
-    def __permute_data(self):
+    def __permute_data(self, unit_ind=None):
         '''
         permutes data in the design matrix and stimulus ID arrays
         '''
@@ -49,7 +50,16 @@ class NeuroDecoder(object):
 
         # else: do nothing for now
 
-        self.perm_X    = self.X[perm_inds,:]
+
+
+        # select a specific unit to decode
+        if unit_ind is not None:
+            print(unit_ind)
+            self.perm_X = self.X[perm_inds, unit_ind].reshape(perm_inds.shape[0], 1)
+        # use all units
+        else:
+            self.perm_X    = self.X[perm_inds,:]
+
         self.perm_y    = self.y[perm_inds]
 
     def fit(self, kind='ole', nfolds=5, kappa_to_try=None, plot_cmat=False):
@@ -113,13 +123,44 @@ class NeuroDecoder(object):
         self.num_runs = num_runs
         self.fit_ole_decoder()
 
-    def decode_single_units(self):
+    def get_best_kappa(self, num_runs4kappa=5):
+
+        old_num_runs = self.num_runs
+
+        self.kappa_to_try = np.arange(0, 50, 0.25)
+        self.num_runs = num_runs4kappa
+        self.fit_ole_decoder()
+        self.num_runs = old_num_runs
+
+
+    def decode_single_units(self, num_runs=100):
         """
         decode using data from only one unit.
 
         Iterates through the columns (i.e. units) in the design matrix. Returns
         the PCC distribution for each unit
         """
+        su_pcc = list()
+        self.num_runs = num_runs
+
+        for unit_ind in range(self.num_units):
+            print('unit: {}'.format(unit_ind))
+
+            # select data from unit_ind and permute
+            self.__permute_data(unit_ind=unit_ind)
+
+            # find best kappa for unit_ind
+            self.get_best_kappa()
+
+            # run decoder to generate PCC distribution
+            self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
+            self.fit_ole_decoder(plot_cmat=True)
+            plt.title('unit: {}'.format(unit_ind))
+
+            # append PCC distribution to su_pcc list
+            su_pcc.append(self.all_pcc)
+
+        self.su_pcc = su_pcc
 
     def fit_ole_decoder(self, plot_cmat=False):
     #(X, pos, theta, kappa_to_try, k_folds=10):
@@ -197,7 +238,7 @@ class NeuroDecoder(object):
                     cmat = np.nan_to_num(cmat)
 
                     # compute the percent correct
-                    pcc.append(np.trace(cmat, offset=0)/self.num_cond)
+                    pcc.append(100* (np.trace(cmat, offset=0)/self.num_cond))
 
                     # record confusino matrix for this fold
                     cmats.append(cmat)
@@ -237,12 +278,12 @@ class NeuroDecoder(object):
             # END kappa for loop
 
         # Print best percent correct and plot confusion matrix
-        print('Mean percent correct: ' + str(best_pcc*100) + str('%'))
+        print('Mean percent correct: ' + str(best_pcc) + str('%'))
 
         if plot_cmat == True:
             plt.figure()
             plt.imshow(best_cmat,vmin=0,vmax=1,interpolation='none',cmap='afmhot')
-            plt.title('PCC: ' + "{:.2f}".format(best_pcc*100))
+            plt.title('PCC: ' + "{:.2f}".format(best_pcc))
             plt.colorbar()
             plt.show()
             print('sum: ' + str(best_cmat.sum(axis=1)))
@@ -340,7 +381,7 @@ class NeuroDecoder(object):
 
 # M1
 pos_inds = np.arange(8)
-X, y     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 m1_cmat = decoder.cmat
@@ -348,7 +389,7 @@ m1_pcc  = decoder.best_pcc
 
 # S1
 pos_inds = np.arange(8)
-X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 s1_cmat = decoder.cmat
@@ -358,7 +399,7 @@ all_pcc    = decoder.all_pcc
 
 # M1 + S1 light
 pos_inds = np.arange(8)+9
-X, y     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 m1L_cmat = decoder.cmat
@@ -366,7 +407,7 @@ m1L_pcc  = decoder.best_pcc
 
 # S1 + M1 light
 pos_inds = np.arange(8)+9+9
-X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 s1L_cmat = decoder.cmat
@@ -1016,60 +1057,95 @@ if __name__ == "__main__":
 
 
 
-# basic multiprocessing parallel processing code format
-#
-#processes = 4
-#pool = mp.Pool(processes)
-#t = time.time()
-#
-#print('computing run speed with {0} processes'.format(processes))
-#results = [pool.apply_async(calculate_runspeed_derivative, args=(x_t[i][:], gauss_window,window_len,down_samp_fs,i)) for i in range(len(x_t))]
-#results = [p.get() for p in results]
-## ensure output is in correct order. 'apply_async' does not ensure order preservation
-#order,data = zip(*[(entry[0],entry[1]) for entry in results])
-#sort_ind = np.argsort(order)
-#for ind in sort_ind:
-#        vel_list[ind] = data[ind]
-#
-#elapsed = time.time() - t
-#pool.close()
-#print('total time: ' + str(elapsed))
-#
-#return vel_list, trtime_list
-#
-#
-#pool = mp.Pool(nprocesses)
-#t    = time.time()
-#results = [pool.apply(function, args=args) for x in values_to_try]
-#return results
+##### compute distributions of PCC for best kappa
+##### compute distributions of PCC for best kappa
 
+num_runs = 500
+# m1 distribution code test
+pos_inds = np.arange(8)
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole')
+decoder.get_pcc_distribution(num_runs=num_runs)
+m1_pcc = decoder.all_pcc
 
-
-
-
-
-
+# m1 with M1 silencing
+pos_inds = np.arange(8)+9
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder_light  = NeuroDecoder(X, y)
+decoder_light.fit(kind='ole')
+decoder_light.get_pcc_distribution(num_runs=num_runs)
+m1_pcc_light = decoder_light.all_pcc
 
 # S1 distribution code test
 pos_inds = np.arange(8)
-X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
-decoder.get_pcc_distribution()
+decoder.get_pcc_distribution(num_runs=num_runs)
 s1_pcc = decoder.all_pcc
 
 # S1 with M1 silencing
 pos_inds = np.arange(8)+9+9
-X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
 decoder_light  = NeuroDecoder(X, y)
 decoder_light.fit(kind='ole')
-decoder_light.get_pcc_distribution()
+decoder_light.get_pcc_distribution(num_runs=num_runs)
 s1_pcc_light = decoder_light.all_pcc
 
-fig, ax = plt.subplots(1, 1)
-bins = np.arange(0, 1, 0.005)
-ax.hist(s1_pcc, bins=bins, alpha=0.5, color='k')
-ax.hist(s1_pcc_light, bins=bins, alpha=0.5, color='b')
+
+# stats
+m1_diff = np.mean(m1_pcc_light) - np.mean(m1_pcc)
+s1_diff = np.mean(s1_pcc_light) - np.mean(s1_pcc)
+
+
+# plot PCC distributions
+fig, ax = plt.subplots(1, 2, figsize=(9, 4))
+fig.suptitle(fid + ' PCC distributions')
+bins = np.arange(0, 100, 0.5)
+
+# left: M1
+ax[0].hist(m1_pcc, bins=bins, alpha=0.5, color='k', normed=True)
+ax[0].hist(m1_pcc_light, bins=bins, alpha=0.5, color='r', normed=True)
+ax[0].set_title('Mean difference = {:05.3f}'.format(m1_diff))
+ax[0].set_xlabel('Percent Correct Classified')
+
+# right: S1
+ax[1].hist(s1_pcc, bins=bins, alpha=0.5, color='k', normed=True)
+ax[1].hist(s1_pcc_light, bins=bins, alpha=0.5, color='b', normed=True)
+ax[1].set_title('Mean difference = {:05.3f}'.format(s1_diff))
+ax[1].set_xlabel('Percent Correct Classified')
+
+
+
+##### compute distributions of PCC for single units
+##### compute distributions of PCC for single units
+
+
+# S1 no light
+pos_inds = np.arange(8)
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole')
+decoder.decode_single_units()
+
+group_names = tuple([str(x) for x in uinds])
+no_light_means = [np.mean(x) for x in decoder.su_pcc]
+no_light_std   = [np.std(x) for x in decoder.su_pcc]
+
+# S1 + M1 silencing
+pos_inds = np.arange(8)+9+9
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
+decoder_light  = NeuroDecoder(X, y)
+decoder_light.fit(kind='ole')
+
+
+
+
+
+
+
+
 
 
 
