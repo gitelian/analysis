@@ -52,7 +52,7 @@ class NeuroDecoder(object):
         self.perm_X    = self.X[perm_inds,:]
         self.perm_y    = self.y[perm_inds]
 
-    def fit(self, kind='ole', nfolds=10, kappa_to_try=None, plot_cmat=False):
+    def fit(self, kind='ole', nfolds=5, kappa_to_try=None, plot_cmat=False):
         """
         fit the specified decoder to the data and specify number of folds
 
@@ -93,7 +93,8 @@ class NeuroDecoder(object):
             kappa_to_try = None
 
         #general parameters
-        self.nfolds = nfolds
+        self.nfolds   = nfolds
+        self.num_runs = 5
 
         # prepare data by permuting data
         # create theta array for OLE decoder
@@ -107,7 +108,20 @@ class NeuroDecoder(object):
             print('fitting OLE decoder')
             self.fit_ole_decoder(plot_cmat)
 
-    def fit_ole_decoder(self, plot_cmat):
+    def get_pcc_distribution(self, num_runs=500):
+        self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
+        self.num_runs = num_runs
+        self.fit_ole_decoder()
+
+    def decode_single_units(self):
+        """
+        decode using data from only one unit.
+
+        Iterates through the columns (i.e. units) in the design matrix. Returns
+        the PCC distribution for each unit
+        """
+
+    def fit_ole_decoder(self, plot_cmat=False):
     #(X, pos, theta, kappa_to_try, k_folds=10):
         '''
         Use optimal linear estimation (OLE) to model the instantaneous stimulus
@@ -130,9 +144,9 @@ class NeuroDecoder(object):
         theta_k = np.unique(self.theta)
 
         kf = KFold(n_splits=self.nfolds)
-        num_runs = 5
-        bar = Bar('Iterating through runs', max=num_runs)
-        for run in range(num_runs):
+#        num_runs = 5
+        bar = Bar('Iterating through runs', max=self.num_runs)
+        for run in range(self.num_runs):
             bar.next()
             self.__permute_data()
 
@@ -142,6 +156,7 @@ class NeuroDecoder(object):
                 cmats      = list()
                 pcc        = list()
                 y          = self.__basis_vals(kappa, self.perm_theta, theta_k)
+                pred_error = list()
 
                 # perform k-fold cross-validation for the current value of kappa
                 # save the parameters for the best performing model
@@ -161,11 +176,13 @@ class NeuroDecoder(object):
                     ypred = list()
                     for test_ind in range(Xtest.shape[0]):
                         # iterate through all test trials and predict position
-                        ypred.append( self.__predict_stimulus(Xtest[test_ind,:], kappa, theta_k, W) )
+                        stim_ind = self.__predict_stimulus(Xtest[test_ind, :], kappa, theta_k, W)
+                        error    = self.__predict_error(self.y[test_ind], stim_ind)
+
+                        ypred.append(stim_ind)
+                        pred_error.append(error)
 
                     ypred = np.asarray(ypred)
-        #           print('predicted: ' + str(ypred))
-        #           print('actual   : ' + str(pos[test_inds]))
 
                     # compute confusion matrix
                     cmat = skmetrics.confusion_matrix(self.perm_y[test_inds], ypred, labels)
@@ -174,6 +191,9 @@ class NeuroDecoder(object):
                     # normalize each row of the confusion matrix so they represent
                     # probabilities
                     cmat = (cmat.T/cmat.sum(axis=1)).T
+                    cmat = np.nan_to_num(cmat)
+                    # make sure the probabilities sum to 1
+                    cmat = cmat*(1.0/cmat.sum(axis=1)[:, None])
                     cmat = np.nan_to_num(cmat)
 
                     # compute the percent correct
@@ -190,6 +210,7 @@ class NeuroDecoder(object):
                 # cmats and mean_pcc get overwritten with ever iteration of the C parameter
                 cmats = np.array(cmats)
                 cmean = cmats.mean(axis=0)
+                # ma
 
                 # Compute the mean percent correct
                 mean_pcc = np.mean(pcc)
@@ -212,6 +233,8 @@ class NeuroDecoder(object):
                     best_cmat      = cmean
                     best_weights   = mean_weights
                     best_intercept = mean_intercept
+                    best_error     = pred_error
+            # END kappa for loop
 
         # Print best percent correct and plot confusion matrix
         print('Mean percent correct: ' + str(best_pcc*100) + str('%'))
@@ -225,13 +248,14 @@ class NeuroDecoder(object):
             print('sum: ' + str(best_cmat.sum(axis=1)))
 
         self.best_pcc   = best_pcc
-        self.best_kappa = kappa
+        self.best_kappa = best_kappa
         self.cmat       = best_cmat
         self.w          = best_weights
         self.best_intercept = mean_intercept
 
         self.all_kappas = all_kappas
         self.all_pcc    = all_pcc
+        self.best_error = best_error
 
         bar.finish()
 
@@ -296,6 +320,20 @@ class NeuroDecoder(object):
         theta_hat = theta_val_mat[max_ind, 0]
         #print('predicted condition: ' + str(max_ind))
         return max_ind
+
+    def __predict_error(self, y, ypred):
+        '''
+        calculates the error between the predicted stimulus and actual
+
+        The error is the absolute distance between the predicted stimulus
+        index and the actual stimulus index. This assumes that the stimuli
+        are physical locations
+        '''
+
+        error  = np.abs(y - ypred)
+
+        return error
+
 
 ##### scratch space #####
 ##### scratch space #####
@@ -1004,6 +1042,46 @@ if __name__ == "__main__":
 #t    = time.time()
 #results = [pool.apply(function, args=args) for x in values_to_try]
 #return results
+
+
+
+
+
+
+
+
+# S1 distribution code test
+pos_inds = np.arange(8)
+X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole')
+decoder.get_pcc_distribution()
+s1_pcc = decoder.all_pcc
+
+# S1 with M1 silencing
+pos_inds = np.arange(8)+9+9
+X, y     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
+decoder_light  = NeuroDecoder(X, y)
+decoder_light.fit(kind='ole')
+decoder_light.get_pcc_distribution()
+s1_pcc_light = decoder_light.all_pcc
+
+fig, ax = plt.subplots(1, 1)
+bins = np.arange(0, 1, 0.005)
+ax.hist(s1_pcc, bins=bins, alpha=0.5, color='k')
+ax.hist(s1_pcc_light, bins=bins, alpha=0.5, color='b')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
