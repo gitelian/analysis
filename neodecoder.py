@@ -26,6 +26,8 @@ class NeuroDecoder(object):
         self.num_cond = len(np.unique(y))
         self.num_trials = X.shape[0]
         self.num_units  = X.shape[1]
+        self.uid        = None # will use all the data
+        self.num_runs   = 5 # number times decoder finds the best solution
 
 
 #        # sort by shank/region and then by depth
@@ -34,7 +36,7 @@ class NeuroDecoder(object):
 #        # add neo object to class instance
 #        self.neo_obj         = neo_obj
 
-    def __permute_data(self, unit_ind=None):
+    def __permute_data(self):
         '''
         permutes data in the design matrix and stimulus ID arrays
         '''
@@ -53,9 +55,8 @@ class NeuroDecoder(object):
 
 
         # select a specific unit to decode
-        if unit_ind is not None:
-            print(unit_ind)
-            self.perm_X = self.X[perm_inds, unit_ind].reshape(perm_inds.shape[0], 1)
+        if self.uid is not None:
+            self.perm_X = self.X[perm_inds, self.uid].reshape(perm_inds.shape[0], 1)
         # use all units
         else:
             self.perm_X    = self.X[perm_inds,:]
@@ -104,7 +105,6 @@ class NeuroDecoder(object):
 
         #general parameters
         self.nfolds   = nfolds
-        self.num_runs = 5
 
         # prepare data by permuting data
         # create theta array for OLE decoder
@@ -119,48 +119,58 @@ class NeuroDecoder(object):
             self.fit_ole_decoder(plot_cmat)
 
     def get_pcc_distribution(self, num_runs=500):
+        """
+        produces a distribution of PCC for the specified number of runs
+
+        After fitting the model this will use the best kappa to refit, decode,
+        and measure the PCC. All the PCCs for each run will be added to
+        NeuroDecoder.all_pcc
+        """
         self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
         self.num_runs = num_runs
         self.fit_ole_decoder()
 
-    def get_best_kappa(self, num_runs4kappa=5):
+    def get_best_kappa(self, num_kappa_runs=5):
 
+        print('-----finding optimal kappa-----')
         old_num_runs = self.num_runs
 
         self.kappa_to_try = np.arange(0, 50, 0.25)
-        self.num_runs = num_runs4kappa
+        self.num_runs = num_kappa_runs
         self.fit_ole_decoder()
         self.num_runs = old_num_runs
 
 
-    def decode_single_units(self, num_runs=100):
-        """
-        decode using data from only one unit.
-
-        Iterates through the columns (i.e. units) in the design matrix. Returns
-        the PCC distribution for each unit
-        """
-        su_pcc = list()
-        self.num_runs = num_runs
-
-        for unit_ind in range(self.num_units):
-            print('unit: {}'.format(unit_ind))
-
-            # select data from unit_ind and permute
-            self.__permute_data(unit_ind=unit_ind)
-
-            # find best kappa for unit_ind
-            self.get_best_kappa()
-
-            # run decoder to generate PCC distribution
-            self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
-            self.fit_ole_decoder(plot_cmat=True)
-            plt.title('unit: {}'.format(unit_ind))
-
-            # append PCC distribution to su_pcc list
-            su_pcc.append(self.all_pcc)
-
-        self.su_pcc = su_pcc
+# TODO figure out why this behaves weird
+#    def decode_different_units(self, num_runs=100):
+#        """
+#        decode using data from two to all units
+#
+#        Randomly selects the columns (i.e. units) in the design matrix. Returns
+#        the PCC distribution for each random sample
+#        """
+#        su_pcc = list()
+#        self.num_runs = num_runs
+#
+#        for unit_ind in range(self.num_units):
+#            print('decoding stimuli with unit: {}'.format(unit_ind))
+#
+#            # select data from unit_ind
+#            self.uid = unit_ind
+#
+#            # find best kappa for unit_ind
+#            self.get_best_kappa()
+#
+#            # run decoder to generate PCC distribution
+#            self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
+#            self.fit_ole_decoder(plot_cmat=True)
+#
+#            # append PCC distribution to su_pcc list
+#            su_pcc.append(self.all_pcc)
+#
+#        self.su_pcc     = su_pcc
+#        self.uid        = None
+#        self.best_kappa = None
 
     def fit_ole_decoder(self, plot_cmat=False):
     #(X, pos, theta, kappa_to_try, k_folds=10):
@@ -169,6 +179,7 @@ class NeuroDecoder(object):
         position using data from many single units using k-fold cross validation.
         '''
 
+        print('-----Decoding!-----')
         # initialize values used to compare and save parameters from well
         # performing decoding runs
         best_pcc       = 0
@@ -178,6 +189,7 @@ class NeuroDecoder(object):
 
         all_kappas = list()
         all_pcc    = list()
+        all_cmats  = list() # collect all the mean cmats and average them together to get a cmat for all runs
 
         # theta will be a matrix is used for temporal decoding. theta_k is the mean
         # value of each unique von misses function
@@ -197,7 +209,6 @@ class NeuroDecoder(object):
                 cmats      = list()
                 pcc        = list()
                 y          = self.__basis_vals(kappa, self.perm_theta, theta_k)
-                pred_error = list()
 
                 # perform k-fold cross-validation for the current value of kappa
                 # save the parameters for the best performing model
@@ -221,7 +232,6 @@ class NeuroDecoder(object):
                         error    = self.__predict_error(self.y[test_ind], stim_ind)
 
                         ypred.append(stim_ind)
-                        pred_error.append(error)
 
                     ypred = np.asarray(ypred)
 
@@ -251,6 +261,7 @@ class NeuroDecoder(object):
                 # cmats and mean_pcc get overwritten with ever iteration of the C parameter
                 cmats = np.array(cmats)
                 cmean = cmats.mean(axis=0)
+                all_cmats.append(cmean) # collect all cmats for all runs
                 # ma
 
                 # Compute the mean percent correct
@@ -274,7 +285,6 @@ class NeuroDecoder(object):
                     best_cmat      = cmean
                     best_weights   = mean_weights
                     best_intercept = mean_intercept
-                    best_error     = pred_error
             # END kappa for loop
 
         # Print best percent correct and plot confusion matrix
@@ -282,7 +292,7 @@ class NeuroDecoder(object):
 
         if plot_cmat == True:
             plt.figure()
-            plt.imshow(best_cmat,vmin=0,vmax=1,interpolation='none',cmap='afmhot')
+            plt.imshow(best_cmat, vmin=0, vmax=1, interpolation='none', cmap='afmhot')
             plt.title('PCC: ' + "{:.2f}".format(best_pcc))
             plt.colorbar()
             plt.show()
@@ -290,13 +300,13 @@ class NeuroDecoder(object):
 
         self.best_pcc   = best_pcc
         self.best_kappa = best_kappa
-        self.cmat       = best_cmat
+        self.best_cmat  = best_cmat
         self.w          = best_weights
         self.best_intercept = mean_intercept
 
         self.all_kappas = all_kappas
         self.all_pcc    = all_pcc
-        self.best_error = best_error
+        self.cmat       = np.mean(np.asarray(all_cmats), axis=0)
 
         bar.finish()
 
@@ -506,35 +516,6 @@ def psth_decoder(X):
 
     return cmat
 
-def get_single_unit_matrix(bin_mat_list, unit=0):
-
-    num_trials = bin_mat_list[0].shape[2]
-    num_bins   = bin_mat_list[0].shape[1]
-    num_pos    = len(bin_mat_list)
-    data_mat   = np.zeros((num_trials, num_bins, num_pos))
-
-    for i in range(num_pos):
-        data = bin_mat_list[i][unit, :, :].T # unit, bins, trials (transpose to get trials x bins)
-        data_mat[:,:,i] = data
-
-    return data_mat
-
-def get_single_neuron_bin_data(mat_list,unit_ind=0):
-    num_pos = len(mat_list)
-    unit_data = list()
-    pos_vect = list()
-    for pos in range(num_pos):
-        if pos == 0:
-            unit_data = mat_list[pos][unit_ind,:,:].T
-            pos_vect = np.ones((mat_list[pos].shape[2],1))*pos
-        else:
-            unit_data = np.concatenate((unit_data,mat_list[pos][unit_ind,:,:].T),axis=0)
-            pos_vect = np.concatenate((pos_vect,np.ones((mat_list[pos].shape[2],1))*pos),axis=0)
-
-    permuted_inds = np.random.permutation(unit_data.shape[0])
-    perm_unit_data = unit_data[permuted_inds,:]
-    perm_pos_vect  = pos_vect[permuted_inds,:]
-    return perm_unit_data, perm_pos_vect
 
 def gen_fake_data_multiunit(num_trials=100,num_pos=7,bin_size=0.100,trial_duration=1.0,control_pos=True):
 
@@ -1079,7 +1060,7 @@ m1_pcc_light = decoder_light.all_pcc
 
 # S1 distribution code test
 pos_inds = np.arange(8)
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 decoder.get_pcc_distribution(num_runs=num_runs)
@@ -1087,7 +1068,7 @@ s1_pcc = decoder.all_pcc
 
 # S1 with M1 silencing
 pos_inds = np.arange(8)+9+9
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder_light  = NeuroDecoder(X, y)
 decoder_light.fit(kind='ole')
 decoder_light.get_pcc_distribution(num_runs=num_runs)
@@ -1125,8 +1106,10 @@ ax[1].set_xlabel('Percent Correct Classified')
 # S1 no light
 pos_inds = np.arange(8)
 X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+#X = X[:, 3:6]
 decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole')
+decoder.fit(kind='ole', plot_cmat=True)
+
 decoder.decode_single_units()
 
 group_names = tuple([str(x) for x in uinds])
