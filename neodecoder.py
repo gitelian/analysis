@@ -104,12 +104,8 @@ class NeuroDecoder(object):
             kappa_to_try = None
 
         #general parameters
-        self.nfolds   = nfolds
-
-        # prepare data by permuting data
-        # create theta array for OLE decoder
+        self.nfolds       = nfolds
         self.decoder_type = kind
-        self.__permute_data()
 
         # use k-fold cross-validation to fit decoders and generate initial
         # confusion matrices
@@ -140,37 +136,13 @@ class NeuroDecoder(object):
         self.fit_ole_decoder()
         self.num_runs = old_num_runs
 
-
-# TODO figure out why this behaves weird
-#    def decode_different_units(self, num_runs=100):
-#        """
-#        decode using data from two to all units
-#
-#        Randomly selects the columns (i.e. units) in the design matrix. Returns
-#        the PCC distribution for each random sample
-#        """
+    def decode_subset(self, n=5):
+        """
+        use only a random subset on units to decode
+        """
 #        su_pcc = list()
-#        self.num_runs = num_runs
-#
-#        for unit_ind in range(self.num_units):
-#            print('decoding stimuli with unit: {}'.format(unit_ind))
-#
-#            # select data from unit_ind
-#            self.uid = unit_ind
-#
-#            # find best kappa for unit_ind
-#            self.get_best_kappa()
-#
-#            # run decoder to generate PCC distribution
-#            self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
-#            self.fit_ole_decoder(plot_cmat=True)
-#
-#            # append PCC distribution to su_pcc list
 #            su_pcc.append(self.all_pcc)
-#
 #        self.su_pcc     = su_pcc
-#        self.uid        = None
-#        self.best_kappa = None
 
     def fit_ole_decoder(self, plot_cmat=False):
     #(X, pos, theta, kappa_to_try, k_folds=10):
@@ -1127,12 +1099,16 @@ decoder_light.fit(kind='ole')
 
 
 
+##### plot depth histograms of RS cells
+##### plot depth histograms of RS cells
 
+neuro.depths = np.array(neuro.depths)
 
-
-
-
-
+fig, ax = plt.subplots(1, 2)
+# m1
+ax[0].hist(neuro.depths[np.logical_and( neuro.shank_ids == 0, neuro.cell_type =='RS')], bins=np.arange(0, 1000, 50), alpha=0.5, color='k')
+# s1
+ax[1].hist(neuro.depths[np.logical_and( neuro.shank_ids == 1, neuro.cell_type =='RS')], bins=np.arange(0, 1000, 50), alpha=0.5, color='r')
 
 
 

@@ -189,7 +189,7 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # then look at things as a function of depth.
 
 fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336','1338', '1339', '1340', '1343']
-fids = ['1336','1338', '1339', '1340', '1343']
+fids = ['1336','1338', '1339', '1340', '1343', '1345']
 
 #fids = ['1302', '1318', '1330']
 #fids = ['1336', '1338', '1339']
@@ -207,7 +207,42 @@ for fid in fids:
     del manager
     experiments.append(neuro)
 
-# create arrays and lists for concatenating specified data from all experiments
+##### multiple experiment optogenetic analysis #####
+##### multiple experiment optogenetic analysis #####
+
+change = list()
+cell_type= list()
+fid_list = list()
+
+# m1 analysis
+for k, neuro in enumerate(experiments):
+    # calculate measures that weren't calculated at init
+    neuro.reclassify_units()
+
+    for uind in range(neuro.num_units):
+        if neuro.shank_ids[uind] == 1:
+            #best_contact = neuro.best_contact[uind]
+            abs_rate_light   = neuro.abs_rate[best_contact+9+9][:, uind].mean()
+            abs_rate_nolight = neuro.abs_rate[best_contact][:, uind].mean()
+
+            temp = (abs_rate_light - abs_rate_nolight) / (abs_rate_light + abs_rate_nolight)
+            change.append(temp)
+            #change.append(abs_rate_light/abs_rate_nolight*100)
+            cell_type.append(neuro.cell_type[uind])
+            fid_list.append(fids[k])
+
+
+
+df = pd.DataFrame({'fid': fid_list, 'cell_type': cell_type, 'change': change})
+#df = df.set_index('fid')
+sns.set_color_codes()
+plt.figure()
+#sns.boxplot(x="fid", y="change", hue="cell_type", data=df, palette=['b', 'r'])
+sns.boxplot(x="fid", y="change", hue="cell_type", data=df, palette={"RS":'b', "FS":'r'})
+
+
+##### create arrays and lists for concatenating specified data from all experiments #####
+##### create arrays and lists for concatenating specified data from all experiments #####
 region      = np.empty((1, ))
 depths      = np.empty((1, ))
 cell_type   = list()
@@ -407,10 +442,10 @@ ax[1][1].set_ylabel('M1 Silencing')
 ax[1][1].plot([0, 1], [0, 1], 'k')
 
 ###### Plot selectivity by depth
-#fig, ax = plt.subplots(1, 1, figsize=(8,8))
-#ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
-#ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
-#ax.set_ylim(0, 1100)
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
+ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
+ax.set_ylim(0, 1100)
 
 
 ###### Plot preferred position scatter #####
@@ -988,7 +1023,7 @@ with PdfPages(fig_dir + 'all_RS_unit_summaries.pdf') as pdf:
                 ax1 = plt.subplot2grid((5,3), (0,0), colspan=1, rowspan=1)
                 ax2 = plt.subplot2grid((5,3), (0,1), colspan=1, rowspan=1)
                 ax3 = plt.subplot2grid((5,3), (0,2), colspan=1, rowspan=1)
-                = plt.subplot2grid((5,3), (1,0), colspan=2, rowspan=2)
+                ax4 = plt.subplot2grid((5,3), (1,0), colspan=2, rowspan=2)
                 ax5 = plt.subplot2grid((5,3), (1,2), colspan=1, rowspan=1)
                 ax6 = plt.subplot2grid((5,3), (2,2), colspan=1, rowspan=1)
                 ax7 = plt.subplot2grid((5,3), (3,0), colspan=2, rowspan=2)
@@ -1095,6 +1130,78 @@ with PdfPages(fig_dir + 'all_RS_unit_summaries.pdf') as pdf:
 
             unit_count += 1
 
+
+
+
+
+# M1 analysis
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+# absolute firing rates
+# how fast do M1 units fire and how much do they change with touch?
+bins = np.arange(0, 40, 2)
+g = sns.jointplot(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, best_pos[s1_inds], 0],\
+        size=5, ratio=3,\
+        marginal_kws=dict(bins=bins, rug=True))
+g.ax_joint.set_xlim(0, 50)
+g.ax_joint.set_ylim(0, 50)
+g.ax_joint.plot([0,50], [0, 50], '--k')
+
+z, p = sp.stats.wilcoxon(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, best_pos[s1_inds], 0])
+
+# evoked rate at best position histogram
+# how much do units change their firing rates?
+
+bins = np.arange(0, 40, 2)
+fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={"height_ratios":(0.15, 0.85)})
+sns.boxplot(evk_rate[s1_inds, best_pos[s1_inds], 0], ax=ax[0])
+ax[1].hist(evk_rate[s1_inds, best_pos[s1_inds], 0], normed_hist=True, bins=bins)
+
+sns.despine(ax=ax[0], left=True)
+sns.despine(ax=ax[1])
+
+ax[1].set_xlabel('Evoked firing rate (Hz)')
+ax[1].set_ylabel('Probability density')
+fig.suptitle('Evoked firing rate at best positions')
+
+
+
+# absolute and evoked rates with silencing
+# how does silencing S1 change the firing rates in M1?
+pos_inds = best_pos[s1_inds]
+
+fig, ax = plt.subplots(1, 2, figsize=(10,4))
+fig.suptitle("Best contact position\nM1 RS unit's firing rates")
+ax[0].scatter(abs_rate[s1_inds, pos_inds, 0], abs_rate[s1_inds, pos_inds+9+9, 0])
+ax[0].set_xlim(0, 50)
+ax[0].set_ylim(0, 50)
+ax[0].plot([0, 50], [0, 50], '--k')
+ax[0].set_title('M1 absolute rates')
+ax[0].set_xlabel('No light')
+ax[0].set_ylabel('S1 silencing')
+
+ax[1].scatter(evk_rate[s1_inds, pos_inds, 0], evk_rate[s1_inds, pos_inds+9+9, 0])
+ax[1].set_xlim(0, 30)
+ax[1].set_ylim(0, 30)
+ax[1].plot([0, 30], [0, 30], '--k')
+ax[1].set_title('M1 evoked rates')
+ax[1].set_xlabel('No light')
+ax[1].set_ylabel('S1 silencing')
+
+
+z, p = sp.stats.wilcoxon(evk_rate[s1_inds, pos_inds, 0], evk_rate[s1_inds, pos_inds+9+9, 0])
+
+
+# histogram of change in firing rates
+delta = evk_rate[s1_inds, pos_inds+9+9, 0] - evk_rate[s1_inds, pos_inds, 0]
+bins = np.arange(-20, 0, 2)
+fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={"height_ratios":(0.15, 0.85)})
+
+sns.boxplot(delta, ax=ax[0])
+ax[1].hist(delta, bins=bins, color='b', normed=True)
+sns.despine(ax=ax[0], left=True)
+sns.despine(ax=ax[1])
 
 
 

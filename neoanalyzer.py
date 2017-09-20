@@ -108,7 +108,7 @@ class NeuroAnalyzer(object):
         self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
-        self.__trim_lfp()
+#        self.__trim_lfp()
 
         # return a list with the number of good trials for each stimulus condition
         self.get_num_good_trials()
