@@ -23,18 +23,11 @@ class NeuroDecoder(object):
         # Add design matrix and position data to the class
         self.X = X
         self.y = y - np.min(y) #must start with stimulus ID of zero
-        self.num_cond = len(np.unique(y))
+        self.num_cond   = len(np.unique(y))
         self.num_trials = X.shape[0]
         self.num_units  = X.shape[1]
         self.uid        = None # will use all the data
-        self.num_runs   = 5 # number times decoder finds the best solution
-
-
-#        # sort by shank/region and then by depth
-#        self.__sort_units(neo_obj)
-#
-#        # add neo object to class instance
-#        self.neo_obj         = neo_obj
+        self.num_runs   = 5 # number times decoder finds the best solution by iterating through different kappas
 
     def __permute_data(self):
         '''
@@ -44,108 +37,20 @@ class NeuroDecoder(object):
         perm_inds = np.random.permutation(self.num_trials)
 
         if self.decoder_type == 'ole':
-            # map linear positions to circular positions
-            # That is, scale values to be between 0 and 2pi.
-            step_size       = 2*np.pi/self.num_cond
-            self.theta      = self.y*step_size
             self.perm_theta = self.theta[perm_inds]
 
-        # else: do nothing for now
-
-
-
-        # select a specific unit to decode
-        if self.uid is not None:
-            self.perm_X = self.X[perm_inds, self.uid].reshape(perm_inds.shape[0], 1)
+        # select a subset of units to decode
+        if self.uids is not None:
+            perm_X_temp = self.X[perm_inds, :]
+            self.perm_X = perm_X_temp[:, self.uids].reshape(perm_inds.shape[0], self.uids.shape[0])
         # use all units
         else:
             self.perm_X    = self.X[perm_inds,:]
 
+        # permute the stimulus IDs
         self.perm_y    = self.y[perm_inds]
 
-    def fit(self, kind='ole', nfolds=5, kappa_to_try=None, plot_cmat=False):
-        """
-        fit the specified decoder to the data and specify number of folds
-
-        This fits the specified neural decoder and performs k-fold
-        cross-validation to the data. The mean confusion matrix and model
-        weights will be added to the class, use dot notation to access them.
-
-        Parameters
-        __________
-        kind: string
-            specify whether to use an optimal linear estimator ('ole') or
-            logistic regression ('lr')
-        nfolds: int
-            how many k-folds to use
-        kappa_to_try: array like
-            values of kappa to try when using OLE decoder
-            Leave set to None when using logistic regression
-        """
-
-        # check inputs
-        # OLE parameters
-        if kind == 'ole' and kappa_to_try is not None:
-            print('using optimal linear estimator')
-            self.kappa_to_try = np.asarray(kappa_to_try)
-
-        elif kind == 'ole' and kappa_to_try is None:
-            print('optimal linear estimator selected but kappa_to_try is None\
-                    \nusing default values for kappa: range(0, 100, 1)')
-            self.kappa_to_try = np.arange(0, 50, 0.25)
-
-        # logistic regression parameters
-        elif kind == 'lr' and kappa_to_try is None:
-            print('using logistic regression')
-
-        elif kind == 'lr' and kappa_to_try is not None:
-            print('logistic regression selected but kappa_to_try is not None\
-                    \nsetting kappa_to_try to None')
-            kappa_to_try = None
-
-        #general parameters
-        self.nfolds       = nfolds
-        self.decoder_type = kind
-
-        # use k-fold cross-validation to fit decoders and generate initial
-        # confusion matrices
-
-        if self.decoder_type == 'ole':
-            print('fitting OLE decoder')
-            self.fit_ole_decoder(plot_cmat)
-
-    def get_pcc_distribution(self, num_runs=500):
-        """
-        produces a distribution of PCC for the specified number of runs
-
-        After fitting the model this will use the best kappa to refit, decode,
-        and measure the PCC. All the PCCs for each run will be added to
-        NeuroDecoder.all_pcc
-        """
-        self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
-        self.num_runs = num_runs
-        self.fit_ole_decoder()
-
-    def get_best_kappa(self, num_kappa_runs=5):
-
-        print('-----finding optimal kappa-----')
-        old_num_runs = self.num_runs
-
-        self.kappa_to_try = np.arange(0, 50, 0.25)
-        self.num_runs = num_kappa_runs
-        self.fit_ole_decoder()
-        self.num_runs = old_num_runs
-
-    def decode_subset(self, n=5):
-        """
-        use only a random subset on units to decode
-        """
-#        su_pcc = list()
-#            su_pcc.append(self.all_pcc)
-#        self.su_pcc     = su_pcc
-
     def fit_ole_decoder(self, plot_cmat=False):
-    #(X, pos, theta, kappa_to_try, k_folds=10):
         '''
         Use optimal linear estimation (OLE) to model the instantaneous stimulus
         position using data from many single units using k-fold cross validation.
@@ -201,7 +106,6 @@ class NeuroDecoder(object):
                     for test_ind in range(Xtest.shape[0]):
                         # iterate through all test trials and predict position
                         stim_ind = self.__predict_stimulus(Xtest[test_ind, :], kappa, theta_k, W)
-                        error    = self.__predict_error(self.y[test_ind], stim_ind)
 
                         ypred.append(stim_ind)
 
@@ -292,7 +196,7 @@ class NeuroDecoder(object):
 
 
         Parameters
-            __________
+        __________
 
         theta: array or single value
             Theta is a tx1 array of stimulus values. That is, theta is an array
@@ -322,15 +226,32 @@ class NeuroDecoder(object):
         return B
 
     def __predict_stimulus(self, data, kappa, theta_k, W):
+        """
+        Predict the stimulus from single trial data
 
-    #ypred.append( self.__predict_stimulus(Xtest[test_ind,:], kappa, theta_k, W) )
-        # Make sure data is a 1xn vector (n: number of neurons)
-        # W is the weight matrix of size nxk (k: number of conditions/von_mises
-        # functions)
+        Parameters
+        __________
 
-        # for every stimulus conditions evaluate theta hat (the data (matrix) x
-        # weights (matrix) from regression x the values of the evaluated basis
-        # functions (vector 1xk))
+        data: array
+            firing rates for each unit for a single trial
+        kappa: float
+            The kappa value for the von Mises functions
+        theta_k: array
+            theta_k is a kx1 array of coefficients for the von mises basis
+            functions. Each stimulus condition has its own von mises function
+            and therefor has a corresponding coefficient
+        W: array
+            weights for the fitted model
+
+        General notes:
+        Make sure data is a 1xn vector (n: number of neurons)
+        W is the weight matrix of size nxk (k: number of conditions/von_mises
+        functions)
+
+        For every stimulus conditions evaluate theta hat (the data (matrix) x
+        weights (matrix) from regression x the values of the evaluated basis
+        functions (vector 1xk))
+        """
 
         theta_val_mat = np.zeros((theta_k.shape[0], 2))
         for row, theta in enumerate(theta_k):
@@ -344,19 +265,133 @@ class NeuroDecoder(object):
         #print('predicted condition: ' + str(max_ind))
         return max_ind
 
-    def __predict_error(self, y, ypred):
-        '''
-        calculates the error between the predicted stimulus and actual
+    ##### Methods the user can call #####
+    ##### Methods the user can call #####
 
-        The error is the absolute distance between the predicted stimulus
-        index and the actual stimulus index. This assumes that the stimuli
-        are physical locations
-        '''
+    def fit(self, kind='ole', nfolds=5, kappa_to_try=None, plot_cmat=False, run=True):
+        """
+        fit the specified decoder to the data and specify number of folds
 
-        error  = np.abs(y - ypred)
+        This fits the specified neural decoder and performs k-fold
+        cross-validation to the data. The mean confusion matrix and model
+        weights will be added to the class, use dot notation to access them.
 
-        return error
+        Parameters
+        __________
+        kind: string
+            specify whether to use an optimal linear estimator ('ole') or
+            logistic regression ('lr')
+        nfolds: int
+            how many k-folds to use
+        kappa_to_try: array like
+            values of kappa to try when using OLE decoder
+            Leave set to None when using logistic regression
+        plot_cmat: boolean
+            whether to plot the mean confusion matrix after fitting
+        run: boolean
+            will actually fit the model. Other functions will use 'fit' to set
+            parameters without having to run the model
+        """
 
+        # check inputs
+        # OLE parameters
+        if kind == 'ole' and kappa_to_try is not None:
+            print('using optimal linear estimator')
+            self.kappa_to_try = np.asarray(kappa_to_try)
+
+        elif kind == 'ole' and kappa_to_try is None:
+            print('optimal linear estimator selected but kappa_to_try is None\
+                    \nusing default values for kappa: range(0, 100, 1)')
+            self.kappa_to_try = np.arange(0, 50, 0.25)
+
+        # logistic regression parameters
+        elif kind == 'lr' and kappa_to_try is None:
+            print('using logistic regression')
+
+        elif kind == 'lr' and kappa_to_try is not None:
+            print('logistic regression selected but kappa_to_try is not None\
+                    \nsetting kappa_to_try to None')
+            kappa_to_try = None
+
+        #general parameters
+        self.nfolds       = nfolds
+        self.decoder_type = kind
+
+        # use k-fold cross-validation to fit decoders and generate initial
+        # confusion matrices
+
+        if self.decoder_type == 'ole':
+            print('fitting OLE decoder')
+
+            # map linear positions to circular positions
+            # That is, scale values to be between 0 and 2pi.
+            step_size  = 2*np.pi/self.num_cond
+            self.theta = self.y*step_size
+
+            # fit the decoder (finds the kappa that produces the best decoding)
+            if run:
+                self.fit_ole_decoder(plot_cmat)
+
+    def get_pcc_distribution(self, num_runs=500):
+        """
+        produces a distribution of PCC for the specified number of runs
+
+        After fitting the model this will use the best kappa to refit, decode,
+        and measure the PCC. All the PCCs for each run will be added to
+        NeuroDecoder.all_pcc
+        """
+
+        # this can only be run after the model is fit
+        if hasattr(self, 'best_kappa'):
+            self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
+            self.num_runs = num_runs
+            self.fit_ole_decoder()
+        else:
+            print('You must fit the model before creating a PCC distribution')
+
+    def decode_subset(self, niter=10):
+        """
+        use only a random subset on units to decode
+
+        Parameters
+        ----------
+
+        niter: int
+            number of iterations per subset
+        """
+        if not hasattr(self, 'theta'):
+            print('must fit model to set parameters first\nyou can use fit with "run=False" so it only sets parameters.')
+        pcc_array = np.zeros((niter, self.num_units - 1))
+
+        subset_size = np.arange(2, self.num_units)
+        for nsize in subset_size:
+            print('\n##### Using subset size: {} #####'.format(nsize))
+
+            for m in range(niter):
+                # select subset of units, no repeats, and in order from least to greatest
+                self.uids = np.sort(np.random.choice(self.num_units, nsize, replace=False))
+
+                # fit model with new subset and find best kappa
+                self.num_runs = 5
+                self.fit_ole_decoder()
+                self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
+
+                # compute mean pcc for this subset and best kappa
+                self.num_runs = 100
+                self.fit_ole_decoder()
+
+                pcc_array[m, nsize] = np.mean(self.all_pcc)
+
+        self.pcc_array =  pcc_array
+
+# M1
+pos_inds = np.arange(8)
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole', run=False)
+decoder.decode_subset()
+mean_pcc = decoder.pcc_array.mean(axis=0)
+std_pcc  = decoder.pcc_array.std(axis=0)
 
 ##### scratch space #####
 ##### scratch space #####
