@@ -409,6 +409,24 @@ m1_pcc_array = decoder.decode_subset()
 m1_mean_pcc  = pcc_array.mean(axis=0)
 m1_std_pcc   = pcc_array.std(axis=0)
 
+# M1 S1 light
+pos_inds = np.arange(8)+9
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole', run=False)
+s1_light_pcc_array = decoder.decode_subset()
+s1_light_mean_pcc  = pcc_array.mean(axis=0)
+s1_light_std_pcc   = pcc_array.std(axis=0)
+
+
+
+plt.figure()
+plt.errorbar(np.arange(2, m1_mean_pcc.shape[0]+2), m1_mean_pcc, yerr=m1_std_pcc,\
+        marker='o', markersize=6.0, linewidth=2, color='k')
+plt.errorbar(np.arange(2, s1_mean_pcc.shape[0]+2), s1_light_mean_pcc, yerr=s1_light_std_pcc,\
+        marker='o', markersize=6.0, linewidth=2, color='r')
+plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
+plt.xlim(1.5, 18.5)
 ###################################################################
 ###################################################################
 
@@ -452,25 +470,6 @@ for x in range(10):
 
 ###################################################################
 ###################################################################
-
-# M1 S1 light
-pos_inds = np.arange(8)+9
-X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole', run=False)
-s1_light_pcc_array = decoder.decode_subset()
-s1_light_mean_pcc  = pcc_array.mean(axis=0)
-s1_light_std_pcc   = pcc_array.std(axis=0)
-
-
-
-plt.figure()
-plt.errorbar(np.arange(2, m1_mean_pcc.shape[0]+2), m1_mean_pcc, yerr=m1_std_pcc,\
-        marker='o', markersize=6.0, linewidth=2, color='k')
-plt.errorbar(np.arange(2, s1_mean_pcc.shape[0]+2), s1_light_mean_pcc, yerr=s1_light_std_pcc,\
-        marker='o', markersize=6.0, linewidth=2, color='r')
-plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
-plt.xlim(1.5, 18.5)
 
 ##### scratch space #####
 ##### scratch space #####
