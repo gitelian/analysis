@@ -400,147 +400,6 @@ class NeuroDecoder(object):
 
         return pcc_array
 
-# M1
-pos_inds = np.arange(8)
-X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole', run=False)
-m1_pcc_array = decoder.decode_subset()
-m1_mean_pcc  = pcc_array.mean(axis=0)
-m1_std_pcc   = pcc_array.std(axis=0)
-
-# M1 S1 light
-pos_inds = np.arange(8)+9
-X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole', run=False)
-s1_light_pcc_array = decoder.decode_subset()
-s1_light_mean_pcc  = pcc_array.mean(axis=0)
-s1_light_std_pcc   = pcc_array.std(axis=0)
-
-
-
-plt.figure()
-plt.errorbar(np.arange(2, m1_mean_pcc.shape[0]+2), m1_mean_pcc, yerr=m1_std_pcc,\
-        marker='o', markersize=6.0, linewidth=2, color='k')
-plt.errorbar(np.arange(2, s1_mean_pcc.shape[0]+2), s1_light_mean_pcc, yerr=s1_light_std_pcc,\
-        marker='o', markersize=6.0, linewidth=2, color='r')
-plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
-plt.xlim(1.5, 18.5)
-###################################################################
-###################################################################
-
-import multiprocessing as mp
-
-def run_decoder_in_parallel(x, X, y, num_samples):
-    rand_inds = np.sort(np.random.choice(X.shape[1], num_samples, replace=False))
-    decoder = NeuroDecoder(X[:, rand_inds], y)
-    print(mp.active_children())
-    return rand_inds
-#    decoder.fit(kind='ole')
-#    decoder.get_pcc_distribution()
-#    all_pcc = decoder.all_pcc
-#    return np.mean(all_pcc)
-
-num_samples = 3
-pool = mp.Pool(processes=8)
-results = [pool.apply(run_decoder_in_parallel, args=(X, y, num_samples,)) for k in range(10)]
-
-
-import multiprocessing as mp
-def myfun_test(x):
-    time.sleep(1)
-    return x
-num_samples = 3
-pool = mp.Pool(processes=8)
-results = [pool.apply(myfun_test, args=(x,) ) for x in np.arange(1,8)]
-
-import multiprocessing as mp
-p = mp.Pool(4)
-import time
-p.apply_async(time.sleep, 20)
-
-num_samples = 3
-for x in range(10):
-    rand_inds = np.sort(np.random.choice(X.shape[1], num_samples, replace=False))
-    decoder = NeuroDecoder(X[:, rand_inds], y)
-    decoder.fit(kind='ole')
-    decoder.get_pcc_distribution()
-    all_pcc = decoder.all_pcc
-
-###################################################################
-###################################################################
-
-##### scratch space #####
-##### scratch space #####
-
-# M1
-pos_inds = np.arange(8)
-X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole')
-m1_cmat = decoder.cmat
-m1_pcc  = decoder.best_pcc
-
-# S1
-pos_inds = np.arange(8)
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole')
-s1_cmat = decoder.cmat
-s1_pcc  = decoder.best_pcc
-all_kappas = decoder.all_kappas
-all_pcc    = decoder.all_pcc
-
-# M1 + S1 light
-pos_inds = np.arange(8)+9
-X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole')
-m1L_cmat = decoder.cmat
-m1L_pcc  = decoder.best_pcc
-
-# S1 + M1 light
-pos_inds = np.arange(8)+9+9
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole')
-s1L_cmat = decoder.cmat
-s1L_pcc  = decoder.best_pcc
-
-##### plot scatter plot
-fig, ax = plt.subplots(1, 1)
-ax.scatter(all_kappas, all_pcc, s=1.0)
-
-##### plot confusion matrices
-
-fig, ax = plt.subplots(2, 2)
-cmap ='afmhot' # 'inferno' 'afmhot', 'hot'
-vmax = 0.7
-#vmax = np.max(np.asarray([m1_cmat.ravel(), s1_cmat.ravel(), m1L_cmat.ravel(), s1L_cmat.ravel()]))
-
-
-# top left M1 no light
-im = ax[0][0].imshow(m1_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
-ax[0][0].set_title('PCC: ' + "{:.2f}".format(m1_pcc*100))
-fig.colorbar(im, ax=ax[0][0])
-
-# bottom left S1 no light
-im = ax[1][0].imshow(s1_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
-ax[1][0].set_title('PCC: ' + "{:.2f}".format(s1_pcc*100))
-fig.colorbar(im, ax=ax[1][0])
-
-# top right M1 with S1 light
-im = ax[0][1].imshow(m1L_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
-ax[0][1].set_title('PCC: ' + "{:.2f}".format(m1L_pcc*100))
-fig.colorbar(im, ax=ax[0][1])
-
-# bottom right S1 with M1 light
-im = ax[1][1].imshow(s1L_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
-ax[1][1].set_title('PCC: ' + "{:.2f}".format(s1L_pcc*100))
-fig.colorbar(im, ax=ax[1][1])
-
-
 
 
 
@@ -814,293 +673,189 @@ def calc_mi(cmat):
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
     # Select which experiments to analyze
-    fids = ['0871']
-    #fids = ['1034', '1044', '1054', '1058', '1062']
-    figpath = '/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/AllTuningCurves_cmats/'
-    cell_type = list()
-    PCC_Pre = np.empty(0)
-    PCC_Post = np.empty(0)
-    GS_Pre = np.empty(0)
-    GS_Post = np.empty(0)
-    Inv_Pre = np.empty(0)
-    Inv_Post = np.empty(0)
-    Select_Pre = np.empty(0)
-    Select_Post = np.empty(0)
-    best_pcc_Pre = np.empty(0)
-    best_pcc_Post = np.empty(0)
-    pos_pred_pre = np.empty(0)
-    pos_pred_post = np.empty(0)
+##### scratch space #####
+##### scratch space #####
 
-    evoked_rate = list()
-    exp_ind     = np.empty(0) # save indices for experiments so I can index into the cmat matrices
-    pre_cmats   = np.empty((8,8))
-    post_cmats  = np.empty((8,8))
+##### performance per unit #####
+##
+# M1
+pos_inds = np.arange(8)
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole', run=False)
+m1_pcc_array = decoder.decode_subset()
+m1_mean_pcc  = m1_pcc_array.mean(axis=0)
+m1_std_pcc   = m1_pcc_array.std(axis=0)
 
-    for eind, fid in enumerate(fids):
+# M1 S1 light
+pos_inds = np.arange(8)+9
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole', run=False)
+s1_light_pcc_array = decoder.decode_subset()
+s1_light_mean_pcc  = s1_light_pcc_array.mean(axis=0)
+s1_light_std_pcc   = s1_light_pcc_array.std(axis=0)
 
-        sns.set_context("poster")
-        sns.set_style("white")
-
-        region = 'vM1'
-        usr_dir = os.path.expanduser('~')
-        sorted_spikes_dir_path = usr_dir + '/Documents/AdesnikLab/SortedSpikes/'
-        fid_region = 'fid' + fid + '_' + region
-        sort_file_paths = glob.glob(sorted_spikes_dir_path + fid_region + '*.mat')
-
-        data_dir_path = usr_dir + '/Documents/AdesnikLab/Data/'
-        data_dir_paths  = glob.glob(data_dir_path + fid + '*.dat')
-
-        # #Calculate runspeed
-        run_mat = load_run_file(data_dir_paths[0]).value
-        vel_mat, trial_time = calculate_runspeed(run_mat)
-
-        # #Plot runspeed
-        # plot_running_subset(trial_time,vel_mat,conversion=True)
-
-        # # Get stimulus id list
-        stim = load_stimsequence(data_dir_paths[0])
-
-        # # Create running trial dictionary
-        #cond_ind_dict,trials_ran_dict = classify_run_trials(stim,vel_mat,trial_time,stim_start=1.25,stim_stop=2.50,
-        #        mean_thresh=250,sigma_thresh=150,low_thresh=200,display=False)
-        # easy running thresholds
-        cond_ind_dict,trials_ran_dict = classify_run_trials(stim,vel_mat,trial_time,stim_start=1.5,stim_stop=2.50,
-                mean_thresh=150,sigma_thresh=250,low_thresh=100,display=False)
-
-        # Find the condition with the least number of trials
-        min_run_trials  = min([sum(trials_ran_dict[x]) for x in trials_ran_dict.keys()])
-
-        # Put data into a Pandas dataframe
-        df = make_df(sort_file_paths,data_dir_path,region=region)
-
-        # bin data and try to make a prediction about the stimuli
-        bin_mat_list = bin_data(df, trials_ran_dict, min_run_trials, stim_start=1.250, stim_stop=2.50, bin_size=1.250)
+plt.figure()
+plt.errorbar(np.arange(2, m1_mean_pcc.shape[0]+2), m1_mean_pcc, yerr=m1_std_pcc,\
+        marker='o', markersize=6.0, linewidth=2, color='k')
+plt.errorbar(np.arange(2, s1_light_mean_pcc.shape[0]+2), s1_light_mean_pcc, yerr=s1_light_std_pcc,\
+        marker='o', markersize=6.0, linewidth=2, color='r')
+plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
+plt.xlim(1.5, 18.5)
 
 
-#    ##### PULL OUT DATA FOR SINGLE UNIT AND RUN THROUGH OLE DECODER #####
-#        unit_data,pos_data = get_single_neuron_bin_data(bin_mat_list,unit_ind=3)
-#        pre_inds = np.where(pos_data < 9)[0]
-#        pre_unit_data = unit_data[pre_inds]
-#        pre_pos_data  = pos_data[pre_inds]
-#        X, pos, theta = reorganize_single_unit_data(pre_unit_data, pre_pos_data)
-#        kappa_to_try = np.arange(1,101,1)
-#        print('runnng ole_decoder')
-#        w, pcc = fit_ole_decoder(X, pos, theta, kappa_to_try, k_folds=10)
+## S1
 
-    ##    ##### MAKE FAKE SPIKE DATA FROM A HOMOGENOUS POISSON PROCESS #####
-    ##    bin_mat_list = gen_fake_data_multiunit(num_trials=100, num_pos=7, bin_size=1, trial_duration=1.0, control_pos=True)
-    ##    plt.figure()
-    ##    plt.imshow(np.mean(bin_mat_list[0], axis=2), interpolation='none')
-    ##    plt.show()
-    ##
-    ##    ##### END FAKE DATA BLOCK #####
+# S1
+pos_inds = np.arange(8)
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole', run=False)
+s1_pcc_array = decoder.decode_subset()
+s1_mean_pcc  = s1_pcc_array.mean(axis=0)
+s1_std_pcc   = s1_pcc_array.std(axis=0)
 
-    ##    #unit_data,pos_dat = gen_fake_data(num_trials=30,num_pos=7.0,bin_size=0.100,trial_duration=1.0,start_rate=1,stop_rate=100)
-    ##    #fit_logistic_regression(unit_data,pos_data,C_to_try=[1e-3,1e-2,1e-1,1.0],k_folds=10)
-    #
-        #wtmat = h5py.File(hsv_mat_path)
-    ##    bin_mat_list = bin_mat_list[9::]
-#        bin_mat_list = bin_mat_list[0:7]
-#        bin_mat_list = bin_mat_list[7:14]
-#        bin_mat_list = bin_mat_list[14::]
-        # reorganize data for regression
-        X,pos,theta = reorganize_bin_data(bin_mat_list)
-        kappa_to_try = np.arange(1,101,1)
-        print('runnng ole_decoder')
-        w, pcc, best_cmat = fit_ole_decoder(X, pos, theta, kappa_to_try, k_folds=10)
-        fail()
+# S1 M1 light
+pos_inds = np.arange(8)+9+9
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole', run=False)
+m1_light_pcc_array = decoder.decode_subset()
+m1_light_mean_pcc  = m1_light_pcc_array.mean(axis=0)
+m1_light_std_pcc   = m1_light_pcc_array.std(axis=0)
 
-##### ##### LOAD AND ANLYZE EVANS DATA ##### #####
-##### ##### LOAD AND ANLYZE EVANS DATA ##### #####
-#        evan_pre = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/2479pre.mat')
+plt.figure()
+plt.errorbar(np.arange(2, s1_mean_pcc.shape[0]+2), s1_mean_pcc, yerr=s1_std_pcc,\
+        marker='o', markersize=6.0, linewidth=2, color='k')
+plt.errorbar(np.arange(2, m1_light_mean_pcc.shape[0]+2), m1_light_mean_pcc, yerr=m1_light_std_pcc,\
+        marker='o', markersize=6.0, linewidth=2, color='r')
+plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
+plt.xlim(1.5, 8.5)
 
-        pre_cmat_all  = np.zeros((8, 8, 50000))
-        post_cmat_all = np.zeros((8, 8, 50000))
-        evan_post = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/3152post.mat')
-        evan_pre = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/3152pre.mat')
-        l4_pos = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/3152_150914_pos.mat')
-        for i in range(50000):
-            if i%100 == 0:
-                print('On trial: ' + str(i))
-        #    evan_pre = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/3152pre.mat')
-        #    l4_pos = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/3152_150914_pos.mat')
-            l4_pwc = l4_pos['insidePWC'][:][0]
-            pwc_inds = np.where(l4_pwc == 0)[0]
-            X_pre = evan_pre['Data'][:]
-            y_pre = evan_pre['StimID'][:]
-            contact_ind = np.where(y_pre != 0)[0]
-            X_pre = X_pre[contact_ind, :]
-            X_pre = X_pre[:, pwc_inds]
-            y_pre = y_pre[contact_ind]-1
-
-    #        evan_post = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/2479post.mat')
-            #evan_post = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/3152post.mat')
-            X_post = evan_post['Data'][:]
-            y_post = evan_post['StimID'][:]
-            contact_ind = np.where(y_post != 0)[0]
-            X_post = X_post[contact_ind, :]
-            X_post = X_post[:, pwc_inds]
-            y_post = y_post[contact_ind]-1
-            min_trials = np.min([np.min(np.histogram(y_pre, bins=np.arange(0, 9))[0]),
-                    np.min(np.histogram(y_post, bins=np.arange(0, 9))[0])])
-
-            X_pre,pos_pre,theta_pre = reorganize_evan_data(X_pre, y_pre, min_trials)
-            X_post,pos_post,theta_post = reorganize_evan_data(X_post, y_post, min_trials)
-
-    #        kappa_to_try = np.arange(1,201,1)
-    #        print('runnng ole_decoder')
-    #        w, pcc, cmat_pre = fit_ole_decoder(X_pre, pos_pre, theta_pre, kappa_to_try, k_folds=10)
+###################################################################
+###################################################################
 
 
-            X_pre = reshape_ca_design_matrix(X_pre, pos_pre, min_trials)
-            cmat_pre = psth_decoder(X_pre[0:5, :, :])
+# parallel processing sandbox
 
-            X_post = reshape_ca_design_matrix(X_post, pos_post, min_trials)
-            cmat_post = psth_decoder(X_post[0:5, :, :])
+import multiprocessing as mp
 
-            cmat_pre = cmat_pre*(1.0/cmat_pre.sum(axis=1)[:, None])
-            cmat_post = cmat_post*(1.0/cmat_post.sum(axis=1)[:, None])
-            pre_cmat_all[:,:,i] = cmat_pre
-            post_cmat_all[:,:,i] = cmat_post
-#        X_post,pos_post,theta = reorganize_evan_data(X_post, y_post)
-#        kappa_to_try = np.arange(1,201,1)
-#        print('runnng ole_decoder')
-#        w, pcc, cmat_post = fit_ole_decoder(X_post, pos_post, theta_pre, kappa_to_try, k_folds=10)
+def run_decoder_in_parallel(x, X, y, num_samples):
+    rand_inds = np.sort(np.random.choice(X.shape[1], num_samples, replace=False))
+    decoder = NeuroDecoder(X[:, rand_inds], y)
+    print(mp.active_children())
+    return rand_inds
+#    decoder.fit(kind='ole')
+#    decoder.get_pcc_distribution()
+#    all_pcc = decoder.all_pcc
+#    return np.mean(all_pcc)
 
-        cmat_pre = pre_cmat_all.mean(axis=2)
-        cmat_post = post_cmat_all.mean(axis=2)
-
-        gs_pre = calc_global_selectivity(cmat_pre)
-        inv_pre = calc_invariance(cmat_pre)
-        max_selec_pre = calc_max_selectivity(cmat_pre)
-        pcc_pre = np.diagonal(cmat_pre).sum()/cmat_pre.shape[0]*100
-        bb_pre  = np.max(np.diagonal(cmat_pre))*100
-        num_pred_pos_pre = np.sum(np.diagonal(cmat_pre) > 1.0/8.0)
-
-        gs_post = calc_global_selectivity(cmat_post)
-        inv_post = calc_invariance(cmat_post)
-        max_selec_post = calc_max_selectivity(cmat_post)
-        pcc_post = np.diagonal(cmat_post).sum()/cmat_post.shape[0]*100
-        bb_post  = np.max(np.diagonal(cmat_post))*100
-        num_pred_pos_post = np.sum(np.diagonal(cmat_post) > 1.0/8.0)
-
-        mi_pre  = calc_mi(cmat_pre/8.0)
-        mi_post = calc_mi(cmat_post/8.0)
+num_samples = 3
+pool = mp.Pool(processes=8)
+results = [pool.apply(run_decoder_in_parallel, args=(X, y, num_samples,)) for k in range(10)]
 
 
-        plt.figure()
-        plt.subplot(1,2,1)
-        plt.imshow(cmat_pre,vmin=0,vmax=1, aspect='equal', interpolation='none',cmap='hot')
-        plt.colorbar()
-        plt.title('Post-trim ' + 'PCC: ' + "{:.4f}".format(pcc_pre) + '\n'
-                + 'Global Sel: ' + "{:.4f}".format(gs_pre) + '\n'
-                + 'Mutual Info: ' + "{:.4f}".format(mi_pre))
+import multiprocessing as mp
+def myfun_test(x):
+    time.sleep(1)
+    return x
+num_samples = 3
+pool = mp.Pool(processes=8)
+results = [pool.apply(myfun_test, args=(x,) ) for x in np.arange(1,8)]
 
-        plt.subplot(1,2,2)
-        plt.imshow(cmat_post,vmin=0,vmax=1, aspect='equal', interpolation='none',cmap='hot')
-        plt.colorbar()
-        plt.title('Post-trim ' + 'PCC: ' + "{:.4f}".format(pcc_post) + '\n'
-                + 'Global Sel: ' + "{:.4f}".format(gs_post) + '\n'
-                + 'Mutual Info: ' + "{:.4f}".format(mi_post))
+import multiprocessing as mp
+p = mp.Pool(4)
+import time
+p.apply_async(time.sleep, 20)
 
-        print(np.diagonal(cmat_pre)[2:6])
-        print(np.diagonal(cmat_post)[2:6])
+num_samples = 3
+for x in range(10):
+    rand_inds = np.sort(np.random.choice(X.shape[1], num_samples, replace=False))
+    decoder = NeuroDecoder(X[:, rand_inds], y)
+    decoder.fit(kind='ole')
+    decoder.get_pcc_distribution()
+    all_pcc = decoder.all_pcc
 
-        evan_post = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/3152post.mat')
-        evan_pre = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/3152pre.mat')
-        l4_pos = h5py.File('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/3152_150914_pos.mat')
-        l4_pwc = l4_pos['insidePWC'][:][0]
+###################################################################
+###################################################################
 
-        X_pre = evan_pre['Data'][:]
-        y_pre = evan_pre['StimID'][:]
-        contact_ind = np.where(y_pre != 0)[0]
-        X_pre = X_pre[contact_ind, :]
-        y_pre = y_pre[contact_ind]-1
+##### regular decoding: find best kappa and plot confusion matrices
+##### also plot performance vs kappas tried
 
-        X_post = evan_post['Data'][:]
-        y_post = evan_post['StimID'][:]
-        contact_ind = np.where(y_post != 0)[0]
-        X_post = X_post[contact_ind, :]
-        y_post = y_post[contact_ind]-1
+# M1
+pos_inds = np.arange(8)
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole')
+m1_cmat = decoder.cmat
+m1_pcc  = decoder.best_pcc
 
-        x_coord = l4_pos['centroids'][0,:]
-        y_coord = l4_pos['centroids'][1,:]
-        for i in range(8):
-            trial_inds_pre = np.where(y_pre == i)[0]
-            deltaf_pre = X_pre[trial_inds_pre, :].mean(axis=0)*100
-            trial_inds_post = np.where(y_post == i)[0]
-            deltaf_post = X_post[trial_inds_post, :].mean(axis=0)*100
+# S1
+pos_inds = np.arange(8)
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole')
+s1_cmat = decoder.cmat
+s1_pcc  = decoder.best_pcc
+all_kappas = decoder.all_kappas
+all_pcc    = decoder.all_pcc
 
-            plt.figure()
-            plt.scatter(x_coord, y_coord, s=deltaf_pre, c='black',alpha=0.5)
-            plt.scatter(x_coord, y_coord, s=deltaf_post, c='red',alpha=0.5)
-            plt.ylim(600,0)
-            plt.title('L4 Position: ' +str(i+1))
-            plt.savefig('/home/greg/Documents/AdesnikLab/Figures/WhiskerTrim/neuro/CaImaging/L4pos' + str(i+1) + '.pdf')
+# M1 + S1 light
+pos_inds = np.arange(8)+9
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole')
+m1L_cmat = decoder.cmat
+m1L_pcc  = decoder.best_pcc
+
+# S1 + M1 light
+pos_inds = np.arange(8)+9+9
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole')
+s1L_cmat = decoder.cmat
+s1L_pcc  = decoder.best_pcc
+
+##### plot scatter plot
+fig, ax = plt.subplots(1, 1)
+ax.scatter(all_kappas, all_pcc, s=1.0)
+
+#### plot confusion matrices
+
+fig, ax = plt.subplots(2, 2)
+cmap ='afmhot' # 'inferno' 'afmhot', 'hot'
+vmax = 0.7
+#vmax = np.max(np.asarray([m1_cmat.ravel(), s1_cmat.ravel(), m1L_cmat.ravel(), s1L_cmat.ravel()]))
 
 
+# top left M1 no light
+im = ax[0][0].imshow(m1_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
+ax[0][0].set_title('PCC: ' + "{:.2f}".format(m1_pcc*100))
+fig.colorbar(im, ax=ax[0][0])
 
-##### ##### END EVANS DATA ##### #####
-##### ##### END EVANS DATA ##### #####
+# bottom left S1 no light
+im = ax[1][0].imshow(s1_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
+ax[1][0].set_title('PCC: ' + "{:.2f}".format(s1_pcc*100))
+fig.colorbar(im, ax=ax[1][0])
 
-##### ##### ANALYZE INDIVIDUAL UNITS ##### #####
-##### ##### ANALYZE INDIVIDUAL UNITS ##### #####
-#        X = np.zeros((min_run_trials, 1, 8))
-        for unit2analyze in range(df.shape[0]):
-            print('Unit: ' + str(unit2analyze))
-            #unit2analyze = 31
-            bin_mat_list = bin_data(df, trials_ran_dict, min_run_trials, stim_start=1.5, stim_stop=2.50, bin_size=1.0)
-            if np.max(em[unit2analyze][0:8]) > 1.75:
-                bin_mat_list_pre = bin_mat_list[0:8]
-    #            unit_data_pre, pos_data_pre = get_single_neuron_bin_data(bin_mat_list_pre,unit_ind=unit2analyze)
-    #            best_cmat_pre, c_pre  = fit_logistic_regression(unit_data_pre, pos_data_pre, C_to_try=[1e-3,1e-2,1e-1,1.0], k_folds=10)
-                X = get_single_unit_matrix(bin_mat_list_pre, unit=unit2analyze)
-                best_cmat_pre = psth_decoder(X)
+# top right M1 with S1 light
+im = ax[0][1].imshow(m1L_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
+ax[0][1].set_title('PCC: ' + "{:.2f}".format(m1L_pcc*100))
+fig.colorbar(im, ax=ax[0][1])
 
-                best_cmat_pre = best_cmat_pre*(1.0/best_cmat_pre.sum(axis=1)[:, None])
-                gs_pre = calc_global_selectivity(best_cmat_pre)
-                inv_pre = calc_invariance(best_cmat_pre)
-                max_selec_pre = calc_max_selectivity(best_cmat_pre)
-                pcc_pre = np.diagonal(best_cmat_pre).sum()/best_cmat_pre.shape[0]*100
-                bb_pre  = np.max(np.diagonal(best_cmat_pre))*100
-                num_pred_pos_pre = np.sum(np.diagonal(best_cmat_pre) > 1.0/8.0)
-
-                bin_mat_list_post = bin_mat_list[9:-1]
-                #unit_data_post, pos_data_post = get_single_neuron_bin_data(bin_mat_list_post,unit_ind=unit2analyze)
-                #best_cmat_post, c_post = fit_logistic_regression(unit_data_post, pos_data_post, C_to_try=[1e-3,1e-2,1e-1,1.0], k_folds=10)
-                X = get_single_unit_matrix(bin_mat_list_post, unit=unit2analyze)
-                best_cmat_post = psth_decoder(X)
-
-                best_cmat_post = best_cmat_post*(1.0/best_cmat_post.sum(axis=1)[:, None])
-                gs_post = calc_global_selectivity(best_cmat_post)
-                inv_post = calc_invariance(best_cmat_post)
-                max_selec_post = calc_max_selectivity(best_cmat_post)
-                pcc_post = np.diagonal(best_cmat_post).sum()/best_cmat_post.shape[0]*100
-                bb_post  = np.max(np.diagonal(best_cmat_post))*100
-                num_pred_pos_post = np.sum(np.diagonal(best_cmat_post) > 1.0/8.0)
-
-                GS_Pre        = np.append(GS_Pre, gs_pre)
-                GS_Post       = np.append(GS_Post, gs_post)
-                Inv_Pre       = np.append(Inv_Pre, inv_pre)
-                Inv_Post      = np.append(Inv_Post, inv_post)
-                Select_Pre    = np.append(Select_Pre, max_selec_pre)
-                Select_Post   = np.append(Select_Post, max_selec_post)
-                PCC_Pre       = np.append(PCC_Pre, pcc_pre)
-                PCC_Post      = np.append(PCC_Post, pcc_post)
-                best_pcc_Pre  = np.append(best_pcc_Pre, bb_pre)
-                best_pcc_Post = np.append(best_pcc_Post, bb_post)
-                pos_pred_pre  = np.append(pos_pred_pre, num_pred_pos_pre)
-                pos_pred_post = np.append(pos_pred_post, num_pred_pos_post)
+# bottom right S1 with M1 light
+im = ax[1][1].imshow(s1L_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
+ax[1][1].set_title('PCC: ' + "{:.2f}".format(s1L_pcc*100))
+fig.colorbar(im, ax=ax[1][1])
 
 
 
 
-
-
-
-# how to make a simple text progress bar
+##### how to make a simple text progress bar
+##### how to make a simple text progress bar
 
 #import time
 #import sys
@@ -1186,42 +941,7 @@ ax[1].set_xlabel('Percent Correct Classified')
 
 ##### compute distributions of PCC for single units
 ##### compute distributions of PCC for single units
-
-
-# S1 no light
-pos_inds = np.arange(8)
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-#X = X[:, 3:6]
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole', plot_cmat=True)
-
-decoder.decode_single_units()
-
-group_names = tuple([str(x) for x in uinds])
-no_light_means = [np.mean(x) for x in decoder.su_pcc]
-no_light_std   = [np.std(x) for x in decoder.su_pcc]
-
-# S1 + M1 silencing
-pos_inds = np.arange(8)+9+9
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
-decoder_light  = NeuroDecoder(X, y)
-decoder_light.fit(kind='ole')
-
-
-
-
-
-
-##### plot depth histograms of RS cells
-##### plot depth histograms of RS cells
-
-neuro.depths = np.array(neuro.depths)
-
-fig, ax = plt.subplots(1, 2)
-# m1
-ax[0].hist(neuro.depths[np.logical_and( neuro.shank_ids == 0, neuro.cell_type =='RS')], bins=np.arange(0, 1000, 50), alpha=0.5, color='k')
-# s1
-ax[1].hist(neuro.depths[np.logical_and( neuro.shank_ids == 1, neuro.cell_type =='RS')], bins=np.arange(0, 1000, 50), alpha=0.5, color='r')
+##### use logistic regression decoder
 
 
 
