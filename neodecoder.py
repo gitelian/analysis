@@ -26,7 +26,7 @@ class NeuroDecoder(object):
         self.num_cond   = len(np.unique(y))
         self.num_trials = X.shape[0]
         self.num_units  = X.shape[1]
-        self.uid        = None # will use all the data
+        self.uids        = None # will use all the data
         self.num_runs   = 5 # number times decoder finds the best solution by iterating through different kappas
 
     def __permute_data(self):
@@ -164,7 +164,7 @@ class NeuroDecoder(object):
             # END kappa for loop
 
         # Print best percent correct and plot confusion matrix
-        print('Mean percent correct: ' + str(best_pcc) + str('%'))
+#        print('Mean percent correct: ' + str(best_pcc) + str('%'))
 
         if plot_cmat == True:
             plt.figure()
@@ -349,7 +349,7 @@ class NeuroDecoder(object):
         else:
             print('You must fit the model before creating a PCC distribution')
 
-    def decode_subset(self, niter=10):
+    def decode_subset(self, niter=50):
         """
         use only a random subset on units to decode
 
@@ -359,15 +359,31 @@ class NeuroDecoder(object):
         niter: int
             number of iterations per subset
         """
+#        def decode_subsample(nsize):
+#            # select subset of units, no repeats, and in order from least to greatest
+#            self.uids = np.sort(np.random.choice(self.num_units, nsize, replace=False))
+#
+#            # fit model with new subset and find best kappa
+#            self.num_runs = 2
+#            self.fit_ole_decoder()
+#            self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
+#
+#            # compute mean pcc for this subset and best kappa
+#            self.num_runs = 5
+#            self.fit_ole_decoder()
+#
+#            return np.mean(self.all_pcc)
+#
         if not hasattr(self, 'theta'):
             print('must fit model to set parameters first\nyou can use fit with "run=False" so it only sets parameters.')
         pcc_array = np.zeros((niter, self.num_units - 1))
 
-        subset_size = np.arange(2, self.num_units)
-        for nsize in subset_size:
+        subset_size = np.arange(2, self.num_units+1) # arange doesn't include the stop range value in the created array
+        for n, nsize in enumerate(subset_size):
             print('\n##### Using subset size: {} #####'.format(nsize))
 
-            for m in range(niter):
+            # recode this to run in parallel?
+            for m in range(50):
                 # select subset of units, no repeats, and in order from least to greatest
                 self.uids = np.sort(np.random.choice(self.num_units, nsize, replace=False))
 
@@ -380,18 +396,81 @@ class NeuroDecoder(object):
                 self.num_runs = 100
                 self.fit_ole_decoder()
 
-                pcc_array[m, nsize] = np.mean(self.all_pcc)
+                pcc_array[m, n] = np.mean(self.all_pcc)
 
-        self.pcc_array =  pcc_array
+        return pcc_array
 
 # M1
 pos_inds = np.arange(8)
 X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole', run=False)
-decoder.decode_subset()
-mean_pcc = decoder.pcc_array.mean(axis=0)
-std_pcc  = decoder.pcc_array.std(axis=0)
+m1_pcc_array = decoder.decode_subset()
+m1_mean_pcc  = pcc_array.mean(axis=0)
+m1_std_pcc   = pcc_array.std(axis=0)
+
+###################################################################
+###################################################################
+
+import multiprocessing as mp
+
+def run_decoder_in_parallel(x, X, y, num_samples):
+    rand_inds = np.sort(np.random.choice(X.shape[1], num_samples, replace=False))
+    decoder = NeuroDecoder(X[:, rand_inds], y)
+    print(mp.active_children())
+    return rand_inds
+#    decoder.fit(kind='ole')
+#    decoder.get_pcc_distribution()
+#    all_pcc = decoder.all_pcc
+#    return np.mean(all_pcc)
+
+num_samples = 3
+pool = mp.Pool(processes=8)
+results = [pool.apply(run_decoder_in_parallel, args=(X, y, num_samples,)) for k in range(10)]
+
+
+import multiprocessing as mp
+def myfun_test(x):
+    time.sleep(1)
+    return x
+num_samples = 3
+pool = mp.Pool(processes=8)
+results = [pool.apply(myfun_test, args=(x,) ) for x in np.arange(1,8)]
+
+import multiprocessing as mp
+p = mp.Pool(4)
+import time
+p.apply_async(time.sleep, 20)
+
+num_samples = 3
+for x in range(10):
+    rand_inds = np.sort(np.random.choice(X.shape[1], num_samples, replace=False))
+    decoder = NeuroDecoder(X[:, rand_inds], y)
+    decoder.fit(kind='ole')
+    decoder.get_pcc_distribution()
+    all_pcc = decoder.all_pcc
+
+###################################################################
+###################################################################
+
+# M1 S1 light
+pos_inds = np.arange(8)+9
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+decoder  = NeuroDecoder(X, y)
+decoder.fit(kind='ole', run=False)
+s1_light_pcc_array = decoder.decode_subset()
+s1_light_mean_pcc  = pcc_array.mean(axis=0)
+s1_light_std_pcc   = pcc_array.std(axis=0)
+
+
+
+plt.figure()
+plt.errorbar(np.arange(2, m1_mean_pcc.shape[0]+2), m1_mean_pcc, yerr=m1_std_pcc,\
+        marker='o', markersize=6.0, linewidth=2, color='k')
+plt.errorbar(np.arange(2, s1_mean_pcc.shape[0]+2), s1_light_mean_pcc, yerr=s1_light_std_pcc,\
+        marker='o', markersize=6.0, linewidth=2, color='r')
+plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
+plt.xlim(1.5, 18.5)
 
 ##### scratch space #####
 ##### scratch space #####
