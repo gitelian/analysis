@@ -501,6 +501,33 @@ ax[1][1].set_ylim([ylow, yhigh])
 ax[1][1].set_xlim([xlow, xhigh])
 ax[1][1].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
 
+# temp
+inds = list()
+for k, s in enumerate(neuro.neo_obj.segments):
+    a = s.annotations
+    if a['run_boolean'] and a['trial_type'] == 27:
+        inds.append(k)
+
+plt.plot(neuro.wtt, s.analogsignals[2])
+plt.vlines(np.arange(0, 1, 0.050), 100, 165, 'r')
+
+
+run = s.analogsignals[0]
+rt  = s.analogsignals[1]
+ang = s.analogsignals[2]
+spt = s.analogsignals[3]
+amp = s.analogsignals[4]
+phs = s.analogsignals[5]
+wtt = neuro.wtt
+
+sp.io.savemat('gpr26_stim.mat',\
+        {'run':run,\
+        'rt':rt,\
+        'ang':ang,\
+        'spt':spt,\
+        'amp':amp,\
+        'phs':phs,\
+        'wtt':wtt})
 
 ##### PSD running vs non-running #####
 ##### PSD running vs non-running #####
@@ -1541,10 +1568,6 @@ for k in range(num_samples):
 fig, ax = plt.subplots(1, 1)
 ax.hist(vec_dist, bins=np.arange(0, 1, dt), width=dt, normed=True)
 ax.hist(vec_dist, bins=np.arange(0, 1, dt), normed=True, cumulative=True, histtype='step')
-
-
-
-
 
 
 
