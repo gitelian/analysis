@@ -4,6 +4,8 @@ import sklearn.metrics as skmetrics
 from sklearn.model_selection import KFold
 from progress.bar import Bar
 import multiprocessing as mp
+import sys
+import numpy as np
 
 
 #kappa_to_try = np.arange(1,101,1) # from old code file
@@ -673,67 +675,71 @@ def calc_mi(cmat):
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 
-#if __name__ == "__main__":
+if __name__ == "__main__":
     # Select which experiments to analyze
 ##### scratch space #####
 ##### scratch space #####
+    get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
 
-##### performance per unit #####
-##
-# M1
-pos_inds = np.arange(8)
-X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole', run=False)
-m1_pcc_array = decoder.decode_subset()
-m1_mean_pcc  = m1_pcc_array.mean(axis=0)
-m1_std_pcc   = m1_pcc_array.std(axis=0)
+    ##### performance per unit #####
+    ##
+    # M1
+    pos_inds = np.arange(8)
+    X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+    decoder  = NeuroDecoder(X, y)
+    decoder.fit(kind='ole', run=False)
+    m1_pcc_array = decoder.decode_subset()
+    m1_mean_pcc  = m1_pcc_array.mean(axis=0)
+    m1_std_pcc   = m1_pcc_array.std(axis=0)
 
-# M1 S1 light
-pos_inds = np.arange(8)+9
-X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole', run=False)
-s1_light_pcc_array = decoder.decode_subset()
-s1_light_mean_pcc  = s1_light_pcc_array.mean(axis=0)
-s1_light_std_pcc   = s1_light_pcc_array.std(axis=0)
+    # M1 S1 light
+    pos_inds = np.arange(8)+9
+    X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+    decoder  = NeuroDecoder(X, y)
+    decoder.fit(kind='ole', run=False)
+    s1_light_pcc_array = decoder.decode_subset()
+    s1_light_mean_pcc  = s1_light_pcc_array.mean(axis=0)
+    s1_light_std_pcc   = s1_light_pcc_array.std(axis=0)
 
-plt.figure()
-plt.errorbar(np.arange(2, m1_mean_pcc.shape[0]+2), m1_mean_pcc, yerr=m1_std_pcc,\
-        marker='o', markersize=6.0, linewidth=2, color='k')
-plt.errorbar(np.arange(2, s1_light_mean_pcc.shape[0]+2), s1_light_mean_pcc, yerr=s1_light_std_pcc,\
-        marker='o', markersize=6.0, linewidth=2, color='r')
-plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
-plt.xlim(1.5, 18.5)
+    plt.figure()
+    plt.errorbar(np.arange(2, m1_mean_pcc.shape[0]+2), m1_mean_pcc, yerr=m1_std_pcc,\
+            marker='o', markersize=6.0, linewidth=2, color='k')
+    plt.errorbar(np.arange(2, s1_light_mean_pcc.shape[0]+2), s1_light_mean_pcc, yerr=s1_light_std_pcc,\
+            marker='o', markersize=6.0, linewidth=2, color='r')
+    plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
+    plt.xlabel('number of units in decoder')
+    plt.ylabel('Decoding performance (PCC)')
+    plt.title(neuro.fid + ' vM1 decoding performance')
 
+    ## S1
 
-## S1
+    # S1
+    pos_inds = np.arange(8)
+    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+    decoder  = NeuroDecoder(X, y)
+    decoder.fit(kind='ole', run=False)
+    s1_pcc_array = decoder.decode_subset()
+    s1_mean_pcc  = s1_pcc_array.mean(axis=0)
+    s1_std_pcc   = s1_pcc_array.std(axis=0)
 
-# S1
-pos_inds = np.arange(8)
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole', run=False)
-s1_pcc_array = decoder.decode_subset()
-s1_mean_pcc  = s1_pcc_array.mean(axis=0)
-s1_std_pcc   = s1_pcc_array.std(axis=0)
+    # S1 M1 light
+    pos_inds = np.arange(8)+9+9
+    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+    decoder  = NeuroDecoder(X, y)
+    decoder.fit(kind='ole', run=False)
+    m1_light_pcc_array = decoder.decode_subset()
+    m1_light_mean_pcc  = m1_light_pcc_array.mean(axis=0)
+    m1_light_std_pcc   = m1_light_pcc_array.std(axis=0)
 
-# S1 M1 light
-pos_inds = np.arange(8)+9+9
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
-decoder  = NeuroDecoder(X, y)
-decoder.fit(kind='ole', run=False)
-m1_light_pcc_array = decoder.decode_subset()
-m1_light_mean_pcc  = m1_light_pcc_array.mean(axis=0)
-m1_light_std_pcc   = m1_light_pcc_array.std(axis=0)
-
-plt.figure()
-plt.errorbar(np.arange(2, s1_mean_pcc.shape[0]+2), s1_mean_pcc, yerr=s1_std_pcc,\
-        marker='o', markersize=6.0, linewidth=2, color='k')
-plt.errorbar(np.arange(2, m1_light_mean_pcc.shape[0]+2), m1_light_mean_pcc, yerr=m1_light_std_pcc,\
-        marker='o', markersize=6.0, linewidth=2, color='r')
-plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
-plt.xlim(1.5, 8.5)
+    plt.figure()
+    plt.errorbar(np.arange(2, s1_mean_pcc.shape[0]+2), s1_mean_pcc, yerr=s1_std_pcc,\
+            marker='o', markersize=6.0, linewidth=2, color='k')
+    plt.errorbar(np.arange(2, m1_light_mean_pcc.shape[0]+2), m1_light_mean_pcc, yerr=m1_light_std_pcc,\
+            marker='o', markersize=6.0, linewidth=2, color='r')
+    plt.hlines(16, plt.xlim()[0], plt.xlim()[1], colors='k', linestyles='dashed')
+    plt.xlabel('number of units in decoder')
+    plt.ylabel('Decoding performance (PCC)')
+    plt.title(neuro.fid + ' vS1 decoding performance')
 
 ###################################################################
 ###################################################################
