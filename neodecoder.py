@@ -140,7 +140,6 @@ class NeuroDecoder(object):
                 cmats = np.array(cmats)
                 cmean = cmats.mean(axis=0)
                 all_cmats.append(cmean) # collect all cmats for all runs
-                # ma
 
                 # Compute the mean percent correct
                 mean_pcc = np.mean(pcc)
@@ -331,8 +330,10 @@ class NeuroDecoder(object):
             self.theta = self.y*step_size
 
             # fit the decoder (finds the kappa that produces the best decoding)
+            # then decode 500 times to get a good average confusion matrix
             if run:
                 self.fit_ole_decoder(plot_cmat)
+                self.get_pcc_distribution()
 
     def get_pcc_distribution(self, num_runs=500):
         """
@@ -715,7 +716,7 @@ if __name__ == "__main__":
 
     # S1
     pos_inds = np.arange(8)
-    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
     decoder  = NeuroDecoder(X, y)
     decoder.fit(kind='ole', run=False)
     s1_pcc_array = decoder.decode_subset()
@@ -724,7 +725,7 @@ if __name__ == "__main__":
 
     # S1 M1 light
     pos_inds = np.arange(8)+9+9
-    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
     decoder  = NeuroDecoder(X, y)
     decoder.fit(kind='ole', run=False)
     m1_light_pcc_array = decoder.decode_subset()
@@ -789,11 +790,11 @@ for x in range(10):
 ###################################################################
 
 ##### regular decoding: find best kappa and plot confusion matrices
-##### also plot performance vs kappas tried
+##### also plot performance vs kappas
 
 # M1
 pos_inds = np.arange(8)
-X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 m1_cmat = decoder.cmat
@@ -801,7 +802,7 @@ m1_pcc  = decoder.best_pcc
 
 # S1
 pos_inds = np.arange(8)
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 s1_cmat = decoder.cmat
@@ -811,7 +812,7 @@ all_pcc    = decoder.all_pcc
 
 # M1 + S1 light
 pos_inds = np.arange(8)+9
-X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 m1L_cmat = decoder.cmat
@@ -819,7 +820,7 @@ m1L_pcc  = decoder.best_pcc
 
 # S1 + M1 light
 pos_inds = np.arange(8)+9+9
-X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count')
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 s1L_cmat = decoder.cmat
@@ -839,22 +840,22 @@ vmax = 0.7
 
 # top left M1 no light
 im = ax[0][0].imshow(m1_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
-ax[0][0].set_title('PCC: ' + "{:.2f}".format(m1_pcc*100))
+ax[0][0].set_title('PCC: ' + "{:.2f}".format(m1_pcc))
 fig.colorbar(im, ax=ax[0][0])
 
 # bottom left S1 no light
 im = ax[1][0].imshow(s1_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
-ax[1][0].set_title('PCC: ' + "{:.2f}".format(s1_pcc*100))
+ax[1][0].set_title('PCC: ' + "{:.2f}".format(s1_pcc))
 fig.colorbar(im, ax=ax[1][0])
 
 # top right M1 with S1 light
 im = ax[0][1].imshow(m1L_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
-ax[0][1].set_title('PCC: ' + "{:.2f}".format(m1L_pcc*100))
+ax[0][1].set_title('PCC: ' + "{:.2f}".format(m1L_pcc))
 fig.colorbar(im, ax=ax[0][1])
 
 # bottom right S1 with M1 light
 im = ax[1][1].imshow(s1L_cmat, vmin=0, vmax=vmax, interpolation='none', cmap=cmap)
-ax[1][1].set_title('PCC: ' + "{:.2f}".format(s1L_pcc*100))
+ax[1][1].set_title('PCC: ' + "{:.2f}".format(s1L_pcc))
 fig.colorbar(im, ax=ax[1][1])
 
 

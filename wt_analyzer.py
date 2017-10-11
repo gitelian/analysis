@@ -477,14 +477,14 @@ ax[0][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :], linewidth=0.2
 ax[0][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
 ax[0][0].set_ylim([ylow, yhigh])
 ax[0][0].set_xlim([xlow, xhigh])
-ax[0][0].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
+ax[0][0].vlines(stim_times, ylow, yhigh, color='blue', linewidth=0.5)
 
 # running: M1 stim, control position
 ax[0][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :], linewidth=0.25, color='grey')
 ax[0][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
 ax[0][1].set_ylim([ylow, yhigh])
 ax[0][1].set_xlim([xlow, xhigh])
-ax[0][1].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
+ax[0][1].vlines(stim_times, ylow, yhigh, color='blue', linewidth=0.5)
 
 # non-running: POM stim, control position
 neuro.rates(running=False)
@@ -492,14 +492,14 @@ ax[1][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :], linewidth=0.2
 ax[1][0].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
 ax[1][0].set_ylim([ylow, yhigh])
 ax[1][0].set_xlim([xlow, xhigh])
-ax[1][0].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
+ax[1][0].vlines(stim_times, ylow, yhigh, color='blue', linewidth=0.5)
 
 # non-running: M1 stim, control position
 ax[1][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :], linewidth=0.25, color='grey')
 ax[1][1].plot(neuro.wtt, neuro.wt[neuro.control_pos-1+9+9][:, 0, :].mean(axis=1), linewidth=2.0, color='black')
 ax[1][1].set_ylim([ylow, yhigh])
 ax[1][1].set_xlim([xlow, xhigh])
-ax[1][1].vlines(stim_times, ylow, yhigh, color='red', linewidth=0.5)
+ax[1][1].vlines(stim_times, ylow, yhigh, color='blue', linewidth=0.5)
 
 # temp
 inds = list()
@@ -508,8 +508,8 @@ for k, s in enumerate(neuro.neo_obj.segments):
     if a['run_boolean'] and a['trial_type'] == 27:
         inds.append(k)
 
-plt.plot(neuro.wtt, s.analogsignals[2])
-plt.vlines(np.arange(0, 1, 0.050), 100, 165, 'r')
+plt.plot(neuro.wtt, neuro.neo_obj.segments[inds[5]].analogsignals[2])
+plt.vlines(np.arange(0, 1, 0.050), 100, 165, 'b')
 
 
 run = s.analogsignals[0]
