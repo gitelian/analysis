@@ -323,9 +323,9 @@ class NeuroAnalyzer(object):
             wt_indices = np.arange(wtt.shape[0]) - int(self.min_tbefore_stim *fps)
 
             for i, seg in enumerate(self.f):
-                for k, anlg in enumerate(self.f[seg]['analogsignals']):
+                for k, anlg in enumerate(self.f[seg + '/analog-signals']):
 
-                    anlg_path = seg + '/analogsignals' + anlg
+                    anlg_path = seg + '/analog-signals/' + anlg
 
                     # find number of samples in the trial
                     if self.f[anlg_path].attrs['name'] == 'angle' or \
@@ -370,67 +370,67 @@ class NeuroAnalyzer(object):
                     '\nuse runspeed to classify trials')
             self.wt_boolean = wt_boolean
 
-#    def __trim_lfp(self):
-#        """
-#        Trim LFP arrays to the length of the shortest trial.
-#        Time zero of the LFP time corresponds to stimulus onset.
-#        """
-#        print('\n-----__trim_lfp-----')
-#
-#        chan_per_shank = list()
-#        lfp_boolean = False
-#        for anlg in self.neo_obj.segments[0].analogsignalarrays:
-#            if 'LFPs' in anlg.name:
-#                # get the sampling rate
-#                lfp_boolean = True
-#                chan_per_shank.append(anlg.shape[1])
-#                if anlg.sampling_rate.units == pq.kHz:
-#                    sr = np.asarray(anlg.sampling_rate)*1000.0
-#                elif anlg.sampling_rate.units == pq.Hz:
-#                    sr = np.asarray(anlg.sampling_rate)*1.0
-#
-#        if lfp_boolean:
-#
-#            print('LFP data found! trimming data to be all the same length in time')
-#            # make time vector for LFP data
-#            num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*sr ) # total time (s) * samples/sec
-#            lfp_indices = np.arange(num_samples) - int( self.min_tbefore_stim * sr )
-#            lfp_t       = lfp_indices / sr
-#
-#            for i, seg in enumerate(self.neo_obj.segments):
-#                for k, anlg in enumerate(seg.analogsignalarrays):
-#
-#                    # find number of samples in the trial
-#                    num_samp = len(anlg)
-#
-#                    # get stimulus onset
-#                    stim_start = seg.annotations['stim_times'][0]
-#
-#                    # slide indices window over
-#                    # get the frame that corresponds to the stimulus time
-#                    # and add it to lfp_indices.
-#                    good_inds = lfp_indices + int( stim_start*sr )
-#
-#                    if i == 0:
-#                        min_trial_length = len(good_inds)
-#                    elif min_trial_length > len(good_inds):
-#                        warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
-#                                LINE 208 __trim_lfp')
-#
-#                    if num_samp > len(good_inds):
-#                        self.neo_obj.segments[i].analogsignalarrays[k] = anlg[good_inds, :]
-#                    else:
-#                        warnings.warn('\n**** length of LFPs is smaller than the length of the good indices ****\n'\
-#                                + '**** this data must have already been trimmed ****')
-#
-#            self.lfp_t          = lfp_t
-#            self.lfp_boolean    = lfp_boolean
-#            self._lfp_min_samp  = num_samples
-#            self.chan_per_shank = chan_per_shank
-#        else:
-#            print('NO LFP DATA FOUND!\nSetting lfp_boolean to False')
-#            self.lfp_boolean = lfp_boolean
-#
+    def __trim_lfp(self):
+        """
+        Trim LFP arrays to the length of the shortest trial.
+        Time zero of the LFP time corresponds to stimulus onset.
+        """
+        print('\n-----__trim_lfp-----')
+
+        chan_per_shank = list()
+        lfp_boolean = False
+        for item in self.f['segment-0000'].items():
+            if 'lfps' in item[0]:
+                lfp_path = '/segment-0000/' + items[0]
+                # get the sampling rate
+                lfp_boolean = True
+                chan_per_shank.append(self.f[lfp_path].shape[1])
+                sr = self.f[lfp_path].attrs['sampling_rate']
+
+        if lfp_boolean:
+
+            print('LFP data found! trimming data to be all the same length in time')
+            # make time vector for LFP data
+            num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*sr ) # total time (s) * samples/sec
+            lfp_indices = np.arange(num_samples) - int( self.min_tbefore_stim * sr )
+            lfp_t       = lfp_indices / sr
+
+            for i, seg in enumerate(self.f):
+                for k, item in enumerate(self.f[seg].items()):
+                    if 'lfps' in item[0]:
+                        lfp_path = '/segment-0000/' + items[0]
+
+                        # find number of samples in the trial
+                        num_samp = len(self.f[lfp_path])
+
+                        # get stimulus onset
+                        stim_start = self.f[seg].attrs['stim_times'][0]
+
+                        # slide indices window over
+                        # get the frame that corresponds to the stimulus time
+                        # and add it to lfp_indices.
+                        good_inds = lfp_indices + int( stim_start*sr )
+
+                        if i == 0:
+                            min_trial_length = len(good_inds)
+                        elif min_trial_length > len(good_inds):
+                            warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
+                                    LINE 208 __trim_lfp')
+
+                        if num_samp > len(good_inds):
+                            self.f[lfp_path] = self.f[lfp_path][good_inds, :]
+                        else:
+                            warnings.warn('\n**** length of LFPs is smaller than the length of the good indices ****\n'\
+                                    + '**** this data must have already been trimmed ****')
+
+            self.lfp_t          = lfp_t
+            self.lfp_boolean    = lfp_boolean
+            self._lfp_min_samp  = num_samples
+            self.chan_per_shank = chan_per_shank
+        else:
+            print('NO LFP DATA FOUND!\nSetting lfp_boolean to False')
+            self.lfp_boolean = lfp_boolean
+
 #    def reclassify_run_trials(self, time_before_stimulus= -1,\
 #            mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
 #        """
