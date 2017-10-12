@@ -14,7 +14,6 @@ import multiprocessing as mp
 import time
 import neo
 from neo.io import NeoHdf5IO
-import quantities as pq
 from warnings import warn
 
 def load_spike_file(path):
@@ -391,14 +390,16 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
 
         # add velocity data to trial segment
         sig0 = analog.create_dataset("run_speed", data=vel_list[trial_ind][:])
-        sig0.attrs["units"]         = pq.deg/pq.s
-        sig0.attrs["sampling_rate"] = 6*pq.kHz
+        sig0.attrs["name"]          = 'run_speed'
+        sig0.attrs["units"]         = 'deg/s'
+        sig0.attrs["sampling_rate"] = 6000
         sig0.attrs["trial"]         = trial_ind
 
         # add velocity time vector to trial segment
         sig1 = analog.create_dataset("run_speed_time", data=run_time_list[trial_ind][:])
-        sig1.attrs["units"] = pq.s
-        sig1.attrs["sampling_rate"] = 6*pq.kHz
+        sig1.attrs["name"]  = 'run_speed_time'
+        sig1.attrs["units"] = 's'
+        sig1.attrs["sampling_rate"] = 6000
 
     ## Add LFPs to trial segment
     if lfp_files:
@@ -415,8 +416,8 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
             for trial_ind in np.arange(stim.shape[0]):
                 lfps = f.create_dataset("/" + key_iter.next() + "/lfps" + "-" + e_name, data=lfp[trial_ind])
                 lfps.attrs["name"]          = 'LFPs'+'-'+e_name
-                lfps.attrs["units"]         = pq.uV
-                lfps.attrs["sampling_rate"] = sampling_rate=1.5*pq.kHz
+                lfps.attrs["units"]         = 'uV'
+                lfps.attrs["sampling_rate"] = sampling_rate=1500
                 lfps.attrs["trial"]         = trial_ind
                 lfps.attrs["shank_name"]    = e_name
                 lfps.attrs["shank_num"]     = e_num
@@ -432,33 +433,39 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
 
                 key = key_iter.next() # gets key name
                 sig0 = f.create_dataset("/" + key + "/analog-signals/" + "angle", data=wt[trial_ind][:,0])
-                sig0.attrs["units"]         = pq.deg
-                sig0.attrs["sampling_rate"] = 500*pq.Hz
+                sig0.attrs["name"]          = 'angle'
+                sig0.attrs["units"]         = 'deg'
+                sig0.attrs["sampling_rate"] = 500
                 sig0.attrs["trial"]         = trial_ind
 
                 sig1 = f.create_dataset("/" + key + "/analog-signals/" + "set-point", data=wt[trial_ind][:,1])
-                sig1.attrs["units"]         = pq.deg
-                sig1.attrs["sampling_rate"] = 500*pq.Hz
+                sig1.attrs["name"]          = 'set-point'
+                sig1.attrs["units"]         = 'deg'
+                sig1.attrs["sampling_rate"] = 500
                 sig1.attrs["trial"]         = trial_ind
 
                 sig2 = f.create_dataset("/" + key + "/analog-signals/" + "amplitude", data=wt[trial_ind][:,2])
-                sig2.attrs["units"]         = pq.deg
-                sig2.attrs["sampling_rate"] = 500*pq.Hz
+                sig2.attrs["name"]          = 'amplitude'
+                sig2.attrs["units"]         = 'deg'
+                sig2.attrs["sampling_rate"] = 500
                 sig2.attrs["trial"]         = trial_ind
 
                 sig3 = f.create_dataset("/" + key + "/analog-signals/" + "phase", data=wt[trial_ind][:,3])
-                sig3.attrs["units"]         = pq.rad
-                sig3.attrs["sampling_rate"] = 500*pq.Hz
+                sig3.attrs["name"]          = 'phase'
+                sig3.attrs["units"]         = 'rad'
+                sig3.attrs["sampling_rate"] = 500
                 sig3.attrs["trial"]         = trial_ind
 
                 sig4 = f.create_dataset("/" + key + "/analog-signals/" + "velocity", data=wt[trial_ind][:,4])
-                sig4.attrs["units"]         = pq.deg/pq.s
-                sig4.attrs["sampling_rate"] = 500*pq.Hz
+                sig4.attrs["name"]          = 'velocity'
+                sig4.attrs["units"]         = 'deg/s'
+                sig4.attrs["sampling_rate"] = 500
                 sig4.attrs["trial"]         = trial_ind
 
                 sig5 = f.create_dataset("/" + key + "/analog-signals/" + "whisking", data=wt[trial_ind][:,5])
-                sig5.attrs["units"]         = pq.deg
-                sig5.attrs["sampling_rate"] = 500*pq.Hz
+                sig5.attrs["name"]          = 'whisking'
+                sig5.attrs["units"]         = 'deg'
+                sig5.attrs["sampling_rate"] = 500
                 sig5.attrs["trial"]         = trial_ind
 
     ## Load in spike measure mat file ##
@@ -512,14 +519,14 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
 
                             spiketrain = f.create_dataset("/" + key + "/spiketrains" + \
                                     "/{1}-unit-{0:02}".format(uind, e_name), data=spiketimes[spk_times_bool])
-                            spiketrain.attrs["t_start"]       = trial_times[trial_ind, 0]*pq.s
-                            spiketrain.attrs["t_stop"]        = trial_times[trial_ind, 1]*pq.s
-                            spiketrain.attrs["sampling_rate"] = 30*pq.kHz
+                            spiketrain.attrs["t_start"]       = trial_times[trial_ind, 0]
+                            spiketrain.attrs["t_stop"]        = trial_times[trial_ind, 1]
+                            spiketrain.attrs["sampling_rate"] = 30000
                             spiketrain.attrs["trial"]         = trial_ind
-                            spiketrain.attrs["units"]         = pq.s
+                            spiketrain.attrs["units"]         = 's'
                             spiketrain.attrs["name"]          ='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit))
                             spiketrain.attrs["description"]   = "Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit))
-                            spiketrain.attrs["depth"]         = spk_msrs[unit_ind, 3]*pq.um
+                            spiketrain.attrs["depth"]         = spk_msrs[unit_ind, 3]
                             spiketrain.attrs["cell_type"]     = spk_msrs[unit_ind, 7],
                             spiketrain.attrs["duration"]      = spk_msrs[unit_ind, 5],
                             spiketrain.attrs["ratio"]         = spk_msrs[unit_ind, 6],
@@ -536,14 +543,14 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
                         else:
                             spiketrain = f.create_dataset("/" + key + "/spiketrains" + \
                                     "/{1}-unit-{0:02}".format(uind, e_name), data=spiketimes[spk_times_bool])
-                            spiketrain.attrs["t_start"]       = trial_times[trial_ind, 0]*pq.s
-                            spiketrain.attrs["t_stop"]        = trial_times[trial_ind, 1]*pq.s
-                            spiketrain.attrs["sampling_rate"] = 30*pq.kHz
+                            spiketrain.attrs["t_start"]       = trial_times[trial_ind, 0]
+                            spiketrain.attrs["t_stop"]        = trial_times[trial_ind, 1]
+                            spiketrain.attrs["sampling_rate"] = 30000
                             spiketrain.attrs["trial"]         = trial_ind
-                            spiketrain.attrs["units"]         = pq.s
+                            spiketrain.attrs["units"]         = 's'
                             spiketrain.attrs["name"]          ='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit))
                             spiketrain.attrs["description"]   = "Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit))
-                            spiketrain.attrs["depth"]         = np.nan*pq.um
+                            spiketrain.attrs["depth"]         = np.nan
                             spiketrain.attrs["cell_type"]     = 3
                             spiketrain.attrs["fid"]           = fid_name
                             spiketrain.attrs["shank"]         = e_name
