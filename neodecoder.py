@@ -686,7 +686,7 @@ if __name__ == "__main__":
     ##
     # M1
     pos_inds = np.arange(8)
-    X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+    X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count')
     decoder  = NeuroDecoder(X, y)
     decoder.fit(kind='ole', run=False)
     m1_pcc_array = decoder.decode_subset()
@@ -695,7 +695,7 @@ if __name__ == "__main__":
 
     # M1 S1 light
     pos_inds = np.arange(8)+9
-    X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count', cell_type='RS')
+    X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count')
     decoder  = NeuroDecoder(X, y)
     decoder.fit(kind='ole', run=False)
     s1_light_pcc_array = decoder.decode_subset()
@@ -716,7 +716,7 @@ if __name__ == "__main__":
 
     # S1
     pos_inds = np.arange(8)
-    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
+    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count')
     decoder  = NeuroDecoder(X, y)
     decoder.fit(kind='ole', run=False)
     s1_pcc_array = decoder.decode_subset()
@@ -725,7 +725,7 @@ if __name__ == "__main__":
 
     # S1 M1 light
     pos_inds = np.arange(8)+9+9
-    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count', cell_type='FS')
+    X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count')
     decoder  = NeuroDecoder(X, y)
     decoder.fit(kind='ole', run=False)
     m1_light_pcc_array = decoder.decode_subset()
