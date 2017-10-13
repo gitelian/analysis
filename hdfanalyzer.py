@@ -310,10 +310,6 @@ class NeuroAnalyzer(object):
         if wt_boolean:
 
             print('whisker tracking data found! trimming data to be all the same length in time')
-            # make time vector for whisker tracking data
-#            num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*fps ) # total time (s) * frames/sec
-#            wt_indices  = np.arange(num_samples) - int( self.min_tbefore_stim * fps )
-#            wtt         = wt_indices / fps
 
             wt_start_time = float(self.__get_exp_details_info('hsv_start'))
             wt_stop_time  = float(self.__get_exp_details_info('hsv_stop'))
@@ -346,13 +342,13 @@ class NeuroAnalyzer(object):
 
                         if i == 0:
                             min_trial_length = len(good_inds)
+                            # pre-allocate array for all whisker tracking data
+                            # this way the original file/data is left untouched
+                            wt_data = np.zeros((min_trial_length, 6, len(f)))
                         elif min_trial_length > len(good_inds):
                             warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
                                     LINE 208 __trim_wt')
 
-                    # pre-allocate array for all whisker tracking data
-                    # this way the original file/data is left untouched
-                    wt_data = np.zeros((min_trial_length, 6, len(f)))
 
                     anlg_name = self.f[anlg_path].attrs['name']
                     if num_samp > len(good_inds):
@@ -388,6 +384,7 @@ class NeuroAnalyzer(object):
             self.wtt          = wtt
             self.wt_boolean   = wt_boolean
             self._wt_min_samp = num_samples
+            self.wt_data = wt_data
         else:
             print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
                     '\nuse runspeed to classify trials')
@@ -436,6 +433,7 @@ class NeuroAnalyzer(object):
 
                         if i == 0:
                             min_trial_length = len(good_inds)
+                            lfp_data = np.zeros((min_trial_length, 6, len(f)))
                         elif min_trial_length > len(good_inds):
                             warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
                                     LINE 208 __trim_lfp')
