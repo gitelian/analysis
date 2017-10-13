@@ -1205,14 +1205,39 @@ sns.despine(ax=ax[1])
 
 
 
+m1_nolight = np.asarray(evk_rate[m1_inds, best_pos[m1_inds], 0])
+m1_s1light = np.asarray(evk_rate[m1_inds, best_pos[m1_inds]+9, 0])
+s1_nolight = np.asarray(evk_rate[s1_inds, best_pos[s1_inds], 0])
+s1_m1light = np.asarray(evk_rate[s1_inds, best_pos[s1_inds]+9+9, 0])
 
 
+mean_m1 = [np.mean(m1_nolight), np.mean(s1_nolight)]
+mean_s1 = [np.mean(m1_s1light), np.mean(s1_m1light)]
+sem_m1  = [sp.stats.sem(m1_nolight), sp.stats.sem(s1_nolight)]
+sem_s1  = [sp.stats.sem(m1_s1light), sp.stats.sem(s1_m1light)]
 
+fig, ax = plt.subplots()
 
+n_groups = 2
+index = np.arange(n_groups)
+bar_width = 0.35
 
+opacity = 0.7
+error_config = {'ecolor': '0.3'}
 
+rects1 = plt.bar(index, mean_m1, bar_width,
+    alpha=opacity,
+    color='b',
+    yerr=sem_m1,
+    error_kw=error_config,
+    label='M1')
 
-
+rects2 = plt.bar(index + bar_width, mean_s1, bar_width,
+    alpha=opacity,
+    color='b',
+    yerr=sem_s1,
+    error_kw=error_config,
+    label='Women')
 
 
 
