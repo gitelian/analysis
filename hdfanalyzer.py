@@ -103,10 +103,10 @@ class NeuroAnalyzer(object):
         self.__find_min_times()
 
         # trim whisker tracking data and align it to shortest trial
-        self.__trim_wt()
+#        self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
-#        self.__trim_lfp()
+        self.__trim_lfp()
 
 #        # return a list with the number of good trials for each stimulus condition
 #        self.get_num_good_trials()
@@ -339,7 +339,7 @@ class NeuroAnalyzer(object):
                         # and add it to wt_indices.
                         good_inds = wt_indices + int( stim_start*fps )
 
-                        if i == 0:
+                        if i == 0 and k == 0:
                             min_trial_length = len(good_inds)
                             # pre-allocate array for all whisker tracking data
                             # this way the original file/data is left untouched
@@ -367,11 +367,10 @@ class NeuroAnalyzer(object):
                         else:
                             warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
                                     + '**** this data must have already been trimmed ****')
+                            if i == 0:
+                                print(i)
                             if  anlg_name == 'angle':
                                 wt_data[:, 0, i] = self.f[anlg_path][:]
-                                if i == 0:
-                                    print('angle')
-                                    print(wt_data[:, 0, i])
                             elif anlg_name == 'set-point':
                                 wt_data[:, 1, i] = self.f[anlg_path][:]
                             elif anlg_name == 'amplitude':
@@ -436,7 +435,7 @@ class NeuroAnalyzer(object):
                         # and add it to lfp_indices.
                         good_inds = lfp_indices + int( stim_start*sr )
 
-                        if i == 0:
+                        if i == 0 and shank_ind == 0:
                             min_trial_length = len(good_inds)
                             lfp_data = [np.zeros((min_trial_length, x, len(f)), 'int16') for x in chan_per_shank]
                         elif min_trial_length > len(good_inds):
