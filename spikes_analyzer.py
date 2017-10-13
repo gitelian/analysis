@@ -221,7 +221,7 @@ for k, neuro in enumerate(experiments):
 
     for uind in range(neuro.num_units):
         if neuro.shank_ids[uind] == 1:
-            #best_contact = neuro.best_contact[uind]
+            best_contact = neuro.best_contact[uind]
             abs_rate_light   = neuro.abs_rate[best_contact+9+9][:, uind].mean()
             abs_rate_nolight = neuro.abs_rate[best_contact][:, uind].mean()
 
