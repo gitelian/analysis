@@ -104,10 +104,10 @@ class NeuroAnalyzer(object):
         self.__find_min_times()
 
         # trim whisker tracking data and align it to shortest trial
-        self.__trim_wt()
+#        self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
-#        self.__trim_lfp()
+        self.__trim_lfp()
 
         # return a list with the number of good trials for each stimulus condition
         self.get_num_good_trials()
@@ -357,7 +357,11 @@ class NeuroAnalyzer(object):
                             self.f[anlg_path].attrs['name'] == 'velocity'or\
                             self.f[anlg_path].attrs['name'] == 'whisking':
                                 if num_samp > len(good_inds):
-                                    self.f[anlg_path] = self.f[anlg_path][good_inds]
+                                    temp = self.f[anlg_path][good_inds]
+                                    del self.f[anlg_path]
+                                    self.f[anlg_path] = temp
+                                # don't change the file! add the trimmed
+                                # whisking data to the object!!!
                                 else:
                                     warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
                                             + '**** this data must have already been trimmed ****')
@@ -381,11 +385,11 @@ class NeuroAnalyzer(object):
         lfp_boolean = False
         for item in self.f['segment-0000'].items():
             if 'lfps' in item[0]:
-                lfp_path = '/segment-0000/' + items[0]
+                lfp_path = '/segment-0000/' + item[0]
                 # get the sampling rate
                 lfp_boolean = True
                 chan_per_shank.append(self.f[lfp_path].shape[1])
-                sr = self.f[lfp_path].attrs['sampling_rate']
+                sr = float(self.f[lfp_path].attrs['sampling_rate'])
 
         if lfp_boolean:
 
@@ -398,7 +402,7 @@ class NeuroAnalyzer(object):
             for i, seg in enumerate(self.f):
                 for k, item in enumerate(self.f[seg].items()):
                     if 'lfps' in item[0]:
-                        lfp_path = '/segment-0000/' + items[0]
+                        lfp_path = '/segment-0000/' + item[0]
 
                         # find number of samples in the trial
                         num_samp = len(self.f[lfp_path])
@@ -418,7 +422,14 @@ class NeuroAnalyzer(object):
                                     LINE 208 __trim_lfp')
 
                         if num_samp > len(good_inds):
-                            self.f[lfp_path] = self.f[lfp_path][good_inds, :]
+                            lfp_temp = self.f[lfp_path][good_inds, :]
+                            del self.f[lfp_path]
+                            self.f[lfp_path] = lfp_temp
+
+                        # don't change the file! add the trimmed lfp data to
+                        # the object!!!
+#                            data = self.f[lfp_path]
+#                            data[...] = self.f[lfp_path][good_inds, :]
                         else:
                             warnings.warn('\n**** length of LFPs is smaller than the length of the good indices ****\n'\
                                     + '**** this data must have already been trimmed ****')
@@ -1884,7 +1895,7 @@ if __name__ == "__main__":
     except:
         print('no argument provided!')
 
-    f = h5py.File(os.path.join(data_dir + 'FID' + sys.argv[1] + '.hdf5'),'r')
+    f = h5py.File(os.path.join(data_dir + 'FID' + sys.argv[1] + '.hdf5'),'r+')
 
     neuro = NeuroAnalyzer(f, fid)
 
