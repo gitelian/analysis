@@ -12,7 +12,6 @@ import matplotlib.cm as cm
 import matplotlib as mpl
 import scipy.signal
 import h5py
-import quantities as pq
 #import 3rd party code found on github
 import icsd
 import ranksurprise
@@ -104,10 +103,10 @@ class NeuroAnalyzer(object):
         self.__find_min_times()
 
         # trim whisker tracking data and align it to shortest trial
-#        self.__trim_wt()
+        self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
-        self.__trim_lfp()
+#        self.__trim_lfp()
 
         # return a list with the number of good trials for each stimulus condition
         self.get_num_good_trials()
@@ -397,6 +396,7 @@ class NeuroAnalyzer(object):
         """
         print('\n-----__trim_lfp-----')
 
+        num_shanks = 0
         chan_per_shank = list()
         lfp_boolean = False
         for item in self.f['segment-0000'].items():
@@ -404,6 +404,7 @@ class NeuroAnalyzer(object):
                 lfp_path = '/segment-0000/' + item[0]
                 # get the sampling rate
                 lfp_boolean = True
+                num_shanks += 1
                 chan_per_shank.append(self.f[lfp_path].shape[1])
                 sr = float(self.f[lfp_path].attrs['sampling_rate'])
 
@@ -416,9 +417,10 @@ class NeuroAnalyzer(object):
             lfp_t       = lfp_indices / sr
 
             for i, seg in enumerate(self.f):
+                shank_ind = 0
                 for k, item in enumerate(self.f[seg].items()):
                     if 'lfps' in item[0]:
-                        lfp_path = '/segment-0000/' + item[0]
+                        lfp_path = seg + '/' + item[0]
 
                         # find number of samples in the trial
                         num_samp = len(self.f[lfp_path])
@@ -433,28 +435,26 @@ class NeuroAnalyzer(object):
 
                         if i == 0:
                             min_trial_length = len(good_inds)
-                            lfp_data = np.zeros((min_trial_length, 6, len(f)))
+                            lfp_data = [np.zeros((min_trial_length, x, len(f)), 'int16') for x in chan_per_shank]
                         elif min_trial_length > len(good_inds):
                             warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
                                     LINE 208 __trim_lfp')
 
                         if num_samp > len(good_inds):
-                            lfp_temp = self.f[lfp_path][good_inds, :]
-                            del self.f[lfp_path]
-                            self.f[lfp_path] = lfp_temp
-
-                        # don't change the file! add the trimmed lfp data to
-                        # the object!!!
-#                            data = self.f[lfp_path]
-#                            data[...] = self.f[lfp_path][good_inds, :]
+                            print(i)
+                            lfp_data[shank_ind][:, :, i] = self.f[lfp_path][good_inds, :]
                         else:
                             warnings.warn('\n**** length of LFPs is smaller than the length of the good indices ****\n'\
                                     + '**** this data must have already been trimmed ****')
+                            lfp_data[shank_ind][:, :, i] = self.f[lfp_path][:]
+
+                        shank_ind += 1
 
             self.lfp_t          = lfp_t
             self.lfp_boolean    = lfp_boolean
             self._lfp_min_samp  = num_samples
             self.chan_per_shank = chan_per_shank
+            self.lfp_data       = lfp_data
         else:
             print('NO LFP DATA FOUND!\nSetting lfp_boolean to False')
             self.lfp_boolean = lfp_boolean
