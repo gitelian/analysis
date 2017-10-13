@@ -106,10 +106,10 @@ class NeuroAnalyzer(object):
 #        self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
-        self.__trim_lfp()
+#        self.__trim_lfp()
 
-#        # return a list with the number of good trials for each stimulus condition
-#        self.get_num_good_trials()
+        # return a list with the number of good trials for each stimulus condition
+        self.get_num_good_trials()
 #
 #        # classify a trial as good if whisking occurs during a specified period.
 #        # a new annotation ('wsk_boolean') is added to each segment
@@ -499,34 +499,34 @@ class NeuroAnalyzer(object):
 #                self.neo_obj.segments[count].annotations['run_boolean'] = True
 #
 #
-#    def get_num_good_trials(self, kind='run_boolean'):
-#        """
-#        Return a list with the number of good trials for each stimulus condition
-#        And the specified annotations to use.
-#        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
-#        """
-#        num_good_trials = list()
-#        num_slow_trials = list()
-#        num_all_trials  = list()
-#        for stim_id in self.stim_ids:
-#            run_count  = 0
-#            slow_count = 0
-#            all_count  = 0
-#            for trial in self.neo_obj.segments:
-#                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind] == True:
-#                    run_count += 1
-#                elif trial.annotations['trial_type'] == stim_id and trial.annotations[kind] == False:
-#                    slow_count += 1
-#
-#                if trial.annotations['trial_type'] == stim_id:
-#                    all_count += 1
-#            num_good_trials.append(run_count)
-#            num_slow_trials.append(slow_count)
-#            num_all_trials.append(all_count)
-#        self.num_good_trials = num_good_trials
-#        self.num_slow_trials = num_slow_trials
-#        self.num_all_trials  = num_all_trials
-#
+    def get_num_good_trials(self, kind='run_boolean'):
+        """
+        Return a list with the number of good trials for each stimulus condition
+        And the specified annotations to use.
+        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
+        """
+        num_good_trials = list()
+        num_slow_trials = list()
+        num_all_trials  = list()
+        for stim_id in self.stim_ids:
+            run_count  = 0
+            slow_count = 0
+            all_count  = 0
+            for k, seg in enumerate(self.f):
+                if self.f[seg].attrs['trial_type'] == stim_id and self.f[seg].attrs[kind] == True:
+                    run_count += 1
+                elif self.f[seg].attrs['trial_type'] == stim_id and self.f[seg].attrs[kind] == False:
+                    slow_count += 1
+
+                if self.f[seg].attrs['trial_type'] == stim_id:
+                    all_count += 1
+            num_good_trials.append(run_count)
+            num_slow_trials.append(slow_count)
+            num_all_trials.append(all_count)
+        self.num_good_trials = num_good_trials
+        self.num_slow_trials = num_slow_trials
+        self.num_all_trials  = num_all_trials
+
 #    def classify_whisking_trials(self, threshold='user'):
 #        """
 #        Classify a trial as good if whisking occurs during a specified period.
