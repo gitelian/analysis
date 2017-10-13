@@ -108,34 +108,34 @@ class NeuroAnalyzer(object):
         # trim LFP data and align it to shortest trial
 #        self.__trim_lfp()
 
-        # return a list with the number of good trials for each stimulus condition
-        self.get_num_good_trials()
-
-        # classify a trial as good if whisking occurs during a specified period.
-        # a new annotation ('wsk_boolean') is added to each segment
-        self.classify_whisking_trials(threshold='median')
-
-        # calculate rates, psths, whisking array, etc.
-        self.rates()
-
-        # create region dictionary
-        self.region_dict = {0:'M1', 1:'S1'}
-
-        # get selectivity for all units
-        self.get_selectivity()
-
-        # get preferred position for all units
-        self.get_preferred_position()
-
-        # get best contact for each unit
-        self.get_best_contact()
-
-        # kruskal wallis and dunn's test to ID sensory driven units
-        self.get_sensory_drive()
-
-        # reclassify running trials
-        #self.reclassify_run_trials(self, time_before_stimulus= -1,\
-        #            mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False)
+#        # return a list with the number of good trials for each stimulus condition
+#        self.get_num_good_trials()
+#
+#        # classify a trial as good if whisking occurs during a specified period.
+#        # a new annotation ('wsk_boolean') is added to each segment
+#        self.classify_whisking_trials(threshold='median')
+#
+#        # calculate rates, psths, whisking array, etc.
+#        self.rates()
+#
+#        # create region dictionary
+#        self.region_dict = {0:'M1', 1:'S1'}
+#
+#        # get selectivity for all units
+#        self.get_selectivity()
+#
+#        # get preferred position for all units
+#        self.get_preferred_position()
+#
+#        # get best contact for each unit
+#        self.get_best_contact()
+#
+#        # kruskal wallis and dunn's test to ID sensory driven units
+#        self.get_sensory_drive()
+#
+#        # reclassify running trials
+#        #self.reclassify_run_trials(self, time_before_stimulus= -1,\
+#        #            mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False)
 
 ###############################################################################
 ##### Class initialization functions #####
@@ -349,41 +349,44 @@ class NeuroAnalyzer(object):
                                     LINE 208 __trim_wt')
 
 
-                    anlg_name = self.f[anlg_path].attrs['name']
-                    if num_samp > len(good_inds):
-                        if  anlg_name is 'angle':
-                            wt_data[:, 0, i] = self.f[anlg_path][good_inds]
-                        elif anlg_name is 'set-point':
-                            wt_data[:, 1, i] = self.f[anlg_path][good_inds]
-                        elif anlg_name is 'amplitude':
-                            wt_data[:, 2, i] = self.f[anlg_path][good_inds]
-                        elif anlg_name is 'phase':
-                            wt_data[:, 3, i] = self.f[anlg_path][good_inds]
-                        elif anlg_name is 'velocity':
-                            wt_data[:, 4, i] = self.f[anlg_path][good_inds]
-                        elif anlg_name is 'whisking':
-                            wt_data[:, 5, i] = self.f[anlg_path][good_inds]
+                        anlg_name = self.f[anlg_path].attrs['name']
+                        if num_samp > len(good_inds):
+                            if  anlg_name == 'angle':
+                                wt_data[:, 0, i] = self.f[anlg_path][good_inds]
+                            elif anlg_name == 'set-point':
+                                wt_data[:, 1, i] = self.f[anlg_path][good_inds]
+                            elif anlg_name == 'amplitude':
+                                wt_data[:, 2, i] = self.f[anlg_path][good_inds]
+                            elif anlg_name == 'phase':
+                                wt_data[:, 3, i] = self.f[anlg_path][good_inds]
+                            elif anlg_name == 'velocity':
+                                wt_data[:, 4, i] = self.f[anlg_path][good_inds]
+                            elif anlg_name == 'whisking':
+                                wt_data[:, 5, i] = self.f[anlg_path][good_inds]
 
-                    else:
-                        warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
-                                + '**** this data must have already been trimmed ****')
-                        if  anlg_name is 'angle':
-                            wt_data[:, 0, i] = self.f[anlg_path][:]
-                        elif anlg_name is 'set-point':
-                            wt_data[:, 1, i] = self.f[anlg_path][:]
-                        elif anlg_name is 'amplitude':
-                            wt_data[:, 2, i] = self.f[anlg_path][:]
-                        elif anlg_name is 'phase':
-                            wt_data[:, 3, i] = self.f[anlg_path][:]
-                        elif anlg_name is 'velocity':
-                            wt_data[:, 4, i] = self.f[anlg_path][:]
-                        elif anlg_name is 'whisking':
-                            wt_data[:, 5, i] = self.f[anlg_path][:]
+                        else:
+                            warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
+                                    + '**** this data must have already been trimmed ****')
+                            if  anlg_name == 'angle':
+                                wt_data[:, 0, i] = self.f[anlg_path][:]
+                                if i == 0:
+                                    print('angle')
+                                    print(wt_data[:, 0, i])
+                            elif anlg_name == 'set-point':
+                                wt_data[:, 1, i] = self.f[anlg_path][:]
+                            elif anlg_name == 'amplitude':
+                                wt_data[:, 2, i] = self.f[anlg_path][:]
+                            elif anlg_name == 'phase':
+                                wt_data[:, 3, i] = self.f[anlg_path][:]
+                            elif anlg_name == 'velocity':
+                                wt_data[:, 4, i] = self.f[anlg_path][:]
+                            elif anlg_name == 'whisking':
+                                wt_data[:, 5, i] = self.f[anlg_path][:]
 
             self.wtt          = wtt
             self.wt_boolean   = wt_boolean
             self._wt_min_samp = num_samples
-            self.wt_data = wt_data
+            self.wt_data      = wt_data
         else:
             print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
                     '\nuse runspeed to classify trials')
@@ -441,7 +444,6 @@ class NeuroAnalyzer(object):
                                     LINE 208 __trim_lfp')
 
                         if num_samp > len(good_inds):
-                            print(i)
                             lfp_data[shank_ind][:, :, i] = self.f[lfp_path][good_inds, :]
                         else:
                             warnings.warn('\n**** length of LFPs is smaller than the length of the good indices ****\n'\
