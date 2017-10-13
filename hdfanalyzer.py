@@ -350,21 +350,40 @@ class NeuroAnalyzer(object):
                             warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
                                     LINE 208 __trim_wt')
 
-                    if self.f[anlg_path].attrs['name'] == 'angle' or \
-                            self.f[anlg_path].attrs['name'] == 'set-point' or\
-                            self.f[anlg_path].attrs['name'] == 'amplitude' or\
-                            self.f[anlg_path].attrs['name'] == 'phase' or\
-                            self.f[anlg_path].attrs['name'] == 'velocity'or\
-                            self.f[anlg_path].attrs['name'] == 'whisking':
-                                if num_samp > len(good_inds):
-                                    temp = self.f[anlg_path][good_inds]
-                                    del self.f[anlg_path]
-                                    self.f[anlg_path] = temp
-                                # don't change the file! add the trimmed
-                                # whisking data to the object!!!
-                                else:
-                                    warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
-                                            + '**** this data must have already been trimmed ****')
+                    # pre-allocate array for all whisker tracking data
+                    # this way the original file/data is left untouched
+                    wt_data = np.zeros((min_trial_length, 6, len(f)))
+
+                    anlg_name = self.f[anlg_path].attrs['name']
+                    if num_samp > len(good_inds):
+                        if  anlg_name is 'angle':
+                            wt_data[:, 0, i] = self.f[anlg_path][good_inds]
+                        elif anlg_name is 'set-point':
+                            wt_data[:, 1, i] = self.f[anlg_path][good_inds]
+                        elif anlg_name is 'amplitude':
+                            wt_data[:, 2, i] = self.f[anlg_path][good_inds]
+                        elif anlg_name is 'phase':
+                            wt_data[:, 3, i] = self.f[anlg_path][good_inds]
+                        elif anlg_name is 'velocity':
+                            wt_data[:, 4, i] = self.f[anlg_path][good_inds]
+                        elif anlg_name is 'whisking':
+                            wt_data[:, 5, i] = self.f[anlg_path][good_inds]
+
+                    else:
+                        warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
+                                + '**** this data must have already been trimmed ****')
+                        if  anlg_name is 'angle':
+                            wt_data[:, 0, i] = self.f[anlg_path][:]
+                        elif anlg_name is 'set-point':
+                            wt_data[:, 1, i] = self.f[anlg_path][:]
+                        elif anlg_name is 'amplitude':
+                            wt_data[:, 2, i] = self.f[anlg_path][:]
+                        elif anlg_name is 'phase':
+                            wt_data[:, 3, i] = self.f[anlg_path][:]
+                        elif anlg_name is 'velocity':
+                            wt_data[:, 4, i] = self.f[anlg_path][:]
+                        elif anlg_name is 'whisking':
+                            wt_data[:, 5, i] = self.f[anlg_path][:]
 
             self.wtt          = wtt
             self.wt_boolean   = wt_boolean
