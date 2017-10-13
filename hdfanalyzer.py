@@ -96,28 +96,34 @@ class NeuroAnalyzer(object):
 
         # set time after stimulus to start analyzing
         # time_after_stim + stim_start MUST BE LESS THAN stim_stop time
-        self.t_after_stim    = 0.500
+        self.t_after_stim = 0.500
         print('time after stim is set to: ' + str(self.t_after_stim))
 
         # find shortest baseline and trial length
         self.__find_min_times()
 
+        # create run_boolean array
+        self.__get_run_bool()
+
+        # create array with all the stimulus IDs
+        self.__get_all_stim_ids()
+
         # trim whisker tracking data and align it to shortest trial
-#        self.__trim_wt()
+        self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
 #        self.__trim_lfp()
 
+        # classify a trial as good if whisking occurs during a specified period.
+        # a new annotation ('wsk_boolean') is added to each segment
+        self.classify_whisking_trials(threshold='median')
+
         # return a list with the number of good trials for each stimulus condition
         self.get_num_good_trials()
-#
-#        # classify a trial as good if whisking occurs during a specified period.
-#        # a new annotation ('wsk_boolean') is added to each segment
-#        self.classify_whisking_trials(threshold='median')
-#
-#        # calculate rates, psths, whisking array, etc.
-#        self.rates()
-#
+
+        # calculate rates, psths, whisking array, etc.
+        self.rates()
+
 #        # create region dictionary
 #        self.region_dict = {0:'M1', 1:'S1'}
 #
@@ -291,6 +297,22 @@ class NeuroAnalyzer(object):
         self.min_tafter_stim  = np.asarray(min_tafter_stim)
         print('smallest baseline period (time before stimulus): {0}\nsmallest trial length (time after stimulus): {1}'.format(str(min_tbefore_stim), str(min_tafter_stim)))
 
+    def __get_run_bool(self):
+        '''make a boolean array with an entry for each segment/trial'''
+        run_boolean = list()
+        for k, seg in enumerate(self.f):
+            run_boolean.append(self.f[seg].attrs['run_boolean'])
+
+        self.run_boolean = run_boolean
+
+    def __get_all_stim_ids():
+        '''make a list with every segment/trials stimulus ID'''
+        stim_ids_all = list()
+        for k, seg in enumerate(self.f):
+            stim_ids_all.append(self.f[seg].attrs['trial_type'])
+
+        self.stim_ids_all = stim_ids_all
+
     def __trim_wt(self):
         """
         Trim whisker tracking arrays to the length of the shortest trial.
@@ -367,8 +389,6 @@ class NeuroAnalyzer(object):
                         else:
                             warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
                                     + '**** this data must have already been trimmed ****')
-                            if i == 0:
-                                print(i)
                             if  anlg_name == 'angle':
                                 wt_data[:, 0, i] = self.f[anlg_path][:]
                             elif anlg_name == 'set-point':
@@ -513,13 +533,21 @@ class NeuroAnalyzer(object):
             slow_count = 0
             all_count  = 0
             for k, seg in enumerate(self.f):
-                if self.f[seg].attrs['trial_type'] == stim_id and self.f[seg].attrs[kind] == True:
-                    run_count += 1
-                elif self.f[seg].attrs['trial_type'] == stim_id and self.f[seg].attrs[kind] == False:
-                    slow_count += 1
+                if kind == 'run_boolean':
+                    if self.stim_ids_all[k] == stim_id and self.run_boolean[k] == True:
+                        run_count += 1
+                    elif self.stim_ids_all[k] == stim_id and self.run_boolean[k] == False:
+                        slow_count += 1
 
-                if self.f[seg].attrs['trial_type'] == stim_id:
+                elif kind == 'wsk_boolean':
+                    if self.stim_ids_all[k] == stim_id and self.wsk_boolean[k] == True:
+                        run_count += 1
+                    elif self.stim_ids_all[k] == stim_id and self.wsk_boolean[k] == False:
+                        slow_count += 1
+
+                if self.stim_ids_all[k] == stim_id:
                     all_count += 1
+
             num_good_trials.append(run_count)
             num_slow_trials.append(slow_count)
             num_all_trials.append(all_count)
@@ -527,76 +555,80 @@ class NeuroAnalyzer(object):
         self.num_slow_trials = num_slow_trials
         self.num_all_trials  = num_all_trials
 
-#    def classify_whisking_trials(self, threshold='user'):
-#        """
-#        Classify a trial as good if whisking occurs during a specified period.
-#        A trial is considered whisking if the mouse was whisking during the
-#        baseline period and the stimulus period.
-#
-#        threshold can take the values 'median' or 'user' (default)
-#        A new annotation ('wsk_boolean') is added to each segment
-#        """
-#
-#        if self.wt_boolean:
-#            print('whisker tracking data found! trimming data to be all the same length in time')
-#            # make "whisking" distribution and compute threshold
-#            print('\n-----classify_whisking_trials-----')
-#            #wsk_dist = np.empty((self._wt_min_samp, 1))
-#            wsk_dist = list()
-#            for i, seg in enumerate(self.neo_obj.segments):
-#                for k, anlg in enumerate(seg.analogsignals):
-#                    if anlg.name == 'whisking':
+    def classify_whisking_trials(self, threshold='user'):
+        """
+        Classify a trial as good if whisking occurs during a specified period.
+        A trial is considered whisking if the mouse was whisking during the
+        baseline period and the stimulus period.
+
+        threshold can take the values 'median' or 'user' (default)
+        A new annotation ('wsk_boolean') is added to each segment
+        """
+
+        if self.wt_boolean:
+            print('whisker tracking data found! trimming data to be all the same length in time')
+            # make "whisking" distribution and compute threshold
+            print('\n-----classify_whisking_trials-----')
+            #wsk_dist = np.empty((self._wt_min_samp, 1))
+            wsk_dist = list()
+#            for i, seg in enumerate(self.f):
+#                for k, anlg in enumerate(self.f[seg + '/analog-signals']):
+#                    if self.f[seg + '/analog-signals/' + anlg].attrs['name'] == 'whisking':
 #                        #wsk_dist = np.append(wsk_dist, anlg.reshape(-1, 1), axis=1) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
-#                        wsk_dist.extend(anlg.tolist()) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
-#            #wsk_dist = np.ravel(wsk_dist[:, 1:])
-#            wsk_dist = np.ravel(np.asarray(wsk_dist))
-#            wsk_dist = wsk_dist[~np.isnan(wsk_dist)]
-#
-#            # plot distribution
-#            print('making "whisking" histogram')
-#            sns.set(style="ticks")
-#            f, (ax_box, ax_hist) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
-#            sns.boxplot(wsk_dist, ax=ax_box)
-#            sns.distplot(wsk_dist, ax=ax_hist)
-#            ax_box.set(yticks=[])
-#            sns.despine(ax=ax_hist)
-#            sns.despine(ax=ax_box, left=True)
-#            plt.xlim(70, 180)
-#            plt.show()
-#
-#            # select threshold
-#            if threshold is 'median':
-#                thresh = np.median(wsk_dist)
-#            elif threshold is 'user':
-#                thresh = int(raw_input("Enter a threshold value: "))
-#
-#            plt.close(f)
-#            del wsk_dist
-#
-#            wtt = self.wtt
-#            # trimming whisking data sets negative values to baseline period
-#            wsk_base_ind = wtt < 0
-#            # min_tbefore is the min baseline length (equal to the stimulus
-#            # period to be analyzed) offset by t_after_stim
-#            wsk_stim_ind = np.logical_and( wtt > self.t_after_stim, wtt < (self.min_tbefore_stim + self.t_after_stim) )
-#            for i, seg in enumerate(self.neo_obj.segments):
-#
-#                for k, anlg in enumerate(seg.analogsignals):
-#                    if anlg.name == 'whisking':
-#                        wsk = anlg.reshape(-1, 1)
-#                        base_high  = np.sum(wsk[wsk_base_ind] > thresh)
-#                        stim_high  = np.sum(wsk[wsk_stim_ind] > thresh)
-#                        total_high = base_high + stim_high
-#                        total_samp = np.sum(wsk_base_ind) + np.sum(wsk_stim_ind)
-#                        fraction_high = float(total_high)/float(total_samp)
-#
-#                        if fraction_high > 0.8:
-#                            self.neo_obj.segments[i].annotations['wsk_boolean'] = True
-#                        else:
-#                            self.neo_obj.segments[i].annotations['wsk_boolean'] = False
-#        else:
-#            print('NO WHISKER TRACKING DATA FOUND!\nuse runspeed to classify trials')
-#
+#                        wsk_dist.extend(self.f[seg + '/analog-signals/' + anlg][:]) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
+            for k in range(self.wt_data.shape[2]):
+                wsk_dist.extend(self.wt_data[:, 5, k].ravel()) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
+
+            #wsk_dist = np.ravel(wsk_dist[:, 1:])
+            wsk_dist = np.ravel(np.asarray(wsk_dist))
+            wsk_dist = wsk_dist[~np.isnan(wsk_dist)]
+
+            # plot distribution
+            print('making "whisking" histogram')
+            sns.set(style="ticks")
+            f, (ax_box, ax_hist) = plt.subplots(2, sharex=True, gridspec_kw={"height_ratios": (0.15, 0.85)})
+            sns.boxplot(wsk_dist, ax=ax_box)
+            sns.distplot(wsk_dist, ax=ax_hist)
+            ax_box.set(yticks=[])
+            sns.despine(ax=ax_hist)
+            sns.despine(ax=ax_box, left=True)
+            plt.xlim(70, 180)
+            plt.show()
+
+            # select threshold
+            if threshold is 'median':
+                thresh = np.median(wsk_dist)
+            elif threshold is 'user':
+                thresh = int(raw_input("Enter a threshold value: "))
+
+            plt.close(f)
+            del wsk_dist
+
+            wtt = self.wtt
+            # trimming whisking data sets negative values to baseline period
+            wsk_base_ind = wtt < 0
+            # min_tbefore is the min baseline length (equal to the stimulus
+            # period to be analyzed) offset by t_after_stim
+            wsk_stim_ind = np.logical_and( wtt > self.t_after_stim, wtt < (self.min_tbefore_stim + self.t_after_stim) )
+            wsk_boolean = list()
+            for k in range(self.wt_data.shape[2]):
+#                wsk = anlg.reshape(-1, 1)
+                wsk = self.wt_data[:, 5, k]
+                base_high  = np.sum(wsk[wsk_base_ind] > thresh)
+                stim_high  = np.sum(wsk[wsk_stim_ind] > thresh)
+                total_high = base_high + stim_high
+                total_samp = np.sum(wsk_base_ind) + np.sum(wsk_stim_ind)
+                fraction_high = float(total_high)/float(total_samp)
+
+                if fraction_high > 0.8:
+                    wsk_boolean.append(True)
+                else:
+                    wsk_boolean.append(False)
+
+            self.wsk_boolean = wsk_boolean
+        else:
+            print('NO WHISKER TRACKING DATA FOUND!\nuse runspeed to classify trials')
+
 #    def __make_kernel(self, resolution=0.025, kind='square'):
 #        """Build alpha kernel with specified 25msec (default) resolution"""
 #        if kind == 'alpha':
@@ -624,143 +656,143 @@ class NeuroAnalyzer(object):
 #                if segment.annotations[key] == value]
 #        return stim_index
 #
-#    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True, all_trials=False):
-#        """
-#        rates computes the absolute and evoked firing rate and counts for the
-#        specified stimulus period. The time to start analyzing after the stimulus
-#        start time is specified by neuro.t_after_stim. The baseline period to
-#        be analyzed is taken to be the same size as the length of the stimulus
-#        period.
-#
-#        MAKE SURE THAT THE EXPERIMENT WAS DESIGNED TO HAVE A LONG ENOUGH BASELINE
-#        THAT IT IS AT LEAST AS LONG AS THE STIMULUS PERIOD TO BE ANALYZED
-#
-#        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
-#
-#        Recomputes whisker tracking data and adds it to self.wt
-#        """
-#
-#        print('\n-----computing rates----')
-#        absolute_rate   = list()
-#        evoked_rate     = list()
-#        absolute_counts = list()
-#        evoked_counts   = list()
-#        binned_spikes   = list()
-#        psth            = list()
-#
-#        # make whisker tracking list wt
-#        if self.wt_boolean:
-#            wt          = list()
-#        if kind == 'wsk_boolean' and not self.wt_boolean:
-#            warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
-#                    using run speed to select good trials')
-#            kind = 'run_boolean'
-#        elif kind == 'wsk_boolean' and self.wt_boolean:
-#            print('using whisking to find good trials')
-#            self.get_num_good_trials(kind='wsk_boolean')
-#        elif kind == 'run_boolean':
-#            print('using running to find good trials')
-#            self.get_num_good_trials(kind='run_boolean')
-#
-#        if running == True:
-#            num_trials = self.num_good_trials
-#        elif running == False:
-#            print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
-#            num_trials = self.num_slow_trials
-#
-#        if all_trials == True:
-#            print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
-#            print('USING ALL RUNNING TRIALS')
-#            num_trials = self.num_all_trials
-#
-#        # make bins for rasters and PSTHs
-#        bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
-##        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
-##        kernel = self.__make_kernel(kind='square', resolution=0.100)
-#        kernel = self.__make_kernel(kind='square', resolution=0.025)
-##        kernel = self.__make_kernel(kind='alpha', resolution=0.050)
-#        self._bins = bins
-#        self.bins_t = bins[0:-1]
-#
-#        # preallocation loop
-#        for k, trials_ran in enumerate(num_trials):
-#                absolute_rate.append(np.zeros((trials_ran, self.num_units)))
-#                evoked_rate.append(np.zeros((trials_ran, self.num_units)))
-#                absolute_counts.append(np.zeros((trials_ran, self.num_units)))
-#                evoked_counts.append(np.zeros((trials_ran, self.num_units)))
-#                binned_spikes.append(np.zeros((bins.shape[0]-1, trials_ran, self.num_units)))
-#                psth.append(np.zeros((bins.shape[0]-1,trials_ran, self.num_units))) # samples x trials x units
-#
-#                if self.wt_boolean:
-#                    wt.append(np.zeros((self.wtt.shape[0], 6, trials_ran)))
-#
-#        for stim_ind, stim_id in enumerate(self.stim_ids):
-#            good_trial_ind = 0
-#
-#            for trial in self.neo_obj.segments:
-#                if trial.annotations['trial_type'] == stim_id and (trial.annotations[kind] == running or \
-#                        all_trials == True):
-#
-#                    # organize whisker tracking data by trial type
-#                    if self.wt_boolean:
-#                        k = 0
-#                        for anlg in trial.analogsignals:
-#                            if anlg.name == 'angle' or \
-#                                    anlg.name == 'set-point' or\
-#                                    anlg.name == 'amplitude' or\
-#                                    anlg.name == 'phase' or\
-#                                    anlg.name == 'velocity'or\
-#                                    anlg.name == 'whisking':
-#                                        wt[stim_ind][:, k, good_trial_ind] = anlg[:]
-#                                        k += 1
-#
-#                    # get baseline and stimulus period times for this trial
-#                    stim_start = trial.annotations['stim_times'][0] + self.t_after_stim
-#                    stim_stop  = trial.annotations['stim_times'][1]
-#                    base_start = trial.annotations['stim_times'][0] - (stim_stop - stim_start)
-#                    base_stop  = trial.annotations['stim_times'][0]
-#
-#                    # iterate through all units and count calculate various
-#                    # spike rates (e.g. absolute firing and evoked firing rates
-#                    # and counts)
-#                    for unit, spike_train in enumerate(trial.spiketrains):
-#                        spk_times = np.asarray(spike_train.tolist())
-#
-#                        # bin spikes for rasters (time 0 is stimulus start)
-#                        spk_times_relative = spk_times - trial.annotations['stim_times'][0]
-#                        counts = np.histogram(spk_times_relative, bins=bins)[0]
-#                        binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
-#
-#                        # convolve binned spikes to make PSTH
-#                        psth[stim_ind][:, good_trial_ind, unit] =\
-#                                np.convolve(counts, kernel)[:-kernel.shape[0]+1]
-#
-#                        # calculate absolute and evoked counts
-#                        abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
-#                        evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
-#                                (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
-#                        absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
-#                        evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
-#
-#                        # calculate absolute and evoked rate
-#                        abs_rate = float(abs_count)/float((stim_stop - stim_start))
-#                        evk_rate = float(evk_count)/float((stim_stop - stim_start))
-#                        absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
-#                        evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
-#
-#
-#                    good_trial_ind += 1
-#
-#        self.abs_rate      = absolute_rate
-#        self.abs_count     = absolute_counts
-#        self.evk_rate      = evoked_rate
-#        self.evk_count     = evoked_counts
-#        self.binned_spikes = binned_spikes
-#        self.psth          = psth
-#
-#        if self.wt_boolean:
-#            self.wt        = wt
-#
+    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True, all_trials=False):
+        """
+        rates computes the absolute and evoked firing rate and counts for the
+        specified stimulus period. The time to start analyzing after the stimulus
+        start time is specified by neuro.t_after_stim. The baseline period to
+        be analyzed is taken to be the same size as the length of the stimulus
+        period.
+
+        MAKE SURE THAT THE EXPERIMENT WAS DESIGNED TO HAVE A LONG ENOUGH BASELINE
+        THAT IT IS AT LEAST AS LONG AS THE STIMULUS PERIOD TO BE ANALYZED
+
+        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
+
+        Recomputes whisker tracking data and adds it to self.wt
+        """
+
+        print('\n-----computing rates----')
+        absolute_rate   = list()
+        evoked_rate     = list()
+        absolute_counts = list()
+        evoked_counts   = list()
+        binned_spikes   = list()
+        psth            = list()
+
+        # make whisker tracking list wt
+        if self.wt_boolean:
+            wt          = list()
+        if kind == 'wsk_boolean' and not self.wt_boolean:
+            warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
+                    using run speed to select good trials')
+            kind = 'run_boolean'
+        elif kind == 'wsk_boolean' and self.wt_boolean:
+            print('using whisking to find good trials')
+            self.get_num_good_trials(kind='wsk_boolean')
+        elif kind == 'run_boolean':
+            print('using running to find good trials')
+            self.get_num_good_trials(kind='run_boolean')
+
+        if running == True:
+            num_trials = self.num_good_trials
+        elif running == False:
+            print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
+            num_trials = self.num_slow_trials
+
+        if all_trials == True:
+            print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
+            print('USING ALL RUNNING TRIALS')
+            num_trials = self.num_all_trials
+
+        # make bins for rasters and PSTHs
+        bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
+#        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
+#        kernel = self.__make_kernel(kind='square', resolution=0.100)
+        kernel = self.__make_kernel(kind='square', resolution=0.025)
+#        kernel = self.__make_kernel(kind='alpha', resolution=0.050)
+        self._bins = bins
+        self.bins_t = bins[0:-1]
+
+        # preallocation loop
+        for k, trials_ran in enumerate(num_trials):
+                absolute_rate.append(np.zeros((trials_ran, self.num_units)))
+                evoked_rate.append(np.zeros((trials_ran, self.num_units)))
+                absolute_counts.append(np.zeros((trials_ran, self.num_units)))
+                evoked_counts.append(np.zeros((trials_ran, self.num_units)))
+                binned_spikes.append(np.zeros((bins.shape[0]-1, trials_ran, self.num_units)))
+                psth.append(np.zeros((bins.shape[0]-1,trials_ran, self.num_units))) # samples x trials x units
+
+                if self.wt_boolean:
+                    wt.append(np.zeros((self.wtt.shape[0], 6, trials_ran)))
+
+        for stim_ind, stim_id in enumerate(self.stim_ids):
+            good_trial_ind = 0
+
+            for seg in self.f:
+                if  trial.annotations['trial_type'] == stim_id and (trial.annotations[kind] == running or \
+                        all_trials == True):
+
+                    # organize whisker tracking data by trial type
+                    if self.wt_boolean:
+                        k = 0
+                        for anlg in trial.analogsignals:
+                            if anlg.name == 'angle' or \
+                                    anlg.name == 'set-point' or\
+                                    anlg.name == 'amplitude' or\
+                                    anlg.name == 'phase' or\
+                                    anlg.name == 'velocity'or\
+                                    anlg.name == 'whisking':
+                                        wt[stim_ind][:, k, good_trial_ind] = anlg[:]
+                                        k += 1
+
+                    # get baseline and stimulus period times for this trial
+                    stim_start = trial.annotations['stim_times'][0] + self.t_after_stim
+                    stim_stop  = trial.annotations['stim_times'][1]
+                    base_start = trial.annotations['stim_times'][0] - (stim_stop - stim_start)
+                    base_stop  = trial.annotations['stim_times'][0]
+
+                    # iterate through all units and count calculate various
+                    # spike rates (e.g. absolute firing and evoked firing rates
+                    # and counts)
+                    for unit, spike_train in enumerate(trial.spiketrains):
+                        spk_times = np.asarray(spike_train.tolist())
+
+                        # bin spikes for rasters (time 0 is stimulus start)
+                        spk_times_relative = spk_times - trial.annotations['stim_times'][0]
+                        counts = np.histogram(spk_times_relative, bins=bins)[0]
+                        binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
+
+                        # convolve binned spikes to make PSTH
+                        psth[stim_ind][:, good_trial_ind, unit] =\
+                                np.convolve(counts, kernel)[:-kernel.shape[0]+1]
+
+                        # calculate absolute and evoked counts
+                        abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
+                        evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
+                                (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
+                        absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
+                        evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
+
+                        # calculate absolute and evoked rate
+                        abs_rate = float(abs_count)/float((stim_stop - stim_start))
+                        evk_rate = float(evk_count)/float((stim_stop - stim_start))
+                        absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
+                        evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
+
+
+                    good_trial_ind += 1
+
+        self.abs_rate      = absolute_rate
+        self.abs_count     = absolute_counts
+        self.evk_rate      = evoked_rate
+        self.evk_count     = evoked_counts
+        self.binned_spikes = binned_spikes
+        self.psth          = psth
+
+        if self.wt_boolean:
+            self.wt        = wt
+
     def reclassify_units(self):
         """use OMI and wave duration to reclassify units"""
 
