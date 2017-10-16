@@ -136,14 +136,14 @@ class NeuroAnalyzer(object):
 
         # get preferred position for all units
         self.get_preferred_position()
-#
-#        # get best contact for each unit
-#        self.get_best_contact()
-#
-#        # kruskal wallis and dunn's test to ID sensory driven units
-#        self.get_sensory_drive()
-#
-#        # reclassify running trials
+
+        # get best contact for each unit
+        self.get_best_contact()
+
+        # kruskal wallis and dunn's test to ID sensory driven units
+        self.get_sensory_drive()
+
+        # reclassify running trials
 #        #self.reclassify_run_trials(self, time_before_stimulus= -1,\
 #        #            mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False)
 
