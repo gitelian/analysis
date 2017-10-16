@@ -12,8 +12,6 @@ import os
 import sys
 import multiprocessing as mp
 import time
-import neo
-from neo.io import NeoHdf5IO
 from warnings import warn
 
 def load_spike_file(path):
@@ -584,11 +582,11 @@ if __name__ == "__main__":
 
     data_dir = '/media/greg/data/neuro/'
 
-    # Begin create neo file loop
+    # Begin create HDF5 file loop
     for arg in sys.argv[1:]:
         fid = 'FID' + arg
         print(fid)
-        # create multiple independent neo files
+        # create multiple independent HDF5 files
         hdf_fname = '/media/greg/data/neuro/hdf5/' + fid + '.hdf5'
         if os.path.exists(hdf_fname):
             print('!!! DELETING OLD HDF5 FILE !!!')
@@ -598,7 +596,7 @@ if __name__ == "__main__":
         # exist.
         # REMEMBER glob.glob returns a LIST of path strings you must
         # index into the appropriate one for whatever experiment/electrode
-        # you're trying to add to the neo object
+        # you're trying to add to the HDF5 object
         run_file     = glob.glob(data_dir + fid + '*/' + fid + '*.run')
         lfp_files    = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*LFP.mat'))
         spikes_files = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*spikes.mat'))
@@ -643,6 +641,10 @@ if __name__ == "__main__":
             else:
                 warn('\nInvalid response, try again!')
                 valid_input = False
+
+        # close plots
+        for aa in range(10):
+            plt.close()
 
         # Create running trial dictionary
         run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list,\
