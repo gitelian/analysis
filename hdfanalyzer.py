@@ -51,6 +51,10 @@ class NeuroAnalyzer(object):
             self.exp_csv_dir = '/media/greg/data/neuro/'
         self.data_dir = data_dir
 
+        # initialize trial_class dict (this will haveing running and whisking
+        # boolean arrays
+        self.trial_class = dict()
+
         self.fid = fid
 
         # add hdf5 object to class instance
@@ -67,7 +71,7 @@ class NeuroAnalyzer(object):
 
         # find shank names (i.e. names of electrodes/recording sites, e.g.
         # 'e1', 'e2')
-        self.shank_names     = np.sort(np.unique([self.f['/segment-0000/spiketrains/' + k].attrs['shank'] \
+        self.shank_names = np.sort(np.unique([self.f['/segment-0000/spiketrains/' + k].attrs['shank'] \
                 for k in self.f['segment-0000/spiketrains']]))
 
         # Find depths of each shank and add it to self.shank_depths
@@ -115,7 +119,7 @@ class NeuroAnalyzer(object):
 #        self.__trim_lfp()
 
         # classify a trial as good if whisking occurs during a specified period.
-        # a new annotation ('wsk_boolean') is added to each segment
+        # a new annotation ('wsk_boolean') is added to self.trial_class
         self.classify_whisking_trials(threshold='median')
 
         # return a list with the number of good trials for each stimulus condition
@@ -303,9 +307,10 @@ class NeuroAnalyzer(object):
         for k, seg in enumerate(self.f):
             run_boolean.append(self.f[seg].attrs['run_boolean'])
 
-        self.run_boolean = run_boolean
+        self.trial_class['run_boolean'] = run_boolean
 
-    def __get_all_stim_ids():
+
+    def __get_all_stim_ids(self):
         '''make a list with every segment/trials stimulus ID'''
         stim_ids_all = list()
         for k, seg in enumerate(self.f):
@@ -325,7 +330,6 @@ class NeuroAnalyzer(object):
         for anlg in self.f['/segment-0000/analog-signals/']:
             anlg_path = '/segment-0000/analog-signals/' + anlg
             if self.f[anlg_path].attrs['name'] == 'angle':
-                print('TRUE')
                 wt_boolean = True
 
         if wt_boolean:
@@ -403,7 +407,7 @@ class NeuroAnalyzer(object):
                                 wt_data[:, 5, i] = self.f[anlg_path][:]
 
             self.wtt          = wtt
-            self.wt_boolean   = wt_boolean
+            self.wt_boolean   = wt_boolean # indicates whether whisker tracking data is present
             self._wt_min_samp = num_samples
             self.wt_data      = wt_data
         else:
@@ -480,45 +484,49 @@ class NeuroAnalyzer(object):
             print('NO LFP DATA FOUND!\nSetting lfp_boolean to False')
             self.lfp_boolean = lfp_boolean
 
-#    def reclassify_run_trials(self, time_before_stimulus= -1,\
-#            mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
-#        """
-#        If the neo object is still associated with the NeuroAnalyzer class this
-#        function uses the velocity data stored in the analogsignals array to
-#        reclassify running trials as running or not running.
-#
-#        Two specified time windows are used to classify trials as running. One
-#        region during the pre-stimulus/baseline period and one during the stimulus
-#        period.
-#
-#        set_all_to_true will set all trials to true regardless of running data.
-#
-#        TODO: classify trials as not_running and use that classification to extract
-#        data for those trials. This will allow for the analysis of non-running
-#        trial. Right now trials classified as not running aren't analyzed.
-#        """
-#
-#        for count, trial in enumerate(self.neo_obj.segments):
-#            for anlg_signals in trial.analogsignals:
-#                if anlg_signals.name == 'run speed':
-#                    run_speed = np.asarray(anlg_signals)
-#                elif anlg_signals.name == 'run speed time':
-#                    run_time = np.asarray(anlg_signals)
-#
-#            base_ind = np.logical_and( run_time > time_before_stimulus, run_time < 0)
-#            wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < (self.min_tbefore_stim + self.t_after_stim) )
-#
-##            vel = run_speed[stim_period_inds]
-#            vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
-#            if set_all_to_true == 0:
-#                if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
-#                    self.neo_obj.segments[count].annotations['run_boolean'] = True
-#                else:
-#                    self.neo_obj.segments[count].annotations['run_boolean'] = False
-#            elif set_all_to_true == 1:
-#                self.neo_obj.segments[count].annotations['run_boolean'] = True
-#
-#
+    def reclassify_run_trials(self, time_before_stimulus= -1,\
+            mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
+        """
+        If the neo object is still associated with the NeuroAnalyzer class this
+        function uses the velocity data stored in the analogsignals array to
+        reclassify running trials as running or not running.
+
+        Two specified time windows are used to classify trials as running. One
+        region during the pre-stimulus/baseline period and one during the stimulus
+        period.
+
+        set_all_to_true will set all trials to true regardless of running data.
+
+        TODO: classify trials as not_running and use that classification to extract
+        data for those trials. This will allow for the analysis of non-running
+        trial. Right now trials classified as not running aren't analyzed.
+        """
+
+        for count, seg in enumerate(self.f):
+
+            for anlg in self.f['/segment-0000/analog-signals/']:
+                anlg_path = seg + '/analog-signals/' + anlg
+
+                if self.f[anlg_path].attrs['name'] == 'run_speed':
+                    run_speed = self.f[anlg_path][:] # as array?
+                elif self.f[anlg_path].attrs['name'] == 'run_speed_time':
+                    run_time = self.f[anlg_path][:]
+
+            base_ind = np.logical_and( run_time > time_before_stimulus, run_time < 0)
+            wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < (self.min_tbefore_stim + self.t_after_stim) )
+
+            vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
+            if set_all_to_true == 0:
+                if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
+                    self.trial_class['run_boolean'][count] = True
+                    #self.neo_obj.segments[count].annotations['run_boolean'] = True
+                else:
+                    self.trial_class['run_boolean'][count] = False
+                    #self.neo_obj.segments[count].annotations['run_boolean'] = False
+            elif set_all_to_true == 1:
+                self.neo_obj.segments[count].annotations['run_boolean'] = True
+
+
     def get_num_good_trials(self, kind='run_boolean'):
         """
         Return a list with the number of good trials for each stimulus condition
@@ -528,22 +536,19 @@ class NeuroAnalyzer(object):
         num_good_trials = list()
         num_slow_trials = list()
         num_all_trials  = list()
+
         for stim_id in self.stim_ids:
+
             run_count  = 0
             slow_count = 0
             all_count  = 0
-            for k, seg in enumerate(self.f):
-                if kind == 'run_boolean':
-                    if self.stim_ids_all[k] == stim_id and self.run_boolean[k] == True:
-                        run_count += 1
-                    elif self.stim_ids_all[k] == stim_id and self.run_boolean[k] == False:
-                        slow_count += 1
 
-                elif kind == 'wsk_boolean':
-                    if self.stim_ids_all[k] == stim_id and self.wsk_boolean[k] == True:
-                        run_count += 1
-                    elif self.stim_ids_all[k] == stim_id and self.wsk_boolean[k] == False:
-                        slow_count += 1
+            for k, seg in enumerate(self.f):
+
+                if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
+                    run_count += 1
+                elif self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == False:
+                    slow_count += 1
 
                 if self.stim_ids_all[k] == stim_id:
                     all_count += 1
@@ -551,6 +556,7 @@ class NeuroAnalyzer(object):
             num_good_trials.append(run_count)
             num_slow_trials.append(slow_count)
             num_all_trials.append(all_count)
+
         self.num_good_trials = num_good_trials
         self.num_slow_trials = num_slow_trials
         self.num_all_trials  = num_all_trials
@@ -569,13 +575,8 @@ class NeuroAnalyzer(object):
             print('whisker tracking data found! trimming data to be all the same length in time')
             # make "whisking" distribution and compute threshold
             print('\n-----classify_whisking_trials-----')
-            #wsk_dist = np.empty((self._wt_min_samp, 1))
             wsk_dist = list()
-#            for i, seg in enumerate(self.f):
-#                for k, anlg in enumerate(self.f[seg + '/analog-signals']):
-#                    if self.f[seg + '/analog-signals/' + anlg].attrs['name'] == 'whisking':
-#                        #wsk_dist = np.append(wsk_dist, anlg.reshape(-1, 1), axis=1) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
-#                        wsk_dist.extend(self.f[seg + '/analog-signals/' + anlg][:]) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
+
             for k in range(self.wt_data.shape[2]):
                 wsk_dist.extend(self.wt_data[:, 5, k].ravel()) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
 
@@ -625,37 +626,37 @@ class NeuroAnalyzer(object):
                 else:
                     wsk_boolean.append(False)
 
-            self.wsk_boolean = wsk_boolean
+            self.trial_class['wsk_boolean']   = wsk_boolean
         else:
             print('NO WHISKER TRACKING DATA FOUND!\nuse runspeed to classify trials')
 
-#    def __make_kernel(self, resolution=0.025, kind='square'):
-#        """Build alpha kernel with specified 25msec (default) resolution"""
-#        if kind == 'alpha':
-#            alpha  = 1.0/resolution
-#            tau    = np.arange(0,1/alpha*10, 0.001)
-#            kernel = alpha**2*tau*np.exp(-alpha*tau)
-#
-#        elif kind == 'square':
-#            dt = 1.0/resolution
-#            num_samples_total = int(resolution/0.001*10)
-#            num_samples_high  = int(resolution/0.001)
-#            kernel = np.zeros((num_samples_total,))
-#            kernel[0:num_samples_high] = dt
-#
-#        return kernel
-#
-#    def update_t_after_stim(self, t_after_stim):
-#        self.t_after_stim = t_after_stim
-#        self.classify_whisking_trials(threshold='user')
-#        self.rates()
-#
-#    def get_annotations_index(self, key, value):
-#        """Returns trial index for the given key value pair"""
-#        stim_index = [ index for index, segment in enumerate(self.neo_obj.segments) \
-#                if segment.annotations[key] == value]
-#        return stim_index
-#
+    def __make_kernel(self, resolution=0.025, kind='square'):
+        """Build alpha kernel with specified 25msec (default) resolution"""
+        if kind == 'alpha':
+            alpha  = 1.0/resolution
+            tau    = np.arange(0,1/alpha*10, 0.001)
+            kernel = alpha**2*tau*np.exp(-alpha*tau)
+
+        elif kind == 'square':
+            dt = 1.0/resolution
+            num_samples_total = int(resolution/0.001*10)
+            num_samples_high  = int(resolution/0.001)
+            kernel = np.zeros((num_samples_total,))
+            kernel[0:num_samples_high] = dt
+
+        return kernel
+
+    def update_t_after_stim(self, t_after_stim):
+        self.t_after_stim = t_after_stim
+        self.classify_whisking_trials(threshold='user')
+        self.rates()
+
+    def get_annotations_index(self, key, value):
+        """Returns trial index for the given key value pair"""
+        stim_index = [ index for index, segment in enumerate(self.neo_obj.segments) \
+                if segment.annotations[key] == value]
+        return stim_index
+
     def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True, all_trials=False):
         """
         rates computes the absolute and evoked firing rate and counts for the
@@ -729,37 +730,33 @@ class NeuroAnalyzer(object):
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
 
-            for seg in self.f:
-                if  trial.annotations['trial_type'] == stim_id and (trial.annotations[kind] == running or \
+            # iterate through all segments in HDF5 file
+            for k, seg in enumerate(self.f):
+
+                # if running or whisking trial add data to arrays
+                if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == running or \
                         all_trials == True):
 
                     # organize whisker tracking data by trial type
                     if self.wt_boolean:
-                        k = 0
-                        for anlg in trial.analogsignals:
-                            if anlg.name == 'angle' or \
-                                    anlg.name == 'set-point' or\
-                                    anlg.name == 'amplitude' or\
-                                    anlg.name == 'phase' or\
-                                    anlg.name == 'velocity'or\
-                                    anlg.name == 'whisking':
-                                        wt[stim_ind][:, k, good_trial_ind] = anlg[:]
-                                        k += 1
+                        for wt_ind in range(self.wt_data.shape[1]):
+                            # k should be the segment/trial index
+                            wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
 
                     # get baseline and stimulus period times for this trial
-                    stim_start = trial.annotations['stim_times'][0] + self.t_after_stim
-                    stim_stop  = trial.annotations['stim_times'][1]
-                    base_start = trial.annotations['stim_times'][0] - (stim_stop - stim_start)
-                    base_stop  = trial.annotations['stim_times'][0]
+                    stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
+                    stim_stop  = self.f[seg].attrs['stim_times'][1]
+                    base_start = self.f[seg].attrs['stim_times'][0] - (stim_stop - stim_start)
+                    base_stop  = self.f[seg].attrs['stim_times'][0]
 
                     # iterate through all units and count calculate various
                     # spike rates (e.g. absolute firing and evoked firing rates
                     # and counts)
-                    for unit, spike_train in enumerate(trial.spiketrains):
-                        spk_times = np.asarray(spike_train.tolist())
+                    for unit, spike_train in enumerate(self.f[seg + '/spiketrains']):
+                        spk_times = self.f[seg + '/spiketrains/' + spike_train][:]
 
                         # bin spikes for rasters (time 0 is stimulus start)
-                        spk_times_relative = spk_times - trial.annotations['stim_times'][0]
+                        spk_times_relative = spk_times - self.f[seg].attrs['stim_times'][0]
                         counts = np.histogram(spk_times_relative, bins=bins)[0]
                         binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
 
