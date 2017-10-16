@@ -133,9 +133,9 @@ class NeuroAnalyzer(object):
 
         # get selectivity for all units
         self.get_selectivity()
-#
-#        # get preferred position for all units
-#        self.get_preferred_position()
+
+        # get preferred position for all units
+        self.get_preferred_position()
 #
 #        # get best contact for each unit
 #        self.get_best_contact()
@@ -1091,54 +1091,54 @@ class NeuroAnalyzer(object):
 
         self.selectivity = sel_mat
 
-#    def get_omi(self, pos=-1):
-#        """
-#        calculates mean OMI or OMI at a specifie position. Returns a
-#        unit X number of optogenetic manipulations
-#        """
-#        if hasattr(self, 'abs_rate') is False:
-#            self.rates()
-#        control_pos = self.control_pos
-#        num_manipulations = self.stim_ids.shape[0]/control_pos
-#        omi_mat = np.zeros((self.num_units, num_manipulations-1))
-#
-#        for manip in range(num_manipulations - 1):
-#            for unit_index in range(self.num_units):
-#                meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
-#                # NO minus 1, no contact/control position is INCLUDED
-#                # (manip+1)*control_pos = (0+1)*9, (1+1)(9) = 18
-#                omi_tc  = (meanr_abs[((manip+1)*control_pos):((manip+1+1)*control_pos)] - meanr_abs[:self.control_pos]) / \
-#                                (meanr_abs[((manip+1)*control_pos):((manip+1+1)*control_pos)] + meanr_abs[:self.control_pos])
-#                if pos == -1:
-#                    omi_mat[unit_index, manip] = omi_tc.mean()
-#                else:
-#                    omi_mat[unit_index, manip] = omi_tc[pos]
-#
-#        return omi_mat
-#
-#    def get_preferred_position(self):
-#        """
-#        calculated the preferred position. Returns a
-#        unit X number of manipulations
-#        """
-#        if hasattr(self, 'abs_rate') is False:
-#            self.rates()
-#        control_pos = self.control_pos
-#        num_manipulations = self.stim_ids.shape[0]/control_pos
-#        pref_mat = np.zeros((self.num_units, num_manipulations))
-#        positions = range(control_pos-1)
-#
-#        for manip in range(num_manipulations):
-#            for unit_index in range(self.num_units):
-#                meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
-#                weights = meanr_abs[(manip*control_pos):((manip+1)*control_pos-1)]
-#                pref_mat[unit_index, manip] = np.sum(weights*positions)/np.sum(weights)
-#
-#        for region in self.shank_ids:
-#            pref_mat[self.shank_ids == region, :] = pref_mat[self.shank_ids == region, :] - pref_mat[self.shank_ids == region, 0].mean()
-#
-#        self.preference = pref_mat
-#
+    def get_omi(self, pos=-1):
+        """
+        calculates mean OMI or OMI at a specifie position. Returns a
+        unit X number of optogenetic manipulations
+        """
+        if hasattr(self, 'abs_rate') is False:
+            self.rates()
+        control_pos = self.control_pos
+        num_manipulations = self.stim_ids.shape[0]/control_pos
+        omi_mat = np.zeros((self.num_units, num_manipulations-1))
+
+        for manip in range(num_manipulations - 1):
+            for unit_index in range(self.num_units):
+                meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
+                # NO minus 1, no contact/control position is INCLUDED
+                # (manip+1)*control_pos = (0+1)*9, (1+1)(9) = 18
+                omi_tc  = (meanr_abs[((manip+1)*control_pos):((manip+1+1)*control_pos)] - meanr_abs[:self.control_pos]) / \
+                                (meanr_abs[((manip+1)*control_pos):((manip+1+1)*control_pos)] + meanr_abs[:self.control_pos])
+                if pos == -1:
+                    omi_mat[unit_index, manip] = omi_tc.mean()
+                else:
+                    omi_mat[unit_index, manip] = omi_tc[pos]
+
+        return omi_mat
+
+    def get_preferred_position(self):
+        """
+        calculated the preferred position. Returns a
+        unit X number of manipulations
+        """
+        if hasattr(self, 'abs_rate') is False:
+            self.rates()
+        control_pos = self.control_pos
+        num_manipulations = self.stim_ids.shape[0]/control_pos
+        pref_mat = np.zeros((self.num_units, num_manipulations))
+        positions = range(control_pos-1)
+
+        for manip in range(num_manipulations):
+            for unit_index in range(self.num_units):
+                meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
+                weights = meanr_abs[(manip*control_pos):((manip+1)*control_pos-1)]
+                pref_mat[unit_index, manip] = np.sum(weights*positions)/np.sum(weights)
+
+        for region in self.shank_ids:
+            pref_mat[self.shank_ids == region, :] = pref_mat[self.shank_ids == region, :] - pref_mat[self.shank_ids == region, 0].mean()
+
+        self.preference = pref_mat
+
 #    def get_best_contact(self):
 #        """calculates best contact for all units from evoked rate tuning curve"""
 #        best_contact = np.zeros((self.num_units,))
