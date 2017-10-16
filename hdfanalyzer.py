@@ -116,7 +116,7 @@ class NeuroAnalyzer(object):
         self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
-        self.__trim_lfp()
+#        self.__trim_lfp()
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
@@ -853,221 +853,221 @@ class NeuroAnalyzer(object):
                         good_trial_ind += 1
         self.lfps = lfps
 
-#    def get_psd(self, input_array, sr):
-#        """
-#        compute PSD of input array sampled at sampling rate sr
-#        input_array: a samples x trial array
-#        sr: sampling rate of input signal
-#
-#        Returns x, and mean y and sem y
-#        """
-#        f_temp = list()
-#        num_trials = input_array.shape[1]
-#        for trial in range(num_trials):
-#            f, Pxx_den = sp.signal.periodogram(input_array[:, trial], sr)
-#            if trial == 0:
-#                frq_mat_temp = np.zeros((Pxx_den.shape[0], num_trials))
-#            frq_mat_temp[:, trial] = Pxx_den
-#
-#        return f, frq_mat_temp
-#
-#    def get_design_matrix(self, rate_type='evk_count', cond_inds=None, trode=None, cell_type=None, trim_trials=True):
-#        """make design matrix for classification and regressions"""
-#        """
-#        creates design matrix for classification and regressions
-#
-#        produces a design matrix where each row is data from a single trial and
-#        each column is a single unit.
-#
-#        Parameters
-#        _________
-#        cond_inds: optional, default (None)
-#            Specify which trial types to extract data from
-#        trode: optional, default (None)
-#            Specify which electrode to extract data from
-#            TODO: allow user to specify more than one electrode
-#        cell_type: optional, default (None)
-#            Specify which cell types ('RS' or 'FS') to extract data from
-#        trim_trials: boolean, default (True)
-#            Specify whether to extract an equal number of trials from each
-#            condition using the condition with the least amount of trials.
-#
-#        Returns
-#        -------
-#        X: 2-d array
-#            The design matrix containing all of the spike rates for all trials
-#            and units
-#        y: 1-d array
-#            The stimulus array where each element corresponds to a row in the
-#            desing matrix. This is necessary in order to specify which rates
-#            come from where.
-#        unit_inds: 1-d array
-#            The indices of the units selected.
-#        """
-#
-#        print('\n-----make design matrix----')
-#        min_trials     = np.min(self.num_good_trials)
-#        num_cond       = len(self.stim_ids)
-#        kind_dict      = {'abs_rate': 0, 'abs_count': 1, 'evk_rate': 2, 'evk_count': 3}
-#        kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
-#        rates          = kind_of_tuning[kind_dict[rate_type]]
-#
-#        # Find indices for units to be included. user can selected a specific
-#        # electrode/region, cell type (e.g. 'RS', 'FS') or a combinations of
-#        # both ('RS' cells from 'S1')
-#
-#        if trode is not None and cell_type is not None:
-#            unit_inds = np.where(
-#                    np.logical_and(\
-#                    neuro.shank_ids == trode, neuro.cell_type == cell_type))[0]
-#            print('Collecting data from {} units and electrode {}'.format(cell_type, trode))
-#        elif trode is not None:
-#            unit_inds = np.where(self.shank_ids == trode)[0]
-#            print('Collecting data from all units and electrode {}'.format(trode))
-#
-#        elif cell_type is not None:
-#            print('Collecting data from all electrodes and {} units'.format(cell_type))
-#            unit_inds = np.where(self.cell_type == cell_type)[0]
-#
-#        else:
-#            print('Collecting data from all units and all electrodes')
-#            unit_inds = np.where(self.shank_ids >= 0)[0]
-#
-#        num_units = len(unit_inds)
-#
-#        # Preallocate the design matrix and stimulus ID array
-#        if trim_trials:
-#            X = np.zeros((num_cond*min_trials, num_units))
-#            y = np.ones((num_cond*min_trials, ))
-#        else:
-#            X = np.zeros((np.sum(self.num_good_trials), num_units))
-#            y = np.ones((np.sum(self.num_good_trials), ))
-#
-#        # Create design matrix: go through all trials and add specified data to
-#        # the design and stimulus arrays
-#        last_t_ind = 0
-#        for k, cond in enumerate(rates):
-#            if trim_trials:
-#                X[min_trials*k:min_trials*(k+1)] = cond[0:min_trials, unit_inds]
-#                y[min_trials*k:min_trials*(k+1)] = k*y[min_trials*k:min_trials*(k+1)]
-#            else:
-#                min_trials = cond.shape[0]
-#                X[last_t_ind:(min_trials + last_t_ind)] = cond[:, unit_inds]
-#                y[last_t_ind:(min_trials + last_t_ind)] = k*y[last_t_ind:(min_trials + last_t_ind)]
-#                last_t_ind = min_trials + last_t_ind
-#
-#        # Limit trial types:  only include data if it is apart of the specified
-#        # trial types/conditions
-#        if cond_inds is not None:
-#            good_inds = np.empty(())
-#
-#            for cond_ind in cond_inds:
-#                # get indices from specified trial types/conditions
-#                good_inds = np.append(good_inds, np.where(y == cond_ind)[0])
-#
-#            good_inds = good_inds[1::]
-#            good_inds = good_inds.astype(int)
-#            X = X[good_inds, :]
-#            y = y[good_inds,]
-#
-#        # else do nothing and return all the data
-#
-#        return X, y, unit_inds
-#
-#    def get_burst_isi(self, kind='run_boolean'):
-#        """
-#        Compute the interspike interval for spikes during the stimulus period.
-#        get_burst_isi creates a list that has n_stimulus_types entries. Each
-#        stimulus type has a list which contains a numpy array for each unit.
-#
-#        These values can be used to identify bursting activity.
-#        """
-#
-#        if self.wt_boolean:
-#            wt          = list()
-#        if kind == 'wsk_boolean' and not self.wt_boolean:
-#            warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
-#                    using run speed to select good trials')
-#            kind = 'run_boolean'
-#        elif kind == 'wsk_boolean' and self.wt_boolean:
-#            print('using whisking to find good trials')
-#            self.get_num_good_trials(kind='wsk_boolean')
-#        elif kind == 'run_boolean':
-#            print('using running to find good trials')
-#            self.get_num_good_trials(kind='run_boolean')
-#
-#        t_after_stim = self.t_after_stim
-#
-#        # create list with entries for each condition
-#        bisi_list = [list() for stim in self.stim_ids]
-#        isi_list  = [list() for stim in self.stim_ids]
-#
-#        # iterate through all stimulus IDs
-#        for stim_ind, stim_id in enumerate(self.stim_ids):
-#            good_trial_ind = 0
-#            # this is a list of numpy arrays. There is an array for each unit
-#            bisi_np_list = [np.empty((1, 4)) for k in range(self.num_units)]
-#            isi_np_list  = [np.empty((1, 3)) for k in range(self.num_units)] # ISI, stim_ID, good_trial_index
-#
-#            # iterate through all neo trial segments
-#            for trial in self.neo_obj.segments:
-#
-#                # if a trial segment is from the current stim_id and it is a
-#                # running trial get the spike ISIs.
-#                if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
-#
-#                    # get the stimulus start and stop times for this trial
-#                    stim_start = trial.annotations['stim_times'][0]
-#                    stim_stop  = trial.annotations['stim_times'][1]
-#
-#                    # iterate through all unit's spike trains. find times units fired
-#                    # during the stimulus period and calculate the inter-spike-
-#                    # interval between them. This will be used to determine
-#                    # bursting
-#                    for unit, spike_train in enumerate(trial.spiketrains):
-#
-#                        # get spike tiimes during stimulus period
-#                        spk_times_all = np.asarray(spike_train.tolist()) # spike times for current spike train
-#                        spk_times     = spk_times_all[np.logical_and(spk_times_all > stim_start, spk_times_all < stim_stop)] # spike times during stimulus period
-#                        num_spk_times = len(spk_times)
-#                        if num_spk_times > 3:
-#                            # create the burst isi array (bisi) if there are  more
-#                            # than 3 spikes all spikes except the first and last
-#                            # will be analyze. this way we don't measure ISIs
-#                            # outside of the stimulus period
-#
-#                            bisi_temp = np.zeros((num_spk_times-2, 4))
-#                            for k in range(1, num_spk_times - 1):
-#                                t_before = spk_times[k] - spk_times[k-1]
-#                                t_after  = spk_times[k+1] - spk_times[k]
-#                                bisi_temp[k-1, 0] = t_before
-#                                bisi_temp[k-1, 1] = t_after
-#                                bisi_temp[k-1, 2] = stim_id
-#                                bisi_temp[k-1, 3] = good_trial_ind # identifies spikes from the same trial
-#
-#                            bisi_np_list[unit] = np.concatenate((bisi_np_list[unit], bisi_temp), axis=0)
-#
-#                        # compute ISIs and add it to isi_np_list
-#                        if num_spk_times > 2:
-#                            isi_temp  = np.zeros((num_spk_times-1, 3))
-#                            isi_temp[:, 0] = np.diff(spk_times)
-#                            isi_temp[:, 1] = np.ones((num_spk_times - 1, ))*stim_id
-#                            isi_temp[:, 2] = np.ones((num_spk_times - 1, ))*good_trial_ind
-#
-#                            isi_np_list[unit] = np.concatenate((isi_np_list[unit], isi_temp), axis=0)
-#
-#                    good_trial_ind += 1
-#
-#            # remove first row which is junk
-#            for k, nparray in enumerate(bisi_np_list):
-#                bisi_np_list[k] = nparray[1::, :]
-#                isi_np_list[k]  = nparray[1::, :]
-#            bisi_list[stim_ind] = bisi_np_list
-#            isi_list[stim_ind]  = isi_np_list
-#
-#        self.bisi_list = bisi_list
-#        self.isi_list  = isi_list
-#
+    def get_psd(self, input_array, sr):
+        """
+        compute PSD of input array sampled at sampling rate sr
+        input_array: a samples x trial array
+        sr: sampling rate of input signal
+
+        Returns x, and mean y and sem y
+        """
+        f_temp = list()
+        num_trials = input_array.shape[1]
+        for trial in range(num_trials):
+            f, Pxx_den = sp.signal.periodogram(input_array[:, trial], sr)
+            if trial == 0:
+                frq_mat_temp = np.zeros((Pxx_den.shape[0], num_trials))
+            frq_mat_temp[:, trial] = Pxx_den
+
+        return f, frq_mat_temp
+
+    def get_design_matrix(self, rate_type='abs_count', cond_inds=None, trode=None, cell_type=None, trim_trials=True):
+        """make design matrix for classification and regressions"""
+        """
+        creates design matrix for classification and regressions
+
+        produces a design matrix where each row is data from a single trial and
+        each column is a single unit.
+
+        Parameters
+        _________
+        cond_inds: optional, default (None)
+            Specify which trial types to extract data from
+        trode: optional, default (None)
+            Specify which electrode to extract data from
+            TODO: allow user to specify more than one electrode
+        cell_type: optional, default (None)
+            Specify which cell types ('RS' or 'FS') to extract data from
+        trim_trials: boolean, default (True)
+            Specify whether to extract an equal number of trials from each
+            condition using the condition with the least amount of trials.
+
+        Returns
+        -------
+        X: 2-d array
+            The design matrix containing all of the spike rates for all trials
+            and units
+        y: 1-d array
+            The stimulus array where each element corresponds to a row in the
+            desing matrix. This is necessary in order to specify which rates
+            come from where.
+        unit_inds: 1-d array
+            The indices of the units selected.
+        """
+
+        print('\n-----make design matrix----')
+        min_trials     = np.min(self.num_good_trials)
+        num_cond       = len(self.stim_ids)
+        kind_dict      = {'abs_rate': 0, 'abs_count': 1, 'evk_rate': 2, 'evk_count': 3}
+        kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
+        rates          = kind_of_tuning[kind_dict[rate_type]]
+
+        # Find indices for units to be included. user can selected a specific
+        # electrode/region, cell type (e.g. 'RS', 'FS') or a combinations of
+        # both ('RS' cells from 'S1')
+
+        if trode is not None and cell_type is not None:
+            unit_inds = np.where(
+                    np.logical_and(\
+                    neuro.shank_ids == trode, neuro.cell_type == cell_type))[0]
+            print('Collecting data from {} units and electrode {}'.format(cell_type, trode))
+        elif trode is not None:
+            unit_inds = np.where(self.shank_ids == trode)[0]
+            print('Collecting data from all units and electrode {}'.format(trode))
+
+        elif cell_type is not None:
+            print('Collecting data from all electrodes and {} units'.format(cell_type))
+            unit_inds = np.where(self.cell_type == cell_type)[0]
+
+        else:
+            print('Collecting data from all units and all electrodes')
+            unit_inds = np.where(self.shank_ids >= 0)[0]
+
+        num_units = len(unit_inds)
+
+        # Preallocate the design matrix and stimulus ID array
+        if trim_trials:
+            X = np.zeros((num_cond*min_trials, num_units))
+            y = np.ones((num_cond*min_trials, ))
+        else:
+            X = np.zeros((np.sum(self.num_good_trials), num_units))
+            y = np.ones((np.sum(self.num_good_trials), ))
+
+        # Create design matrix: go through all trials and add specified data to
+        # the design and stimulus arrays
+        last_t_ind = 0
+        for k, cond in enumerate(rates):
+            if trim_trials:
+                X[min_trials*k:min_trials*(k+1)] = cond[0:min_trials, unit_inds]
+                y[min_trials*k:min_trials*(k+1)] = k*y[min_trials*k:min_trials*(k+1)]
+            else:
+                min_trials = cond.shape[0]
+                X[last_t_ind:(min_trials + last_t_ind)] = cond[:, unit_inds]
+                y[last_t_ind:(min_trials + last_t_ind)] = k*y[last_t_ind:(min_trials + last_t_ind)]
+                last_t_ind = min_trials + last_t_ind
+
+        # Limit trial types:  only include data if it is apart of the specified
+        # trial types/conditions
+        if cond_inds is not None:
+            good_inds = np.empty(())
+
+            for cond_ind in cond_inds:
+                # get indices from specified trial types/conditions
+                good_inds = np.append(good_inds, np.where(y == cond_ind)[0])
+
+            good_inds = good_inds[1::]
+            good_inds = good_inds.astype(int)
+            X = X[good_inds, :]
+            y = y[good_inds,]
+
+        # else do nothing and return all the data
+
+        return X, y, unit_inds
+
+    def get_burst_isi(self, kind='run_boolean'):
+        """
+        Compute the interspike interval for spikes during the stimulus period.
+        get_burst_isi creates a list that has n_stimulus_types entries. Each
+        stimulus type has a list which contains a numpy array for each unit.
+
+        These values can be used to identify bursting activity.
+        """
+
+        if self.wt_boolean:
+            wt          = list()
+        if kind == 'wsk_boolean' and not self.wt_boolean:
+            warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
+                    using run speed to select good trials')
+            kind = 'run_boolean'
+        elif kind == 'wsk_boolean' and self.wt_boolean:
+            print('using whisking to find good trials')
+            self.get_num_good_trials(kind='wsk_boolean')
+        elif kind == 'run_boolean':
+            print('using running to find good trials')
+            self.get_num_good_trials(kind='run_boolean')
+
+        t_after_stim = self.t_after_stim
+
+        # create list with entries for each condition
+        bisi_list = [list() for stim in self.stim_ids]
+        isi_list  = [list() for stim in self.stim_ids]
+
+        # iterate through all stimulus IDs
+        for stim_ind, stim_id in enumerate(self.stim_ids):
+            good_trial_ind = 0
+            # this is a list of numpy arrays. There is an array for each unit
+            bisi_np_list = [np.empty((1, 4)) for k in range(self.num_units)]
+            isi_np_list  = [np.empty((1, 3)) for k in range(self.num_units)] # ISI, stim_ID, good_trial_index
+
+            # iterate through all HDF5 trial segments
+            for k, seg in enumerate(self.f):
+
+                # if a trial segment is from the current stim_id and it is a
+                # running trial get the spike ISIs.
+                if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
+
+                    # get the stimulus start and stop times for this trial
+                    stim_start = self.f[seg].attrs['stim_times'][0]
+                    stim_stop  = self.f[seg].attrs['stim_times'][1]
+
+                    # iterate through all unit's spike trains. find times units fired
+                    # during the stimulus period and calculate the inter-spike-
+                    # interval between them. This will be used to determine
+                    # bursting
+                    for unit, spike_train in enumerate(self.f[seg + '/spiketrains']):
+
+                        # get spike times during stimulus period
+                        spk_times_all = self.f[seg + '/spiketrains/' + spike_train][:]
+                        spk_times     = spk_times_all[np.logical_and(spk_times_all > stim_start, spk_times_all < stim_stop)] # spike times during stimulus period
+                        num_spk_times = len(spk_times)
+                        if num_spk_times > 3:
+                            # create the burst isi array (bisi) if there are  more
+                            # than 3 spikes all spikes except the first and last
+                            # will be analyze. this way we don't measure ISIs
+                            # outside of the stimulus period
+
+                            bisi_temp = np.zeros((num_spk_times-2, 4))
+                            for k in range(1, num_spk_times - 1):
+                                t_before = spk_times[k] - spk_times[k-1]
+                                t_after  = spk_times[k+1] - spk_times[k]
+                                bisi_temp[k-1, 0] = t_before
+                                bisi_temp[k-1, 1] = t_after
+                                bisi_temp[k-1, 2] = stim_id
+                                bisi_temp[k-1, 3] = good_trial_ind # identifies spikes from the same trial
+
+                            bisi_np_list[unit] = np.concatenate((bisi_np_list[unit], bisi_temp), axis=0)
+
+                        # compute ISIs and add it to isi_np_list
+                        if num_spk_times > 2:
+                            isi_temp  = np.zeros((num_spk_times-1, 3))
+                            isi_temp[:, 0] = np.diff(spk_times)
+                            isi_temp[:, 1] = np.ones((num_spk_times - 1, ))*stim_id
+                            isi_temp[:, 2] = np.ones((num_spk_times - 1, ))*good_trial_ind
+
+                            isi_np_list[unit] = np.concatenate((isi_np_list[unit], isi_temp), axis=0)
+
+                    good_trial_ind += 1
+
+            # remove first row which is junk
+            for k, nparray in enumerate(bisi_np_list):
+                bisi_np_list[k] = nparray[1::, :]
+                isi_np_list[k]  = nparray[1::, :]
+            bisi_list[stim_ind] = bisi_np_list
+            isi_list[stim_ind]  = isi_np_list
+
+        self.bisi_list = bisi_list
+        self.isi_list  = isi_list
+
 ################################################################################
 ###### Eight-Position experiment specific functions #####
 ################################################################################
