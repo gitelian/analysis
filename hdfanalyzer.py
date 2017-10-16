@@ -1095,6 +1095,8 @@ class NeuroAnalyzer(object):
         """
         calculates mean OMI or OMI at a specifie position. Returns a
         unit X number of optogenetic manipulations
+
+        if pos=-1, mean OMI is calculated
         """
         if hasattr(self, 'abs_rate') is False:
             self.rates()
@@ -1139,714 +1141,714 @@ class NeuroAnalyzer(object):
 
         self.preference = pref_mat
 
-#    def get_best_contact(self):
-#        """calculates best contact for all units from evoked rate tuning curve"""
-#        best_contact = np.zeros((self.num_units,))
-#        for unit_index in range(self.num_units):
-#            meanr = np.array([np.mean(k[:, unit_index]) for k in self.evk_rate])
-#            best_contact[unit_index,] = np.argmax(meanr[:self.control_pos])
-#        self.best_contact = best_contact.astype(int)
-#
-#    def get_sensory_drive(self):
-#        """determine which units are sensory driven"""
-#        if hasattr(self, 'abs_count') is False:
-#            self.rates()
-#        control_pos = self.control_pos - 1
-#        driven = list()
-#        # compare only no light positions with control/no contact position
-#        to_compare = [ (k, control_pos) for k in range(control_pos)]
-#
-#        for unit in range(self.num_units):
-#            groups = list()
-#            for k in range(control_pos + 1):
-#                # append all rates
-#                groups.append(self.abs_count[k][:, unit])
-#            # test for sensory drive
-#            H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
-#
-#            if reject.any():
-#                driven.append(True)
-#            else:
-#                driven.append(False)
-#
-#        self.driven_units = np.asarray(driven)
-#
-#    def get_burst_rate(self, unit_ind=0, trial_type=0, start_time=0.5, stop_time=1.5):
-#        """
-#        """
-#        # if the rates have not been calculated do that now
-#        if hasattr(self, 'binned_spikes') is False:
-#            print('Spikes have not been binned! Binning data now.')
-#            self.rates()
-#
-#        print('Computing burst rate for unit {} and trial_type {}'.format(unit_ind, trial_type))
-#
-#        count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
-#        burst_rate_mat = np.zeros((count_mat.shape[1],))
-#
-#        for trial in range(count_mat.shape[1]):
-#            trial_inds = np.where(count_mat[:, trial] > 0)[0]
-#            spike_times = self._bins[trial_inds]
-#
-#            burst_times = list()
-#            data = spike_times
-#            if len(data) > 3:
-#                start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
-#                for k in range(len(start)):
-#                    burst_times.extend(data[start[k]:(start[k]+length[k])])
-#
-#                if len(burst_times) > 0:
-#                    num_bursts = np.sum(np.logical_and(np.asarray(burst_times) > start_time, \
-#                            np.asarray(burst_times) < stop_time))
-#                    analysis_time = stop_time - start_time
-#                    burst_rate = num_bursts/analysis_time
-#                else:
-#                    burst_rate = 0
-#                burst_rate_mat[trial] = burst_rate
-#
-#        return burst_rate_mat
-#
-#    def get_spike_rates_per_bin(self, bins=[0, 0.5, 1.0, 1.5], unit_ind=0, trial_type=0):
-#        """
-#        Compute firing rate for arbitrary bin sizes
-#
-#        This bins spike count data for specified bin locations and computes the
-#        firing rate for that bin.
-#
-#        Parameters
-#        ----------
-#        bins: array_like
-#            bin locations. Bin width will be determined from these values.
-#            Must be equally spaced bins!
-#        unit_ind: int
-#            unit index used to specify which unit's spikes should be binned
-#        trial_type: int
-#            trial type index used to specify which trial to be analyzed
-#
-#        Returns
-#        -------
-#        rates_per_bins: an array of size "number of bins" X "number of trials"
-#
-#
-#        """
-#        # if the rates have not been calculated do that now
-#        if hasattr(self, 'binned_spikes') is False:
-#            print('Spikes have not been binned! Binning data now.')
-#            self.rates()
-#
-#        print('Computing spike rates per bin for unit {} and trial_type {}'.format(unit_ind, trial_type))
-#
-#        bins = np.asarray(bins)
-#        dt = np.diff(bins)[0]
-#
-#        count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
-#        rates_per_bin = np.zeros((count_mat.shape[1], bins.shape[0]-1))
-#        for trial in range(count_mat.shape[1]):
-#            trial_inds = np.where(count_mat[:, trial] > 0)[0]
-#            spike_times = self._bins[trial_inds]
-#            counts = np.histogram(spike_times, bins=bins)[0]
-#            rates  = counts/dt
-#            rates_per_bin[trial, :] = rates
-#
-#        return rates_per_bin
-#
-#    def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
-#        """compute adaptation ratio for a given unit and bins"""
-#        bins = np.asarray(bins)
-#        ratios = np.zeros((1, self.stim_ids.shape[0], bins.shape[0]-1))
-#        for cond in range(self.stim_ids.shape[0]):
-#            ratios[0, cond, :] = np.mean(self.get_spike_rates_per_bin(bins=bins, unit_ind=unit_ind, trial_type=cond), axis=0)
-#        for cond in range(self.stim_ids.shape[0]):
-#            ratios[0, cond, :] = ratios[0, cond, :]/float(ratios[0, cond, 0])
-#
-#        return ratios
-#
-################################################################################
-###### Whisker tracking functions #####
-################################################################################
-#
-#    def get_protraction_times(self, pos, trial, analysis_window=[0.5, 1.5]):
-#        """
-#        Calculates the protration times for a specified trial
-#
-#        Given a position/trial type index and the trial index this will return
-#        the timestamp for each whisker at maximum protraction. The protraction
-#        time will be withing the specified analysis_window
-#
-#        Parameters
-#        ----------
-#        pos: int
-#            index specifying which position/trial type to analyze
-#        trial: int
-#            index specifying which trial to analyze
-#        analysis_window: array-like
-#            array or list containing two numbers specifying the beginning and
-#            end of the analysis period to anlyze
-#
-#        Returns
-#        _______
-#        timestampt: array
-#            an array containing the timestamps for maximum protractions during
-#            the analysis window.
-#        """
-#        phase             = self.wt[pos][:, 3, trial]
-#        phs_crossing      = phase > 0
-#        phs_crossing      = phs_crossing.astype(int)
-#        protraction_inds  = np.where(np.diff(phs_crossing) > 0)[0] + 1
-#        protraction_times = self.wtt[protraction_inds]
-#
-#        good_inds = np.logical_and(protraction_times > analysis_window[0],\
-#                protraction_times < analysis_window[1])
-#        timestamps = protraction_times[good_inds]
-#
-#        return timestamps
-#
-#    def pta(self, cond=0, unit_ind=0, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
-#        """
-#        Create a protraction triggered histogram/average
-#        Returns: mean counts per bin, sem counts per bin, and bins
-#        """
-#        if hasattr(self, 'wt') is False:
-#            warnings.warn('no whisking data!')
-#
-#        bins      = np.arange(window[0], window[1], dt)
-#        count_mat = np.zeros((1, bins.shape[0] - 1)) # trials x bins
-#
-#        # iterate through all trials and count spikes
-#        for trial_ind in range(self.num_good_trials[cond]):
-#            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
-#            windowed_spike_times = np.logical_and(all_spike_times > analysis_window[0],\
-#                    all_spike_times < analysis_window[1])
-#            protraction_times = self.get_protraction_times(cond, trial_ind, analysis_window)
-#
-#            # bin spikes for each protraction and add to count_mat
-#            for p_time in protraction_times:
-#                temp_counts = np.histogram(all_spike_times[windowed_spike_times] - p_time, bins)[0].reshape(1, bins.shape[0]-1)
-#                count_mat   = np.concatenate((count_mat, temp_counts), 0) # extend the number of rows
-#
-#        count_mat = count_mat[1::, :]
-#        out1 = np.mean(count_mat, 0)/dt
-#        out2 = sp.stats.sem(count_mat, 0)
-#        out3 = bins
-#
-#        return out1, out2, out3
-#
-#    def get_pta_depth(self, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
-#        """
-#        Calculates modulation depth from protraction triggered averages
-#        Here modulation depth is the coefficient of variation (std/mean)
-#        """
-#        if hasattr(self, 'wt') is False:
-#            warnings.warn('no whisking data!')
-#        control_pos = self.control_pos
-#        num_conditions = self.stim_ids.shape[0]
-#        mod_mat = np.zeros((self.num_units, num_conditions))
-#
-#        print ('working on unit:')
-#        for unit_index in range(self.num_units):
-#            print(unit_index)
-#            for cond in range(num_conditions):
-#                    spks_bin, _, _ = self.pta(cond=cond, unit_ind=unit_index, window=window, dt=dt, analysis_window=analysis_window)
-#                    #mod_depth = (np.max(spks_bin) - np.min(spks_bin)) / np.mean(spks_bin)
-#                    mod_depth = np.var(spks_bin)/np.mean(spks_bin)
-#                    mod_mat[unit_index, cond] = mod_depth
-#
-#        self.mod_index = mod_mat
-#
-#    def eta(self, event_times, cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
-#        """
-#        Create an event triggered histogram/average. Given a list of times this
-#        will calculate the mean spike rate plus standard error within a given
-#        windowed centered at each event time.
-#
-#        Input: event times as a vector
-#        TODO: event times as a matrix (i.e. a vector per specific trial)
-#        Returns: mean counts per bin, sem counts per bin, and bins
-#        """
-#
-#        bins      = np.arange(window[0], window[1], dt)
-#        count_mat = np.zeros((1, bins.shape[0] - 1)) # trials x bins
-#
-#        # iterate through all trials and count spikes
-#        for trial_ind in range(self.num_good_trials[cond]):
-#            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
-#            windowed_spike_times = np.logical_and(all_spike_times > analysis_window[0],\
-#                    all_spike_times < analysis_window[1])
-#            protraction_times = self.get_protraction_times(cond, trial_ind, analysis_window)
-#
-#            # bin spikes for each protraction and add to count_mat
-#            for e_time in event_times:
-#                temp_counts = np.histogram(all_spike_times[windowed_spike_times] - e_time, bins)[0].reshape(1, bins.shape[0]-1)
-#                count_mat   = np.concatenate((count_mat, temp_counts), 0) # extend the number of rows
-#
-#        count_mat = count_mat[1::, :]
-#        out1 = np.mean(count_mat, 0)/dt
-#        out2 = sp.stats.sem(count_mat, 0)
-#        out3 = bins
-#
-#        return out1, out2, out3
-#
-#    def eta_wt(self, event_times, cond=0, kind='angle', window=[-0.050, 0.050]):
-##            cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
-#        """
-#        Create an event triggered trace of a specified whisking parameter
-#        Input: event times as a vector
-#        TODO: event times as a matrix (i.e. a vector per specific trial)
-#        Returns: mean trace, sem of traces, and the trace matrix (trials x window length)
-#        """
-#        self.wt_type_dict = {'angle':0, 'set-point':1, 'amplitude':2, 'phase':3, 'velocity':4, 'whisking':5}
-#
-#        num_inds_pre  = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[0])))[0])
-#        num_inds_post = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[1])))[0])
-#        dt = self.wtt[1] - self.wtt[0]
-#        trace_time = np.arange(-num_inds_pre, num_inds_post+1)*dt
-#
-#        # matrix size: trials x number of indices taken from interested trace
-#        trace_mat = np.zeros((1, num_inds_pre + num_inds_post + 1))
-#        kind_ind = self.wt_type_dict[kind]
-#
-#        # iterate through all trials and count spikes
-#        for trial_ind in range(self.num_good_trials[cond]):
-#            for e_time in event_times:
-#                trace_ind  = np.argmin(np.abs(self.wtt - e_time)) # find wt index closest to event time
-#                trace_inds = np.arange(trace_ind - num_inds_pre, trace_ind + num_inds_post + 1)
-#                trace_temp = self.wt[cond][trace_inds, kind_ind, trial_ind].reshape(1, trace_mat.shape[1])
-#                trace_mat = np.concatenate((trace_mat, trace_temp))
-#
-#        trace_mat = trace_mat[1::, :]
-#        out1 = np.mean(trace_mat, axis=0)
-#        out2 = sp.stats.sem(trace_mat, axis=0)
-#        out3 = trace_mat
-#        out4 = trace_time
-#
-#        return out1, out2, out3, out4
-#
-#    def sta_wt(self, cond=0, unit_ind=0, analysis_window=[0.5, 1.5]):
-#        """
-#        Create a spike triggered array for whisker tracking
-#        Returns: array (total spikes for specified unit x values) where each
-#        entry is the whisker tracking value (e.g. angle, phase, set-point) when
-#        the specified unit spiked.
-#
-#        The second array is all the whisker tracking values that occurred
-#        during the analysis window for all analyzed trials
-#        """
-#        st_vals = np.zeros((1, 5))
-#        all_vals    = np.zeros((1, 5))
-#        stim_inds   = np.logical_and(self.wtt >= analysis_window[0], self.wtt <= analysis_window[1])
-#
-#        # iterate through all trials and count spikes
-#        for trial_ind in range(self.num_good_trials[cond]):
-#            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
-#            windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
-#                    all_spike_times < analysis_window[1])
-#            windowed_spike_times = all_spike_times[windowed_spike_indices]
-#
-#            # iterate through all spike times and measure specified whisker
-#            # parameter
-#            for stime in windowed_spike_times:
-#                wt_index = np.argmin(np.abs(stime - self.wtt))
-#                temp_st_vals = self.wt[cond][wt_index, 0:5, trial_ind].reshape(1, 5)
-#                st_vals = np.concatenate((st_vals, temp_st_vals), axis=0)
-#
-#            # add all whisker tracking values in analysis window to matrix
-#            all_vals = np.concatenate((all_vals, self.wt[cond][stim_inds, 0:5, trial_ind]), axis=0)
-#
-#        st_vals  = st_vals[1::, :]
-#        all_vals = all_vals[1::, :]
-#
-#        return st_vals, all_vals
-#
-#    def st_norm(self, st_vals, all_vals, wt_type, bins, dt):
-#        """
-#        normalizes phase/spike counts
-#
-#        Divides each phase bin by the occupancy of that bin. That is, it
-#        divides by the number of times the whiskers happened to occupy each bin
-#        """
-#
-#        if wt_type == 0:
-#            st_count = np.histogram(st_vals, bins=bins)[0].astype(float)
-#            all_count = np.histogram(all_vals, bins=bins)[0].astype(float)
-#        else:
-#            st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
-#            all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
-#
-#        count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
-#
-#        return count_norm
-#
-#    def sg_smooth(self, data, win_len=5, poly=3, neg_vals=False):
-#        """
-#        Smooth a 1-d array with a Savitzky-Golay filter
-#
-#        Arguments
-#        Data: the 1-d array to be smoothed
-#        win_len: the size of the smoothing window to be used. It MUST be an odd.
-#        poly: order of the smoothing polynomial. Must be less than win_len
-#        neg_vals: whether to convert negative values to zero.
-#
-#        Returns smoothed array
-#        """
-#        smooth_data = sp.signal.savgol_filter(data, win_len, poly, mode='wrap')
-#        if neg_vals is False:
-#            smooth_data[smooth_data < 0] = 0
-#        return smooth_data
-#
-#    def get_phase_modulation_depth(self, bins=np.linspace(-np.pi, np.pi, 40)):
-#        """
-#        computes spike-phase modulation depth for each unit
-#
-#        Parameters
-#        _________
-#        bins: array-like
-#            specify the bin locations used to bin spike-phase data
-#
-#        Returns
-#        -------
-#        mod_index: 3-d array
-#            The 3-d array has dimensions:
-#                row: number of units
-#                col: number of trial types
-#                3-d: vector strength, vector direction, coefficient of variation
-#            The array is added to the neuro class and can be called with dot
-#            notations <name of class object>.mod_index
-#        """
-#
-#        # Main function code
-#        print('\n-----get_phase_modulation_depth-----')
-#        if hasattr(self, 'wt') is False:
-#            warnings.warn('no whisking data!')
-#
-#        dt       = bins[1] - bins[0]
-#        bins_pos = bins + np.pi # must use positive bins with pycircstat, remeber to offset results by -pi
-#        wt_type  = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
-#        mod_mat  = np.zeros((self.num_units, len(self.num_all_trials), 3))
-#        mod_pval = np.zeros((self.num_units, len(self.num_all_trials)))
-#
-#        for uid in range(self.num_units):
-#            print('working on unit: {}'.format(uid))
-#            for k in range(len(self.num_all_trials)):
-#
-#                # compute spike-rate per phase bin
-#                st_vals, all_vals = self.sta_wt(cond=k, unit_ind=uid) # analysis_window=[0.5, 1.5]
-#                count_norm        = self.st_norm(st_vals, all_vals, wt_type, bins, dt)
-#                smooth_data       = self.sg_smooth(count_norm)
-#
-#                # pycircstat returns positive values (yes, verified). So zero
-#                # corresponds to negative pi and six is close to positive pi
-#
-#                # compute vector strength
-#                mod_mat[uid, k, 0] = pycirc.descriptive.resultant_vector_length(bins_pos[:-1], smooth_data) # angles in radian, weightings (counts)
-#
-#                # compute vector angle (mean direction)
-#                mod_mat[uid, k, 1] = pycirc.descriptive.mean(bins_pos[:-1], smooth_data) - np.pi # angles in radian, weightings (counts)
-#                # compute coefficient of variation
-#                mod_mat[uid, k, 2] = np.std(smooth_data)/np.mean(smooth_data)
-#
-#                # stats
-#                # compute Rayleigh test for non-uniformity around unit circle
-#                mod_pval[uid, k] = pycirc.tests.rayleigh(bins_pos[:-1], smooth_data)[0]
-#
-#        self.mod_index = mod_mat
-#        self.mod_pval  = mod_pval
-#
-################################################################################
-###### Plotting Functions #####
-################################################################################
-#
-#    def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
-#        """
-#        make_simple_tuning_curve allows one to specify what type of tuning
-#        curve to plot as well as which unit for a single tuning curve or all
-#        units for a subplot of tuning curves
-#
-#        Kinds of tuning curves:
-#        Absolute rate:   'abs_rate'
-#        Absolute counts: 'abs_count'
-#        Evoked rate:     'evk_rate'
-#        Evoked counts:   'evk_count'
-#        """
-#
-#        # if the rates have not been calculated do that now
-#        if hasattr(self, 'abs_rate') is False:
-#            self.rates()
-#        # dictionary of types of plots. allows user to specify what type of
-#        # tuning curve should be plotted.
-#        kind_dict      = {'abs_rate': 0, 'abs_count': 1, 'evk_rate': 2, 'evk_count': 3}
-#        kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
-#
-#        control_pos = self.control_pos
-#        # setup x-axis with correct labels and range
-#        pos = range(1,control_pos)
-#        x_vals = range(1, control_pos+1)
-#        labels = [str(i) for i in pos]; labels.append('NC')
-#        line_color = ['k','r','b']
-#
-#        # if tuning curves from one unit will be plotted on a given axis
-#        if unit_ind != None:
-#
-#            if axis == None:
-#                ax = plt.gca()
-#            else:
-#                ax = axis
-#
-#            # compute the means and standard errors
-#            meanr = [np.mean(k[:, unit_ind]) for k in kind_of_tuning[kind_dict[kind]]]
-#            stder = [np.std(k[:, unit_ind]) / np.sqrt(k[:, unit_ind].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
-#            for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), control_pos )):
-#                ax.errorbar(pos[0:control_pos-1],\
-#                        meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
-#                        yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
-#                        fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-#                # plot control position separately from stimulus positions
-#                ax.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
-#                        fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-#
-#        # if all tuning curves from all units are to be plotted
-#        else:
-#            # determine number of rows and columns in the subplot
-#            unit_ind = range(self.num_units)
-#            num_rows, num_cols = 3, 3
-#
-#            num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
-#
-#            unit_count, plot_count = 0, 0
-#            fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
-#            for unit in unit_ind:
-#                meanr = [np.mean(k[:, unit]) for k in kind_of_tuning[kind_dict[kind]]]
-#                stder = [np.std(k[:, unit]) / np.sqrt(k[:, unit].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
-#                for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), control_pos )):
-#                    # compute the means and standard errors
-#
-#                    ax = plt.subplot(num_rows, num_cols, plot_count+1)
-#                    # plot stimulus positions separately from control so the
-#                    # control position is not connected with the others
-#                    plt.errorbar(pos[0:control_pos-1],\
-#                            meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
-#                            yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
-#                            fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-#                    # plot control position separately from stimulus positions
-#                    plt.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
-#                            fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-#
-#                plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
-#                        ' depth: ' + str(self.depths[unit]) + \
-#                        '\ncell type: ' + str(self.cell_type[unit]))
-#                        #' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
-#                plt.plot([0, control_pos+1],[0,0],'--k')
-#                plt.xlim(0, control_pos+1)
-#                plt.ylim(plt.ylim()[0]-1, plt.ylim()[1]+1)
-#                ax.set_xticks([])
-#                plt.xticks(x_vals, labels)
-#                plt.xlabel('Bar Position', fontsize=8)
-#                plt.show()
-#                # count after each plot is made
-#                plot_count += 1
-#                unit_count += 1
-#
-#                if unit_count == len(unit_ind) and plot_count == (num_rows*num_cols):
-#                    print('finished')
-#                    plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
-#                    plt.suptitle(kind)
-#                    plt.show()
-#                    return ax
-#                elif unit_count == len(unit_ind):
-#                    print('finished')
-#                    plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
-#                    plt.suptitle(kind)
-#                    plt.show()
-#                elif plot_count == (num_rows*num_cols):
-#                    print('made a new figure')
-#                    plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
-#                    plt.suptitle(kind)
-#                    plt.show()
-#                    # create a new plot
-#                    if plot_count != len(unit_ind):
-#                        fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
-#                    plot_count = 0
-#
-#    def plot_raster(self, unit_ind=0, trial_type=0, axis=None, burst=True):
-#        """
-#        Makes a raster plot for the given unit index and trial type.
-#        If called alone it will plot a raster to the current axis. This function
-#        is called by plot_all_rasters and returns an axis handle to the current
-#        subplot. This allows plot_all_rasters to plot rasters in the appropriate
-#        subplots.
-#        """
-#        # if the rates have not been calculated do that now
-#        if hasattr(self, 'binned_spikes') is False:
-#            print('Spikes have not been binned! Binning data now.')
-#            self.rates()
-#
-#        print('Making raster for unit {} and trial_type {}'.format(unit_ind, trial_type))
-#        if axis == None:
-#            ax = plt.gca()
-#        else:
-#            ax = axis
-#
-#        count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
-#
-#        for trial in range(count_mat.shape[1]):
-#            trial_inds = np.where(count_mat[:, trial] > 0)[0]
-#            spike_times = self._bins[trial_inds]
-#            ax.vlines(spike_times, trial, trial+1, color='k', linewidth=1.0)
-#
-#            if burst:
-#                burst_times = list()
-#                data = spike_times
-#                if len(data) > 3:
-#                    start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
-#                    for k in range(len(start)):
-#                        burst_times.extend(data[start[k]:(start[k]+length[k])])
-#
-#                    if len(burst_times) > 0:
-#                        ax.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed', linewidth=0.5)
-#
-#        #ax.hlines(trial+1, 0, 1.5, color='k')
-#        ax.set_xlim(self._bins[0], self._bins[-1])
-#        ax.set_ylim(0, trial+1)
-#
-#        return ax
-#
-#    def plot_raster_all_conditions(self, unit_ind=0, num_trials=None, offset=5, axis=None, burst=False):
-#        """
-#        Makes a raster plot for the given unit index and trial type.
-#        If called alone it will plot a raster to the current axis. This function
-#        is called by plot_all_rasters and returns an axis handle to the current
-#        subplot. This allows plot_all_rasters to plot rasters in the appropriate
-#        subplots.
-#        """
-#        # if the rates have not been calculated do that now
-#        if hasattr(self, 'binned_spikes') is False:
-#            print('Spikes have not been binned! Binning data now.')
-#            self.rates()
-#
-#        print('Making raster for unit {}'.format(unit_ind))
-#        if axis == None:
-#            ax = plt.gca()
-#        else:
-#            ax = axis
-#
-#        min_trials = np.min(self.num_good_trials)
-#        if num_trials != None and num_trials < min_trials:
-#            min_trials = num_trials
-#
-#        for trial_type in range(self.stim_ids.shape[0]):
-#            count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
-#            shift = offset*trial_type+min_trials*trial_type
-#
-#            for trial in range(min_trials):
-#                trial_inds = np.where(count_mat[:, trial] > 0)[0]
-#                spike_times = self._bins[trial_inds]
-#                ax.vlines(spike_times, trial+shift, trial+1+shift, color='k', linewidth=1.0)
-#
-#                if burst:
-#                    burst_times = list()
-#                    data = spike_times
-#                    if len(data) > 3:
-#                        start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
-#                        for k in range(len(start)):
-#                            burst_times.extend(data[start[k]:(start[k]+length[k])])
-#
-#                        if len(burst_times) > 0:
-#                            ax.vlines(burst_times, trial+shift, trial+1+shift, 'r', linestyles='dashed', linewidth=0.5)
-#
-##                ax.hlines(trial+1, 0, 1.5, color='k')
-#        ax.set_xlim(self._bins[0], self._bins[-1])
-#        ax.set_ylim(0, trial+shift+1)
-#
-#        return ax
-#
-#    def plot_psth(self, axis=None, unit_ind=0, trial_type=0, error='ci', color='k'):
-#        """
-#        Makes a PSTH plot for the given unit index and trial type.
-#        If called alone it will plot a PSTH to the current axis. This function
-#        is called by plot_all_PSTHs and returns an axis handle to the current
-#        subplot. This allows plot_all_PSTHs to plot PSTHs in the appropriate
-#        subplots.
-#        """
-#        # if the rates have not been calculated do that now
-#        if hasattr(self, 'psth') is False:
-#            print('Spikes have not been binned! Binning data now.')
-#            self.rates()
-#
-#        print('Making PSTH for unit {} and trial_type {}'.format(unit_ind, trial_type))
-#
-#        if axis == None:
-#            ax = plt.gca()
-#        else:
-#            ax = axis
-#
-#        psth_temp = self.psth[trial_type][:, :, unit_ind]
-#        mean_psth = np.mean(psth_temp, axis=1) # mean across all trials
-#        se = sp.stats.sem(psth_temp, axis=1)
-#        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
-#        if error == 'ci':
-#            err = se*sp.stats.t.ppf((1+0.95)/2.0, psth_temp.shape[1]-1) # (1+1.95)/2 = 0.975
-#        elif error == 'sem':
-#            err = se
-#
-#        ax.plot(self._bins[0:-1], mean_psth, color)
-#        ax.fill_between(self._bins[0:-1], mean_psth - err, mean_psth + err, facecolor=color, alpha=0.3)
-#        plt.xlim(self._bins[0], self._bins[-1])
-#
-#        return ax
-#
-#    def plot_all_rasters(self, unit_ind=0, burst=True):
-#        """
-#        Plots all rasters for a given unit with subplots.
-#        Each positions is a row and each manipulation is a column.
-#        """
-#        num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
-#        subplt_indices    = np.arange(self.control_pos*num_manipulations).reshape(self.control_pos, num_manipulations)
-#        fig = plt.subplots(self.control_pos, num_manipulations, figsize=(6*num_manipulations, 12))
-#
-#        for manip in range(num_manipulations):
-#            for trial in range(self.control_pos):
-#                plt.subplot(self.control_pos, num_manipulations, subplt_indices[trial, manip]+1)
-#                self.plot_raster(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip), burst=burst)
-#
-#    def plot_all_psths(self, unit_ind=0, error='sem'):
-#        """
-#        Plots all PSTHs for a given unit with subplots.
-#        Each positions is a row and each manipulation is a column.
-#        """
-#        ymax = 0
-#        color = ['k','r','b']
-#        num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
-#        fig, ax = plt.subplots(self.control_pos, 1, figsize=(6, 12), sharex=True, sharey=True)
-#        plt.subplots_adjust(hspace=0.001)
-#
-#        for manip in range(num_manipulations):
-#            for trial in range(self.control_pos):
-#                #plt.subplot(self.control_pos,1,trial+1)
-#                self.plot_psth(axis=ax[trial], unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip),\
-#                        error=error, color=color[manip])
-#
-#                if plt.ylim()[1] > ymax:
-#                    ymax = plt.ylim()[1]
-#        for trial in range(self.control_pos):
-#            ax[trial].set_ylim(0, ymax)
-#        plt.show()
-#
-#    def plot_freq(self, f, frq_mat_temp, axis=None, color='k', error='sem'):
-#        if axis == None:
-#            axis = plt.gca()
-#
-#        mean_frq = np.mean(frq_mat_temp, axis=1)
-#        se       = sp.stats.sem(frq_mat_temp, axis=1)
-#
-#        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
-#        if error == 'ci':
-#            err = se*sp.stats.t.ppf((1+0.95)/2.0, frq_mat_temp.shape[1]-1) # (1+1.95)/2 = 0.975
-#        elif error == 'sem':
-#            err = se
-#
-#        axis.plot(f, mean_frq, color=color)
-#        axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
-#        #axis.set_yscale('log')
-#
+    def get_best_contact(self):
+        """calculates best contact for all units from evoked rate tuning curve"""
+        best_contact = np.zeros((self.num_units,))
+        for unit_index in range(self.num_units):
+            meanr = np.array([np.mean(k[:, unit_index]) for k in self.evk_rate])
+            best_contact[unit_index,] = np.argmax(meanr[:self.control_pos])
+        self.best_contact = best_contact.astype(int)
+
+    def get_sensory_drive(self):
+        """determine which units are sensory driven"""
+        if hasattr(self, 'abs_count') is False:
+            self.rates()
+        control_pos = self.control_pos - 1
+        driven = list()
+        # compare only no light positions with control/no contact position
+        to_compare = [ (k, control_pos) for k in range(control_pos)]
+
+        for unit in range(self.num_units):
+            groups = list()
+            for k in range(control_pos + 1):
+                # append all rates
+                groups.append(self.abs_count[k][:, unit])
+            # test for sensory drive
+            H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
+
+            if reject.any():
+                driven.append(True)
+            else:
+                driven.append(False)
+
+        self.driven_units = np.asarray(driven)
+
+    def get_burst_rate(self, unit_ind=0, trial_type=0, start_time=0.5, stop_time=1.5):
+        """
+        """
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'binned_spikes') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Computing burst rate for unit {} and trial_type {}'.format(unit_ind, trial_type))
+
+        count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
+        burst_rate_mat = np.zeros((count_mat.shape[1],))
+
+        for trial in range(count_mat.shape[1]):
+            trial_inds = np.where(count_mat[:, trial] > 0)[0]
+            spike_times = self._bins[trial_inds]
+
+            burst_times = list()
+            data = spike_times
+            if len(data) > 3:
+                start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
+                for k in range(len(start)):
+                    burst_times.extend(data[start[k]:(start[k]+length[k])])
+
+                if len(burst_times) > 0:
+                    num_bursts = np.sum(np.logical_and(np.asarray(burst_times) > start_time, \
+                            np.asarray(burst_times) < stop_time))
+                    analysis_time = stop_time - start_time
+                    burst_rate = num_bursts/analysis_time
+                else:
+                    burst_rate = 0
+                burst_rate_mat[trial] = burst_rate
+
+        return burst_rate_mat
+
+    def get_spike_rates_per_bin(self, bins=[0, 0.5, 1.0, 1.5], unit_ind=0, trial_type=0):
+        """
+        Compute firing rate for arbitrary bin sizes
+
+        This bins spike count data for specified bin locations and computes the
+        firing rate for that bin.
+
+        Parameters
+        ----------
+        bins: array_like
+            bin locations. Bin width will be determined from these values.
+            Must be equally spaced bins!
+        unit_ind: int
+            unit index used to specify which unit's spikes should be binned
+        trial_type: int
+            trial type index used to specify which trial to be analyzed
+
+        Returns
+        -------
+        rates_per_bins: an array of size "number of bins" X "number of trials"
+
+
+        """
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'binned_spikes') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Computing spike rates per bin for unit {} and trial_type {}'.format(unit_ind, trial_type))
+
+        bins = np.asarray(bins)
+        dt = np.diff(bins)[0]
+
+        count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
+        rates_per_bin = np.zeros((count_mat.shape[1], bins.shape[0]-1))
+        for trial in range(count_mat.shape[1]):
+            trial_inds = np.where(count_mat[:, trial] > 0)[0]
+            spike_times = self._bins[trial_inds]
+            counts = np.histogram(spike_times, bins=bins)[0]
+            rates  = counts/dt
+            rates_per_bin[trial, :] = rates
+
+        return rates_per_bin
+
+    def get_adaptation_ratio(self, unit_ind=0, bins=[0.5, 1.0, 1.5]):
+        """compute adaptation ratio for a given unit and bins"""
+        bins = np.asarray(bins)
+        ratios = np.zeros((1, self.stim_ids.shape[0], bins.shape[0]-1))
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = np.mean(self.get_spike_rates_per_bin(bins=bins, unit_ind=unit_ind, trial_type=cond), axis=0)
+        for cond in range(self.stim_ids.shape[0]):
+            ratios[0, cond, :] = ratios[0, cond, :]/float(ratios[0, cond, 0])
+
+        return ratios
+
+###############################################################################
+##### Whisker tracking functions #####
+###############################################################################
+
+    def get_protraction_times(self, pos, trial, analysis_window=[0.5, 1.5]):
+        """
+        Calculates the protration times for a specified trial
+
+        Given a position/trial type index and the trial index this will return
+        the timestamp for each whisker at maximum protraction. The protraction
+        time will be withing the specified analysis_window
+
+        Parameters
+        ----------
+        pos: int
+            index specifying which position/trial type to analyze
+        trial: int
+            index specifying which trial to analyze
+        analysis_window: array-like
+            array or list containing two numbers specifying the beginning and
+            end of the analysis period to anlyze
+
+        Returns
+        _______
+        timestampt: array
+            an array containing the timestamps for maximum protractions during
+            the analysis window.
+        """
+        phase             = self.wt[pos][:, 3, trial]
+        phs_crossing      = phase > 0
+        phs_crossing      = phs_crossing.astype(int)
+        protraction_inds  = np.where(np.diff(phs_crossing) > 0)[0] + 1
+        protraction_times = self.wtt[protraction_inds]
+
+        good_inds = np.logical_and(protraction_times > analysis_window[0],\
+                protraction_times < analysis_window[1])
+        timestamps = protraction_times[good_inds]
+
+        return timestamps
+
+    def pta(self, cond=0, unit_ind=0, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
+        """
+        Create a protraction triggered histogram/average
+        Returns: mean counts per bin, sem counts per bin, and bins
+        """
+        if hasattr(self, 'wt') is False:
+            warnings.warn('no whisking data!')
+
+        bins      = np.arange(window[0], window[1], dt)
+        count_mat = np.zeros((1, bins.shape[0] - 1)) # trials x bins
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(self.num_good_trials[cond]):
+            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+            windowed_spike_times = np.logical_and(all_spike_times > analysis_window[0],\
+                    all_spike_times < analysis_window[1])
+            protraction_times = self.get_protraction_times(cond, trial_ind, analysis_window)
+
+            # bin spikes for each protraction and add to count_mat
+            for p_time in protraction_times:
+                temp_counts = np.histogram(all_spike_times[windowed_spike_times] - p_time, bins)[0].reshape(1, bins.shape[0]-1)
+                count_mat   = np.concatenate((count_mat, temp_counts), 0) # extend the number of rows
+
+        count_mat = count_mat[1::, :]
+        out1 = np.mean(count_mat, 0)/dt
+        out2 = sp.stats.sem(count_mat, 0)
+        out3 = bins
+
+        return out1, out2, out3
+
+    def get_pta_depth(self, window=[-0.100, 0.100], dt=0.005, analysis_window=[0.5, 1.5]):
+        """
+        Calculates modulation depth from protraction triggered averages
+        Here modulation depth is the coefficient of variation (std/mean)
+        """
+        if hasattr(self, 'wt') is False:
+            warnings.warn('no whisking data!')
+        control_pos = self.control_pos
+        num_conditions = self.stim_ids.shape[0]
+        mod_mat = np.zeros((self.num_units, num_conditions))
+
+        print ('working on unit:')
+        for unit_index in range(self.num_units):
+            print(unit_index)
+            for cond in range(num_conditions):
+                    spks_bin, _, _ = self.pta(cond=cond, unit_ind=unit_index, window=window, dt=dt, analysis_window=analysis_window)
+                    #mod_depth = (np.max(spks_bin) - np.min(spks_bin)) / np.mean(spks_bin)
+                    mod_depth = np.var(spks_bin)/np.mean(spks_bin)
+                    mod_mat[unit_index, cond] = mod_depth
+
+        self.mod_index = mod_mat
+
+    def eta(self, event_times, cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
+        """
+        Create an event triggered histogram/average. Given a list of times this
+        will calculate the mean spike rate plus standard error within a given
+        windowed centered at each event time.
+
+        Input: event times as a vector
+        TODO: event times as a matrix (i.e. a vector per specific trial)
+        Returns: mean counts per bin, sem counts per bin, and bins
+        """
+
+        bins      = np.arange(window[0], window[1], dt)
+        count_mat = np.zeros((1, bins.shape[0] - 1)) # trials x bins
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(self.num_good_trials[cond]):
+            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+            windowed_spike_times = np.logical_and(all_spike_times > analysis_window[0],\
+                    all_spike_times < analysis_window[1])
+            protraction_times = self.get_protraction_times(cond, trial_ind, analysis_window)
+
+            # bin spikes for each protraction and add to count_mat
+            for e_time in event_times:
+                temp_counts = np.histogram(all_spike_times[windowed_spike_times] - e_time, bins)[0].reshape(1, bins.shape[0]-1)
+                count_mat   = np.concatenate((count_mat, temp_counts), 0) # extend the number of rows
+
+        count_mat = count_mat[1::, :]
+        out1 = np.mean(count_mat, 0)/dt
+        out2 = sp.stats.sem(count_mat, 0)
+        out3 = bins
+
+        return out1, out2, out3
+
+    def eta_wt(self, event_times, cond=0, kind='angle', window=[-0.050, 0.050]):
+#            cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
+        """
+        Create an event triggered trace of a specified whisking parameter
+        Input: event times as a vector
+        TODO: event times as a matrix (i.e. a vector per specific trial)
+        Returns: mean trace, sem of traces, and the trace matrix (trials x window length)
+        """
+        self.wt_type_dict = {'angle':0, 'set-point':1, 'amplitude':2, 'phase':3, 'velocity':4, 'whisking':5}
+
+        num_inds_pre  = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[0])))[0])
+        num_inds_post = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[1])))[0])
+        dt = self.wtt[1] - self.wtt[0]
+        trace_time = np.arange(-num_inds_pre, num_inds_post+1)*dt
+
+        # matrix size: trials x number of indices taken from interested trace
+        trace_mat = np.zeros((1, num_inds_pre + num_inds_post + 1))
+        kind_ind = self.wt_type_dict[kind]
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(self.num_good_trials[cond]):
+            for e_time in event_times:
+                trace_ind  = np.argmin(np.abs(self.wtt - e_time)) # find wt index closest to event time
+                trace_inds = np.arange(trace_ind - num_inds_pre, trace_ind + num_inds_post + 1)
+                trace_temp = self.wt[cond][trace_inds, kind_ind, trial_ind].reshape(1, trace_mat.shape[1])
+                trace_mat = np.concatenate((trace_mat, trace_temp))
+
+        trace_mat = trace_mat[1::, :]
+        out1 = np.mean(trace_mat, axis=0)
+        out2 = sp.stats.sem(trace_mat, axis=0)
+        out3 = trace_mat
+        out4 = trace_time
+
+        return out1, out2, out3, out4
+
+    def sta_wt(self, cond=0, unit_ind=0, analysis_window=[0.5, 1.5]):
+        """
+        Create a spike triggered array for whisker tracking
+        Returns: array (total spikes for specified unit x values) where each
+        entry is the whisker tracking value (e.g. angle, phase, set-point) when
+        the specified unit spiked.
+
+        The second array is all the whisker tracking values that occurred
+        during the analysis window for all analyzed trials
+        """
+        st_vals = np.zeros((1, 5))
+        all_vals    = np.zeros((1, 5))
+        stim_inds   = np.logical_and(self.wtt >= analysis_window[0], self.wtt <= analysis_window[1])
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(self.num_good_trials[cond]):
+            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+            windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
+                    all_spike_times < analysis_window[1])
+            windowed_spike_times = all_spike_times[windowed_spike_indices]
+
+            # iterate through all spike times and measure specified whisker
+            # parameter
+            for stime in windowed_spike_times:
+                wt_index = np.argmin(np.abs(stime - self.wtt))
+                temp_st_vals = self.wt[cond][wt_index, 0:5, trial_ind].reshape(1, 5)
+                st_vals = np.concatenate((st_vals, temp_st_vals), axis=0)
+
+            # add all whisker tracking values in analysis window to matrix
+            all_vals = np.concatenate((all_vals, self.wt[cond][stim_inds, 0:5, trial_ind]), axis=0)
+
+        st_vals  = st_vals[1::, :]
+        all_vals = all_vals[1::, :]
+
+        return st_vals, all_vals
+
+    def st_norm(self, st_vals, all_vals, wt_type, bins, dt):
+        """
+        normalizes phase/spike counts
+
+        Divides each phase bin by the occupancy of that bin. That is, it
+        divides by the number of times the whiskers happened to occupy each bin
+        """
+
+        if wt_type == 0:
+            st_count = np.histogram(st_vals, bins=bins)[0].astype(float)
+            all_count = np.histogram(all_vals, bins=bins)[0].astype(float)
+        else:
+            st_count = np.histogram(st_vals[:, wt_type], bins=bins)[0].astype(float)
+            all_count = np.histogram(all_vals[:, wt_type], bins=bins)[0].astype(float)
+
+        count_norm = np.nan_to_num(st_count/all_count) / (dt * 0.002)
+
+        return count_norm
+
+    def sg_smooth(self, data, win_len=5, poly=3, neg_vals=False):
+        """
+        Smooth a 1-d array with a Savitzky-Golay filter
+
+        Arguments
+        Data: the 1-d array to be smoothed
+        win_len: the size of the smoothing window to be used. It MUST be an odd.
+        poly: order of the smoothing polynomial. Must be less than win_len
+        neg_vals: whether to convert negative values to zero.
+
+        Returns smoothed array
+        """
+        smooth_data = sp.signal.savgol_filter(data, win_len, poly, mode='wrap')
+        if neg_vals is False:
+            smooth_data[smooth_data < 0] = 0
+        return smooth_data
+
+    def get_phase_modulation_depth(self, bins=np.linspace(-np.pi, np.pi, 40)):
+        """
+        computes spike-phase modulation depth for each unit
+
+        Parameters
+        _________
+        bins: array-like
+            specify the bin locations used to bin spike-phase data
+
+        Returns
+        -------
+        mod_index: 3-d array
+            The 3-d array has dimensions:
+                row: number of units
+                col: number of trial types
+                3-d: vector strength, vector direction, coefficient of variation
+            The array is added to the neuro class and can be called with dot
+            notations <name of class object>.mod_index
+        """
+
+        # Main function code
+        print('\n-----get_phase_modulation_depth-----')
+        if hasattr(self, 'wt') is False:
+            warnings.warn('no whisking data!')
+
+        dt       = bins[1] - bins[0]
+        bins_pos = bins + np.pi # must use positive bins with pycircstat, remeber to offset results by -pi
+        wt_type  = 3 # {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity'}
+        mod_mat  = np.zeros((self.num_units, len(self.num_all_trials), 3))
+        mod_pval = np.zeros((self.num_units, len(self.num_all_trials)))
+
+        for uid in range(self.num_units):
+            print('working on unit: {}'.format(uid))
+            for k in range(len(self.num_all_trials)):
+
+                # compute spike-rate per phase bin
+                st_vals, all_vals = self.sta_wt(cond=k, unit_ind=uid) # analysis_window=[0.5, 1.5]
+                count_norm        = self.st_norm(st_vals, all_vals, wt_type, bins, dt)
+                smooth_data       = self.sg_smooth(count_norm)
+
+                # pycircstat returns positive values (yes, verified). So zero
+                # corresponds to negative pi and six is close to positive pi
+
+                # compute vector strength
+                mod_mat[uid, k, 0] = pycirc.descriptive.resultant_vector_length(bins_pos[:-1], smooth_data) # angles in radian, weightings (counts)
+
+                # compute vector angle (mean direction)
+                mod_mat[uid, k, 1] = pycirc.descriptive.mean(bins_pos[:-1], smooth_data) - np.pi # angles in radian, weightings (counts)
+                # compute coefficient of variation
+                mod_mat[uid, k, 2] = np.std(smooth_data)/np.mean(smooth_data)
+
+                # stats
+                # compute Rayleigh test for non-uniformity around unit circle
+                mod_pval[uid, k] = pycirc.tests.rayleigh(bins_pos[:-1], smooth_data)[0]
+
+        self.mod_index = mod_mat
+        self.mod_pval  = mod_pval
+
+###############################################################################
+##### Plotting Functions #####
+###############################################################################
+
+    def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
+        """
+        make_simple_tuning_curve allows one to specify what type of tuning
+        curve to plot as well as which unit for a single tuning curve or all
+        units for a subplot of tuning curves
+
+        Kinds of tuning curves:
+        Absolute rate:   'abs_rate'
+        Absolute counts: 'abs_count'
+        Evoked rate:     'evk_rate'
+        Evoked counts:   'evk_count'
+        """
+
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'abs_rate') is False:
+            self.rates()
+        # dictionary of types of plots. allows user to specify what type of
+        # tuning curve should be plotted.
+        kind_dict      = {'abs_rate': 0, 'abs_count': 1, 'evk_rate': 2, 'evk_count': 3}
+        kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
+
+        control_pos = self.control_pos
+        # setup x-axis with correct labels and range
+        pos = range(1,control_pos)
+        x_vals = range(1, control_pos+1)
+        labels = [str(i) for i in pos]; labels.append('NC')
+        line_color = ['k','r','b']
+
+        # if tuning curves from one unit will be plotted on a given axis
+        if unit_ind != None:
+
+            if axis == None:
+                ax = plt.gca()
+            else:
+                ax = axis
+
+            # compute the means and standard errors
+            meanr = [np.mean(k[:, unit_ind]) for k in kind_of_tuning[kind_dict[kind]]]
+            stder = [np.std(k[:, unit_ind]) / np.sqrt(k[:, unit_ind].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
+            for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), control_pos )):
+                ax.errorbar(pos[0:control_pos-1],\
+                        meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
+                        yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
+                        fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                # plot control position separately from stimulus positions
+                ax.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
+                        fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+
+        # if all tuning curves from all units are to be plotted
+        else:
+            # determine number of rows and columns in the subplot
+            unit_ind = range(self.num_units)
+            num_rows, num_cols = 3, 3
+
+            num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
+
+            unit_count, plot_count = 0, 0
+            fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
+            for unit in unit_ind:
+                meanr = [np.mean(k[:, unit]) for k in kind_of_tuning[kind_dict[kind]]]
+                stder = [np.std(k[:, unit]) / np.sqrt(k[:, unit].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
+                for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), control_pos )):
+                    # compute the means and standard errors
+
+                    ax = plt.subplot(num_rows, num_cols, plot_count+1)
+                    # plot stimulus positions separately from control so the
+                    # control position is not connected with the others
+                    plt.errorbar(pos[0:control_pos-1],\
+                            meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
+                            yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
+                            fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                    # plot control position separately from stimulus positions
+                    plt.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
+                            fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+
+                plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
+                        ' depth: ' + str(self.depths[unit]) + \
+                        '\ncell type: ' + str(self.cell_type[unit]))
+                        #' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
+                plt.plot([0, control_pos+1],[0,0],'--k')
+                plt.xlim(0, control_pos+1)
+                plt.ylim(plt.ylim()[0]-1, plt.ylim()[1]+1)
+                ax.set_xticks([])
+                plt.xticks(x_vals, labels)
+                plt.xlabel('Bar Position', fontsize=8)
+                plt.show()
+                # count after each plot is made
+                plot_count += 1
+                unit_count += 1
+
+                if unit_count == len(unit_ind) and plot_count == (num_rows*num_cols):
+                    print('finished')
+                    plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
+                    plt.suptitle(kind)
+                    plt.show()
+                    return ax
+                elif unit_count == len(unit_ind):
+                    print('finished')
+                    plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
+                    plt.suptitle(kind)
+                    plt.show()
+                elif plot_count == (num_rows*num_cols):
+                    print('made a new figure')
+                    plt.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.92, wspace=0.17, hspace=0.35)
+                    plt.suptitle(kind)
+                    plt.show()
+                    # create a new plot
+                    if plot_count != len(unit_ind):
+                        fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
+                    plot_count = 0
+
+    def plot_raster(self, unit_ind=0, trial_type=0, axis=None, burst=True):
+        """
+        Makes a raster plot for the given unit index and trial type.
+        If called alone it will plot a raster to the current axis. This function
+        is called by plot_all_rasters and returns an axis handle to the current
+        subplot. This allows plot_all_rasters to plot rasters in the appropriate
+        subplots.
+        """
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'binned_spikes') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Making raster for unit {} and trial_type {}'.format(unit_ind, trial_type))
+        if axis == None:
+            ax = plt.gca()
+        else:
+            ax = axis
+
+        count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
+
+        for trial in range(count_mat.shape[1]):
+            trial_inds = np.where(count_mat[:, trial] > 0)[0]
+            spike_times = self._bins[trial_inds]
+            ax.vlines(spike_times, trial, trial+1, color='k', linewidth=1.0)
+
+            if burst:
+                burst_times = list()
+                data = spike_times
+                if len(data) > 3:
+                    start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
+                    for k in range(len(start)):
+                        burst_times.extend(data[start[k]:(start[k]+length[k])])
+
+                    if len(burst_times) > 0:
+                        ax.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed', linewidth=0.5)
+
+        #ax.hlines(trial+1, 0, 1.5, color='k')
+        ax.set_xlim(self._bins[0], self._bins[-1])
+        ax.set_ylim(0, trial+1)
+
+        return ax
+
+    def plot_raster_all_conditions(self, unit_ind=0, num_trials=None, offset=5, axis=None, burst=False):
+        """
+        Makes a raster plot for the given unit index and trial type.
+        If called alone it will plot a raster to the current axis. This function
+        is called by plot_all_rasters and returns an axis handle to the current
+        subplot. This allows plot_all_rasters to plot rasters in the appropriate
+        subplots.
+        """
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'binned_spikes') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Making raster for unit {}'.format(unit_ind))
+        if axis == None:
+            ax = plt.gca()
+        else:
+            ax = axis
+
+        min_trials = np.min(self.num_good_trials)
+        if num_trials != None and num_trials < min_trials:
+            min_trials = num_trials
+
+        for trial_type in range(self.stim_ids.shape[0]):
+            count_mat = self.binned_spikes[trial_type][:, :, unit_ind] # returns bins x num_trials array
+            shift = offset*trial_type+min_trials*trial_type
+
+            for trial in range(min_trials):
+                trial_inds = np.where(count_mat[:, trial] > 0)[0]
+                spike_times = self._bins[trial_inds]
+                ax.vlines(spike_times, trial+shift, trial+1+shift, color='k', linewidth=1.0)
+
+                if burst:
+                    burst_times = list()
+                    data = spike_times
+                    if len(data) > 3:
+                        start, length, RS = ranksurprise.burst(data, limit=50e-3, RSalpha=0.1)
+                        for k in range(len(start)):
+                            burst_times.extend(data[start[k]:(start[k]+length[k])])
+
+                        if len(burst_times) > 0:
+                            ax.vlines(burst_times, trial+shift, trial+1+shift, 'r', linestyles='dashed', linewidth=0.5)
+
+#                ax.hlines(trial+1, 0, 1.5, color='k')
+        ax.set_xlim(self._bins[0], self._bins[-1])
+        ax.set_ylim(0, trial+shift+1)
+
+        return ax
+
+    def plot_psth(self, axis=None, unit_ind=0, trial_type=0, error='ci', color='k'):
+        """
+        Makes a PSTH plot for the given unit index and trial type.
+        If called alone it will plot a PSTH to the current axis. This function
+        is called by plot_all_PSTHs and returns an axis handle to the current
+        subplot. This allows plot_all_PSTHs to plot PSTHs in the appropriate
+        subplots.
+        """
+        # if the rates have not been calculated do that now
+        if hasattr(self, 'psth') is False:
+            print('Spikes have not been binned! Binning data now.')
+            self.rates()
+
+        print('Making PSTH for unit {} and trial_type {}'.format(unit_ind, trial_type))
+
+        if axis == None:
+            ax = plt.gca()
+        else:
+            ax = axis
+
+        psth_temp = self.psth[trial_type][:, :, unit_ind]
+        mean_psth = np.mean(psth_temp, axis=1) # mean across all trials
+        se = sp.stats.sem(psth_temp, axis=1)
+        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
+        if error == 'ci':
+            err = se*sp.stats.t.ppf((1+0.95)/2.0, psth_temp.shape[1]-1) # (1+1.95)/2 = 0.975
+        elif error == 'sem':
+            err = se
+
+        ax.plot(self._bins[0:-1], mean_psth, color)
+        ax.fill_between(self._bins[0:-1], mean_psth - err, mean_psth + err, facecolor=color, alpha=0.3)
+        plt.xlim(self._bins[0], self._bins[-1])
+
+        return ax
+
+    def plot_all_rasters(self, unit_ind=0, burst=True):
+        """
+        Plots all rasters for a given unit with subplots.
+        Each positions is a row and each manipulation is a column.
+        """
+        num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
+        subplt_indices    = np.arange(self.control_pos*num_manipulations).reshape(self.control_pos, num_manipulations)
+        fig = plt.subplots(self.control_pos, num_manipulations, figsize=(6*num_manipulations, 12))
+
+        for manip in range(num_manipulations):
+            for trial in range(self.control_pos):
+                plt.subplot(self.control_pos, num_manipulations, subplt_indices[trial, manip]+1)
+                self.plot_raster(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip), burst=burst)
+
+    def plot_all_psths(self, unit_ind=0, error='sem'):
+        """
+        Plots all PSTHs for a given unit with subplots.
+        Each positions is a row and each manipulation is a column.
+        """
+        ymax = 0
+        color = ['k','r','b']
+        num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
+        fig, ax = plt.subplots(self.control_pos, 1, figsize=(6, 12), sharex=True, sharey=True)
+        plt.subplots_adjust(hspace=0.001)
+
+        for manip in range(num_manipulations):
+            for trial in range(self.control_pos):
+                #plt.subplot(self.control_pos,1,trial+1)
+                self.plot_psth(axis=ax[trial], unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip),\
+                        error=error, color=color[manip])
+
+                if plt.ylim()[1] > ymax:
+                    ymax = plt.ylim()[1]
+        for trial in range(self.control_pos):
+            ax[trial].set_ylim(0, ymax)
+        plt.show()
+
+    def plot_freq(self, f, frq_mat_temp, axis=None, color='k', error='sem'):
+        if axis == None:
+            axis = plt.gca()
+
+        mean_frq = np.mean(frq_mat_temp, axis=1)
+        se       = sp.stats.sem(frq_mat_temp, axis=1)
+
+        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
+        if error == 'ci':
+            err = se*sp.stats.t.ppf((1+0.95)/2.0, frq_mat_temp.shape[1]-1) # (1+1.95)/2 = 0.975
+        elif error == 'sem':
+            err = se
+
+        axis.plot(f, mean_frq, color=color)
+        axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
+        #axis.set_yscale('log')
+
 ################################################################################
 ######### Doesn't work in Ubuntu...figure out why ##############################
 ################################################################################
