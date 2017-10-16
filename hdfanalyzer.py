@@ -64,7 +64,7 @@ class NeuroAnalyzer(object):
         self.__get_depths()
 
         # find stimulus IDs
-        self.stim_ids = np.sort(np.unique([self.f[k].attrs['trial_type'] for k in f]))
+        self.stim_ids = np.sort(np.unique([self.f[k].attrs['trial_type'] for k in f])).astype(int)
 
         # find number of units
         self.num_units = len(self.f['/segment-0000/spiketrains'])
@@ -116,7 +116,7 @@ class NeuroAnalyzer(object):
         self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
-#        self.__trim_lfp()
+        self.__trim_lfp()
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
@@ -128,11 +128,11 @@ class NeuroAnalyzer(object):
         # calculate rates, psths, whisking array, etc.
         self.rates()
 
-#        # create region dictionary
-#        self.region_dict = {0:'M1', 1:'S1'}
-#
-#        # get selectivity for all units
-#        self.get_selectivity()
+        # create region dictionary
+        self.region_dict = {0:'M1', 1:'S1'}
+
+        # get selectivity for all units
+        self.get_selectivity()
 #
 #        # get preferred position for all units
 #        self.get_preferred_position()
@@ -314,7 +314,7 @@ class NeuroAnalyzer(object):
         '''make a list with every segment/trials stimulus ID'''
         stim_ids_all = list()
         for k, seg in enumerate(self.f):
-            stim_ids_all.append(self.f[seg].attrs['trial_type'])
+            stim_ids_all.append(int(self.f[seg].attrs['trial_type']))
 
         self.stim_ids_all = stim_ids_all
 
@@ -836,23 +836,23 @@ class NeuroAnalyzer(object):
 
             self.cell_type = new_labels
 
-#    def get_lfps(self, kind='run_boolean'):
-#        lfps = [list() for x in range(len(self.shank_names))]
-#        # preallocation loop
-#        for shank in range(len(self.shank_names)):
-#            for k, trials_ran in enumerate(self.num_good_trials):
-#                lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_ran )))
-#
-#        for shank in range(len(self.shank_names)):
-#            for stim_ind, stim_id in enumerate(self.stim_ids):
-#                good_trial_ind = 0
-#
-#                for trial in self.neo_obj.segments:
-#                    if trial.annotations['trial_type'] == stim_id and trial.annotations[kind]:
-#                        lfps[shank][stim_ind][:, :, good_trial_ind] = trial.analogsignalarrays[shank]
-#                        good_trial_ind += 1
-#        self.lfps = lfps
-#
+    def get_lfps(self, kind='run_boolean'):
+        lfps = [list() for x in range(len(self.shank_names))]
+        # preallocation loop
+        for shank in range(len(self.shank_names)):
+            for k, trials_ran in enumerate(self.num_good_trials):
+                lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_ran )))
+
+        for shank in range(len(self.shank_names)):
+            for stim_ind, stim_id in enumerate(self.stim_ids):
+                good_trial_ind = 0
+
+                for k, seg in enumerate(self.f):
+                    if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
+                        lfps[shank][stim_ind][:, :, good_trial_ind] = self.lfp_data[shank][:, :, k]
+                        good_trial_ind += 1
+        self.lfps = lfps
+
 #    def get_psd(self, input_array, sr):
 #        """
 #        compute PSD of input array sampled at sampling rate sr
@@ -1071,26 +1071,26 @@ class NeuroAnalyzer(object):
 ################################################################################
 ###### Eight-Position experiment specific functions #####
 ################################################################################
-#
-#    def get_selectivity(self):
-#        if hasattr(self, 'abs_rate') is False:
-#            self.rates()
-#        control_pos = self.control_pos
-#        num_manipulations = self.stim_ids.shape[0]/control_pos
-#        sel_mat = np.zeros((self.num_units, num_manipulations))
-#
-#        for manip in range(num_manipulations):
-#            for unit_index in range(self.num_units):
-#                meanr = [np.mean(k[:, unit_index]) for k in self.abs_rate]
-#                # minus 1 to exclude no contact/control position
-#                x = np.asarray(meanr[(manip*control_pos):((manip+1)*control_pos-1)])
-#                # calculate selectivity for unit_index during manipulation
-#                sel_mat[unit_index, manip] = \
-#                        1 - ((np.linalg.norm(x/np.max(x))- 1)/\
-#                        (np.sqrt(x.shape[0]) - 1))
-#
-#        self.selectivity = sel_mat
-#
+
+    def get_selectivity(self):
+        if hasattr(self, 'abs_rate') is False:
+            self.rates()
+        control_pos = self.control_pos
+        num_manipulations = self.stim_ids.shape[0]/control_pos
+        sel_mat = np.zeros((self.num_units, num_manipulations))
+
+        for manip in range(num_manipulations):
+            for unit_index in range(self.num_units):
+                meanr = [np.mean(k[:, unit_index]) for k in self.abs_rate]
+                # minus 1 to exclude no contact/control position
+                x = np.asarray(meanr[(manip*control_pos):((manip+1)*control_pos-1)])
+                # calculate selectivity for unit_index during manipulation
+                sel_mat[unit_index, manip] = \
+                        1 - ((np.linalg.norm(x/np.max(x))- 1)/\
+                        (np.sqrt(x.shape[0]) - 1))
+
+        self.selectivity = sel_mat
+
 #    def get_omi(self, pos=-1):
 #        """
 #        calculates mean OMI or OMI at a specifie position. Returns a
