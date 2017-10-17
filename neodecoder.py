@@ -128,7 +128,7 @@ class NeuroDecoder(object):
                     # compute the percent correct
                     pcc.append(100* (np.trace(cmat, offset=0)/self.num_cond))
 
-                    # record confusino matrix for this fold
+                    # record confusion matrix for this fold
                     cmats.append(cmat)
 
                     # record the weights and intercept
@@ -184,6 +184,7 @@ class NeuroDecoder(object):
         self.all_kappas = all_kappas
         self.all_pcc    = all_pcc
         self.cmat       = np.mean(np.asarray(all_cmats), axis=0)
+        self.cmat_pcc   = 100 * (np.trace(self.cmat, offset=0)/self.num_cond)
 
         bar.finish()
 
@@ -302,7 +303,7 @@ class NeuroDecoder(object):
 
         elif kind == 'ole' and kappa_to_try is None:
             print('optimal linear estimator selected but kappa_to_try is None\
-                    \nusing default values for kappa: range(0, 100, 1)')
+                    \nusing default values for kappa: range(0, 50, 0.25)')
             self.kappa_to_try = np.arange(0, 50, 0.25)
 
         # logistic regression parameters
@@ -362,21 +363,6 @@ class NeuroDecoder(object):
         niter: int
             number of iterations per subset
         """
-#        def decode_subsample(nsize):
-#            # select subset of units, no repeats, and in order from least to greatest
-#            self.uids = np.sort(np.random.choice(self.num_units, nsize, replace=False))
-#
-#            # fit model with new subset and find best kappa
-#            self.num_runs = 2
-#            self.fit_ole_decoder()
-#            self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
-#
-#            # compute mean pcc for this subset and best kappa
-#            self.num_runs = 5
-#            self.fit_ole_decoder()
-#
-#            return np.mean(self.all_pcc)
-#
         if not hasattr(self, 'theta'):
             print('must fit model to set parameters first\nyou can use fit with "run=False" so it only sets parameters.')
         pcc_array = np.zeros((niter, self.num_units - 1))
@@ -385,8 +371,9 @@ class NeuroDecoder(object):
         for n, nsize in enumerate(subset_size):
             print('\n##### Using subset size: {} #####'.format(nsize))
 
+        #nsize = subset_size[-1]
             # recode this to run in parallel?
-            for m in range(50):
+            for m in range(niter):
                 # select subset of units, no repeats, and in order from least to greatest
                 self.uids = np.sort(np.random.choice(self.num_units, nsize, replace=False))
 
@@ -680,7 +667,7 @@ if __name__ == "__main__":
     # Select which experiments to analyze
 ##### scratch space #####
 ##### scratch space #####
-    get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
+    get_ipython().magic(u"run hdfanalyzer.py {}".format(sys.argv[1]))
 
     ##### performance per unit #####
     ##
@@ -742,6 +729,18 @@ if __name__ == "__main__":
     plt.ylabel('Decoding performance (PCC)')
     plt.title(neuro.fid + ' vS1 decoding performance')
 
+
+
+
+# save pcc arrays
+sp.io.savemat('/home/greg/Desktop/decoding_unit_performance/pcc_arrays/' + fid + '_pcc.mat',
+        {'m1_pcc_array':m1_pcc_array,
+            's1_light_pcc_array':s1_light_pcc_array,
+            's1_pcc_array':s1_pcc_array,
+            'm1_light_pcc_array':m1_light_pcc_array})
+
+
+
 ###################################################################
 ###################################################################
 
@@ -798,7 +797,7 @@ X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 m1_cmat = decoder.cmat
-m1_pcc  = decoder.best_pcc
+m1_pcc  = np.mean(decoder.all_pcc)
 
 # S1
 pos_inds = np.arange(8)
@@ -806,7 +805,7 @@ X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 s1_cmat = decoder.cmat
-s1_pcc  = decoder.best_pcc
+s1_pcc  = np.mean(decoder.all_pcc)
 all_kappas = decoder.all_kappas
 all_pcc    = decoder.all_pcc
 
@@ -816,7 +815,7 @@ X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 m1L_cmat = decoder.cmat
-m1L_pcc  = decoder.best_pcc
+m1L_pcc  = np.mean(decoder.all_pcc)
 
 # S1 + M1 light
 pos_inds = np.arange(8)+9+9
@@ -824,7 +823,7 @@ X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type
 decoder  = NeuroDecoder(X, y)
 decoder.fit(kind='ole')
 s1L_cmat = decoder.cmat
-s1L_pcc  = decoder.best_pcc
+s1L_pcc  = np.mean(decoder.all_pcc)
 
 ##### plot scatter plot
 fig, ax = plt.subplots(1, 1)
