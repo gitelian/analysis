@@ -188,23 +188,19 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # do this for best position and no contact position. Plot things overall and
 # then look at things as a function of depth.
 
-fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336','1338', '1339', '1340', '1343']
-fids = ['1336','1338', '1340', '1343', '1345']
+# 1302 and 1318 gave errors while loading...investigate this
+fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336', '1338', '1340', '1343', '1345']
+# FID1330 and beyond has episodic HSV
+fids = ['1330', '1336', '1338', '1340', '1343', '1345']
+#fids = ['1336','1338', '1340', '1343', '1345']
 
 #fids = ['1302', '1318', '1330']
 #fids = ['1336', '1338', '1339']
 # fid with good whisker tracking
 #fids = ['1330', '1336', '1338', '1339', '1340']
 experiments = list()
-for fid in fids:
-    get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
-#    exp1 = block[0]
-#    neuro = NeuroAnalyzer(exp1)
-    # del neo objects to save memory
-    del neuro.neo_obj
-    del block
-    del exp1
-    del manager
+for fid_name in fids:
+    get_ipython().magic(u"run hdfanalyzer.py {}".format(fid_name))
     experiments.append(neuro)
 
 ##### multiple experiment optogenetic analysis #####
