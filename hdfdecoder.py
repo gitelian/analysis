@@ -383,7 +383,7 @@ class NeuroDecoder(object):
                 self.kappa_to_try = np.array(self.best_kappa).reshape(1,)
 
                 # compute mean pcc for this subset and best kappa
-                self.num_runs = 100
+                self.num_runs = 500 # 100 was default
                 self.fit_ole_decoder()
 
                 pcc_array[m, n] = np.mean(self.all_pcc)
