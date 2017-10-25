@@ -76,10 +76,9 @@ class NeuroDecoder(object):
         theta_k = np.unique(self.theta)
 
         kf = KFold(n_splits=self.nfolds)
-#        num_runs = 5
-        bar = Bar('Iterating through runs', max=self.num_runs)
+#        bar = Bar('Iterating through runs', max=self.num_runs)
         for run in range(self.num_runs):
-            bar.next()
+#            bar.next()
             self.__permute_data()
 
             for kappa in self.kappa_to_try:
@@ -186,7 +185,7 @@ class NeuroDecoder(object):
         self.cmat       = np.mean(np.asarray(all_cmats), axis=0)
         self.cmat_pcc   = 100 * (np.trace(self.cmat, offset=0)/self.num_cond)
 
-        bar.finish()
+#        bar.finish()
 
 
     def __basis_vals(self, kappa, theta, theta_k):
@@ -371,9 +370,9 @@ class NeuroDecoder(object):
         for n, nsize in enumerate(subset_size):
             print('\n##### Using subset size: {} #####'.format(nsize))
 
-        #nsize = subset_size[-1]
             # recode this to run in parallel?
             for m in range(niter):
+                print('iteration: {}/{}'.format(m, niter))
                 # select subset of units, no repeats, and in order from least to greatest
                 self.uids = np.sort(np.random.choice(self.num_units, nsize, replace=False))
 
@@ -672,6 +671,7 @@ if __name__ == "__main__":
     ##### performance per unit #####
     ##
     # M1
+    print('M1 no light')
     pos_inds = np.arange(8)
     X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count')
     decoder  = NeuroDecoder(X, y)
@@ -681,6 +681,7 @@ if __name__ == "__main__":
     m1_std_pcc   = m1_pcc_array.std(axis=0)
 
     # M1 S1 light
+    print('M1 S1 light')
     pos_inds = np.arange(8)+9
     X, y, uinds     = neuro.get_design_matrix(trode=0, cond_inds=pos_inds, rate_type='abs_count')
     decoder  = NeuroDecoder(X, y)
@@ -702,6 +703,7 @@ if __name__ == "__main__":
     ## S1
 
     # S1
+    print('S1 no light')
     pos_inds = np.arange(8)
     X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count')
     decoder  = NeuroDecoder(X, y)
@@ -711,6 +713,7 @@ if __name__ == "__main__":
     s1_std_pcc   = s1_pcc_array.std(axis=0)
 
     # S1 M1 light
+    print('S1 M1 light')
     pos_inds = np.arange(8)+9+9
     X, y, uinds     = neuro.get_design_matrix(trode=1, cond_inds=pos_inds, rate_type='abs_count')
     decoder  = NeuroDecoder(X, y)
