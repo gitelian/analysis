@@ -217,7 +217,7 @@ for k, neuro in enumerate(experiments):
     neuro.reclassify_units()
 
     for uind in range(neuro.num_units):
-        if neuro.shank_ids[uind] == 1:
+        if neuro.shank_ids[uind] == 0:
             best_contact = neuro.best_contact[uind]
             abs_rate_light   = neuro.abs_rate[best_contact+9+9][:, uind].mean()
             abs_rate_nolight = neuro.abs_rate[best_contact][:, uind].mean()
@@ -338,8 +338,10 @@ npand   = np.logical_and
 ## RS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+#m1_inds = npand(region==0, cell_type=='RS')
+#s1_inds = npand(region==1, cell_type=='RS')
 bins = np.arange(0, 1, 0.05)
-fig, ax = plt.subplots(3, 3, figsize=(16,9))
+fig, ax = plt.subplots(3, 2, figsize=(12,9))
 fig.suptitle('selectivity', fontsize=20)
 
 #hist(selectivity[npand(cell_type==unit_type, region == region[unit_count]), 0], bins=np.arange(0, 1, 0.05)
@@ -360,6 +362,8 @@ ax[2][0].legend(['M1 silencing', 'S1'])
 ## FS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+#m1_inds = npand(region==0, cell_type=='FS')
+#s1_inds = npand(region==1, cell_type=='FS')
 ax[0][1].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
 ax[0][1].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
 ax[0][1].set_title('FS units M1: {} units, S1: {} units\nno light'.format(sum(m1_inds), sum(s1_inds)))
@@ -372,22 +376,6 @@ ax[2][1].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, c
 ax[2][1].hist(selectivity[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
 ax[2][1].set_title('S1 units, M1 light')
 ax[2][1].legend(['M1 silencing', 'S1'])
-
-## MU
-m1_inds = npand(npand(region==0, driven==True), cell_type=='MU')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='MU')
-ax[0][2].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[0][2].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[0][2].set_title('MUA M1: {} units, S1: {} units\nno light'.format(sum(m1_inds), sum(s1_inds)))
-ax[0][2].legend(['M1', 'S1'])
-ax[1][2].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[1][2].hist(selectivity[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[1][2].set_title('M1, S1 light')
-ax[1][2].legend(['M1', 'S1 silencing'])
-ax[2][2].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax[2][2].hist(selectivity[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[2][2].set_title('S1, M1 light')
-ax[2][2].legend(['M1 silencing', 'S1'])
 
 ## set ylim to the max ylim of all subplots
 ylim_max = 0
@@ -407,6 +395,11 @@ m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 m1_FS_inds = npand(npand(region==0, driven==True), cell_type=='FS')
 s1_FS_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+
+#m1_inds = npand(region==0, cell_type=='RS')
+#s1_inds = npand(region==1, cell_type=='RS')
+#m1_FS_inds = npand(region==0, cell_type=='FS')
+#s1_FS_inds = npand(region==1, cell_type=='FS')
 
 fig, ax = plt.subplots(2, 2, figsize=(10,9))
 fig.suptitle('selectivity paired\nRS units M1: {}, S1: {}\nFS units: M1: {}, S1: {}'\
