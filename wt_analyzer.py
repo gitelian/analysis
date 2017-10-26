@@ -18,11 +18,11 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 #fids = ['1295', '1302', '1328']
 fids = ['1330']
 # fid with good whisker tracking
-fids = ['1330', '1336', '1338', '1339', '1340']
+fids = ['1336', '1338', '1339', '1340', '1343', '1345']
 exps = list()
 for fid in fids:
     #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
-    get_ipython().magic(u"run neoanalyzer.py {}".format(fid))
+    get_ipython().magic(u"run hdfanalyzer.py {}".format(fid))
     #neuro.rates(kind='wsk_boolean')
     exps.append(neuro)
 # neuro.plot_tuning_curve(kind='evk_count')
@@ -113,17 +113,36 @@ def plot_setpoint(neuro, axis=axis, cond=0, color='k', error='sem'):
     axis.plot(neuro.wtt, mean_sp, color)
     axis.fill_between(neuro.wtt, mean_sp - err, mean_sp + err, facecolor=color, alpha=0.3)
 
+def plot_amplitude(neuro, axis=axis, cond=0, color='k', error='sem'):
+    #ax = plt.gca()
+    amp_temp = neuro.wt[cond][:, 2, :]
+    mean_amp = np.mean(amp_temp, axis=1)
+    se      = sp.stats.sem(amp_temp, axis=1)
+
+    # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
+    if error == 'ci':
+        err = se*sp.stats.t.ppf((1+0.95)/2.0, amp_temp.shape[1]-1) # (1+1.95)/2 = 0.975
+    elif error == 'sem':
+        err = se
+
+    axis.plot(neuro.wtt, mean_amp, color)
+    axis.fill_between(neuro.wtt, mean_amp - err, mean_amp + err, facecolor=color, alpha=0.3)
+
 ylow, yhigh = 90, 160
+ylow, yhigh = 0, 30
 for neuro in exps:
     fig, ax = plt.subplots(neuro.control_pos, 2, sharex=True, sharey=True)
     for i in range(2):
         for k in range(neuro.control_pos):
             axis = ax[k][i]
-            plot_setpoint(neuro, axis=axis, cond=k, color='k')
+            #plot_setpoint(neuro, axis=axis, cond=k, color='k')
+            plot_amplitude(neuro, axis=axis, cond=k, color='k')
             if i == 0:
-                plot_setpoint(neuro, axis=axis, cond=k+9, color='r')
+                #plot_setpoint(neuro, axis=axis, cond=k+9, color='r')
+                plot_amplitude(neuro, axis=axis, cond=k+9, color='r')
             else:
-                plot_setpoint(neuro, axis=axis, cond=k+9+9, color='b')
+                #plot_setpoint(neuro, axis=axis, cond=k+9+9, color='b')
+                plot_amplitude(neuro, axis=axis, cond=k+9+9, color='b')
             ax[k][i].vlines([0.5, 1.5], ylow, yhigh, color='b')
             ax[k][i].set_xlim(-0.5, 2.0)
             ax[k][i].set_ylim(ylow, yhigh)
