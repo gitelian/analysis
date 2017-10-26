@@ -25,12 +25,13 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 
         fig, ax = plt.subplots(4, 3, figsize=(10,8))
         fig.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.36, hspace=0.60)
-        fig.suptitle('Region: {}, depth: {}, unit type: {}, mouse: {}, driven: {}'.format(\
+        fig.suptitle('Region: {0}, depth: {1}, unit type: {2}, mouse: {3}, driven: {4}, selectivity {5:.3f}'.format(\
                 neuro.region_dict[neuro.shank_ids[unit_index]], \
                 neuro.depths[unit_index], \
                 neuro.cell_type[unit_index], \
                 fid, \
-                neuro.driven_units[unit_index]))
+                neuro.driven_units[unit_index],\
+                neuro.selectivity[unit_index, 0]))
 
         # top left: best contact PSTH
         neuro.plot_psth(axis=ax[0][0], unit_ind=unit_index, trial_type=best_contact, error='sem', color='k')
