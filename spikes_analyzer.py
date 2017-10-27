@@ -432,11 +432,45 @@ ax[1][1].set_ylabel('M1 Silencing')
 ax[1][1].plot([0, 1], [0, 1], 'k')
 
 ###### Plot selectivity by depth
+m1_inds = npand(npand(region==0, driven==False), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==False), cell_type=='RS')
 fig, ax = plt.subplots(1, 1, figsize=(8,8))
 ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
 ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
 ax.set_ylim(0, 1100)
 
+###### Plot preferred position by depth
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.plot(preference[m1_inds, 0], depths[m1_inds], 'ko')
+ax.plot(preference[s1_inds, 0], depths[s1_inds], 'ro')
+ax.set_ylim(0, 1100)
+ax.set_xlim(-2,2)
+
+###### Plot OMI by depth
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.plot(omi[m1_inds, 0], depths[m1_inds], 'ko')
+ax.plot(omi[s1_inds, 1], depths[s1_inds], 'ro')
+ax.set_ylim(0, 1100)
+
+###### Plot spontaneous rates by depth
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+#ax.plot(abs_rate[m1_inds, 8, 0], depths[m1_inds], 'ko')
+ax.plot(abs_rate[s1_inds, 8, 0], depths[s1_inds], 'ro')
+ax.set_ylim(0, 1100)
+
+###### Plot evoked rates by depth
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.plot(evk_rate[m1_inds, best_pos[m1_inds], 0], depths[m1_inds], 'ko')
+ax.plot(evk_rate[s1_inds, best_pos[s1_inds], 0], depths[s1_inds], 'ro')
+ax.set_ylim(0, 1100)
 
 ###### Plot preferred position scatter #####
 ###### Plot preferred position scatter #####
