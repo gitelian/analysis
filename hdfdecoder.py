@@ -744,6 +744,70 @@ sp.io.savemat('/home/greg/Desktop/decoding_unit_performance/pcc_arrays/' + fid +
 
 
 
+##### make pcc vs unit figures #####
+##### make pcc vs unit figures #####
+
+dir_path = '/home/greg/Desktop/decoding_unit_performance/pcc_arrays/'
+file_list = os.listdir(dir_path)
+
+xmin, xmax = 0, 30
+ymin, ymax = 0, 70
+
+for fname in file_list:
+    # open file
+    temp = sp.io.loadmat(dir_path + os.sep + fname)
+
+    # extract variables
+    m1_pcc_array = temp['m1_pcc_array']
+    m1_mean_pcc  = m1_pcc_array.mean(axis=0)
+    m1_std_pcc   = m1_pcc_array.std(axis=0)
+
+    s1_light_pcc_array = temp['s1_light_pcc_array']
+    s1_light_mean_pcc  = s1_light_pcc_array.mean(axis=0)
+    s1_light_std_pcc   = s1_light_pcc_array.std(axis=0)
+
+    s1_pcc_array = temp['s1_pcc_array']
+    s1_mean_pcc  = s1_pcc_array.mean(axis=0)
+    s1_std_pcc   = s1_pcc_array.std(axis=0)
+
+    m1_light_pcc_array = temp['m1_light_pcc_array']
+    m1_light_mean_pcc  = m1_light_pcc_array.mean(axis=0)
+    m1_light_std_pcc   = m1_light_pcc_array.std(axis=0)
+
+    # make figure
+    fig, ax = plt.subplots(1, 2, figsize=(10,5))
+
+    # plot M1 data
+    ax[0].errorbar(np.arange(2, m1_mean_pcc.shape[0]+2), m1_mean_pcc, yerr=m1_std_pcc,\
+            marker='o', markersize=6.0, linewidth=2, color='k')
+    ax[0].errorbar(np.arange(2, s1_light_mean_pcc.shape[0]+2), s1_light_mean_pcc, yerr=s1_light_std_pcc,\
+            marker='o', markersize=6.0, linewidth=2, color='r')
+    ax[0].hlines(16, xmin, xmax, colors='k', linestyles='dashed')
+    ax[0].set_xlabel('number of units in decoder')
+    ax[0].set_ylabel('Decoding performance (PCC)')
+    ax[0].set_title(fname + ' vM1 decoding performance')
+
+    # plot S1 data
+    ax[1].errorbar(np.arange(2, s1_mean_pcc.shape[0]+2), s1_mean_pcc, yerr=s1_std_pcc,\
+            marker='o', markersize=6.0, linewidth=2, color='k')
+    ax[1].errorbar(np.arange(2, m1_light_mean_pcc.shape[0]+2), m1_light_mean_pcc, yerr=m1_light_std_pcc,\
+            marker='o', markersize=6.0, linewidth=2, color='r')
+    ax[1].hlines(16, xmin, xmax, colors='k', linestyles='dashed')
+    ax[1].set_xlabel('number of units in decoder')
+    ax[1].set_ylabel('Decoding performance (PCC)')
+    ax[1].set_title(fname + ' vS1 decoding performance')
+
+    # set x and y limits
+    ax[0].set_xlim(xmin, xmax)
+    ax[0].set_ylim(ymin, ymax)
+    ax[1].set_xlim(xmin, xmax)
+    ax[1].set_ylim(ymin, ymax)
+
+    # save figure
+    fig.savefig('/home/greg/Desktop/decoding_unit_performance/' +  fname[0:-8] + '.pdf')
+
+
+
 ###################################################################
 ###################################################################
 
