@@ -192,7 +192,7 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # 1302 and 1318 gave errors while loading...investigate this
 fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336', '1338', '1340', '1343', '1345']
 # FID1330 and beyond has episodic HSV
-fids = ['1330', '1336', '1338', '1340', '1343', '1345']
+fids = ['1330', '1336', '1338', '1339', '1340', '1343', '1345']
 #fids = ['1336','1338', '1340', '1343', '1345']
 
 #fids = ['1302', '1318', '1330']
@@ -217,7 +217,7 @@ for k, neuro in enumerate(experiments):
     neuro.reclassify_units()
 
     for uind in range(neuro.num_units):
-        if neuro.shank_ids[uind] == 0:
+        if neuro.shank_ids[uind] == 1:
             best_contact = neuro.best_contact[uind]
             abs_rate_light   = neuro.abs_rate[best_contact+9+9][:, uind].mean()
             abs_rate_nolight = neuro.abs_rate[best_contact][:, uind].mean()
@@ -236,6 +236,8 @@ sns.set_color_codes()
 plt.figure()
 #sns.boxplot(x="fid", y="change", hue="cell_type", data=df, palette=['b', 'r'])
 sns.boxplot(x="fid", y="change", hue="cell_type", data=df, palette={"RS":'b', "FS":'r'})
+plt.hlines(0, plt.xlim()[0], plt.xlim()[1], linestyles='dashed')
+plt.ylim(-1, 1)
 
 
 ##### create arrays and lists for concatenating specified data from all experiments #####
