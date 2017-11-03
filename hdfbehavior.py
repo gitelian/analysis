@@ -560,9 +560,9 @@ class BehaviorAnalyzer(object):
         input_array: a samples x trial array
         sr: sampling rate of input signal
 
-        Returns x, and mean y and sem y
+        Returns x, a 2-d matrix with Pxx_density values
         """
-        f_temp = list()
+
         num_trials = input_array.shape[1]
         for trial in range(num_trials):
             f, Pxx_den = sp.signal.periodogram(input_array[:, trial], sr)
@@ -571,6 +571,16 @@ class BehaviorAnalyzer(object):
             frq_mat_temp[:, trial] = Pxx_den
 
         return f, frq_mat_temp
+
+    def get_spectrogram(self, input_array, sr):
+        num_trials = input_array.shape[1]
+        for trial in range(num_trials):
+            f, t, Sxx = sp.signal.spectrogram(input_array[:, trial], sr)
+            if trial == 0:
+                Sxx_mat_temp = np.zeros((Sxx.shape[0], Sxx.shape[1], num_trials))
+            Sxx_mat_temp[:, :, trial] = Sxx
+
+        return f, t, Sxx_mat_temp
 
     def plot_freq(self, f, frq_mat_temp, axis=None, color='k', error='sem'):
         if axis == None:
@@ -589,6 +599,24 @@ class BehaviorAnalyzer(object):
         axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
         #axis.set_yscale('log')
 
+    def plot_spectrogram(self, f, t, Sxx_mat_temp, axis=None, color='k', error='sem'):
+        if axis == None:
+            axis = plt.gca()
+
+        mean_Sxx = np.mean(Sxx_mat_temp, axis=2)
+        se       = sp.stats.sem(Sxx_mat_temp, axis=2)
+
+        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
+        if error == 'ci':
+            err = se*sp.stats.t.ppf((1+0.95)/2.0, Sxx_mat_temp.shape[2]-1) # (1+1.95)/2 = 0.975
+        elif error == 'sem':
+            err = se
+
+        axis.pcolormesh(t, f, mean_Sxx)
+#        axis.fill_between(f, mean_Sxx - err, mean_Sxx + err, facecolor=color, alpha=0.3)
+        #axis.set_yscale('log')
+        axis.set_ylabel('Frequency (Hz)')
+        axis.set_xlabel('Time (s)')
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
@@ -660,6 +688,14 @@ ax.set_yscale('log')
 
 
 
+fig, ax = plt.subplots(2,1)
+f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[pos-1][:, 0, :], 500)
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0])
+ax[0].set_ylim(0, 30)
+
+f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[9-pos-1][:, 0, :], 500)
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1])
+ax[1].set_ylim(0, 30)
 
 
 
