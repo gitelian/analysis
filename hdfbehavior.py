@@ -12,16 +12,6 @@ import matplotlib.cm as cm
 import matplotlib as mpl
 import scipy.signal
 import h5py
-#import 3rd party code found on github
-import icsd
-import ranksurprise
-import dunn
-# for LDA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-# for t-distributed stochastic neighbor embedding
-from sklearn.manifold import TSNE
-# for MDS
-from sklearn import manifold
 
 
 # change default figure type to PDF
