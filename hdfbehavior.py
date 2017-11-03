@@ -36,21 +36,23 @@ class BehaviorAnalyzer(object):
     object. They point to the same place in memory. No copy is made.
     """
 
-    def __init__(self, f, fid):
+    def __init__(self, f, fid, data_dir):
 
         print('\n-----__init__-----')
         # specify where the data is
-        self.exp_csv_dir = '/media/greg/data/behavior/'
+        self.exp_csv_dir = data_dir
         self.data_dir = data_dir
 
-        # initialize trial_class dict (this will haveing running and whisking
-        # boolean arrays
+        # initialize trial_class dict (this will have running and whisking
+        # boolean arrays)
         self.trial_class = dict()
 
         self.fid = fid
 
         # add hdf5 object to class instance
         self.f = f
+
+        # add jb_behavior boolean to object
         self.jb_behavior = self.f.attrs['jb_behavior']
 
         # find stimulus IDs
@@ -88,6 +90,7 @@ class BehaviorAnalyzer(object):
 
         # calculate rates, psths, whisking array, etc.
         self.wt_organize()
+
 ###############################################################################
 ##### Class initialization functions #####
 ###############################################################################
@@ -120,90 +123,6 @@ class BehaviorAnalyzer(object):
             return None
         else:
             return exp_info[key]
-
-    def __get_depths(self):
-        """Get depths for all units"""
-        seg_iter = f.iterkeys()
-        for i, seg in enumerate(f):
-            fid, shank, depth = list(), list(), list()
-
-            for spike in self.f[seg]['spiketrains']:
-                ff = self.f[seg]['spiketrains'][spike]
-
-                if np.isnan(ff.attrs['depth']):
-                    depth.append(np.asarray(-1))
-                else:
-                    #depth.append(ff.attrs['depth'][0])
-                    depth.append(ff.attrs['depth'])
-
-        self.depths = depth
-
-    def __get_shank_ids(self):
-        """
-        Return shank IDs for each unit
-        """
-        shank_ids = np.zeros((self.num_units, ))
-        for k, shank_name in enumerate(self.shank_names):
-            for j, unit in enumerate(self.f['/segment-0000/spiketrains/']):
-                spike_path = '/segment-0000/spiketrains/' + unit
-                if self.f[spike_path].attrs['shank'] == shank_name:
-                    shank_ids[j] = k
-        shank_ids = shank_ids.astype(int)
-        return shank_ids
-
-    def __get_shank_depths(self):
-        """Find depths of each shank and add it to self.shank_depths"""
-        depth = list()
-        for shank in self.shank_names:
-            depth_temp0 = 0
-            for spikes in self.f['/segment-0000/spiketrains/']:
-                spike_path = '/segment-0000/spiketrains/' + spikes
-                if self.f[spike_path].attrs['shank'] == shank:
-                    depth_temp1 = self.f[spike_path].attrs['depth']
-                    if depth_temp0 < depth_temp1:
-                        depth_temp0 = depth_temp1
-            depth.append(depth_temp0)
-        return depth
-
-    def __get_waveinfo(self):
-        """gets waveform duration, ratio, and mean waveform for each unit"""
-
-        duration = list()
-        ratio    = list()
-        waves    = list()
-
-        for spikes in self.f['/segment-0000/spiketrains']:
-
-            spike_path = '/segment-0000/spiketrains/' + spikes
-
-            if 'duration' in self.f[spike_path].attrs.keys():
-                duration.append(self.f[spike_path].attrs['duration'])
-                ratio.append(self.f[spike_path].attrs['ratio'])
-                waves.append(self.f[spike_path].attrs['waveform'])
-
-        #if hasattr(spikes, 'annotations.duration') is True:
-        if 'duration' in self.f[spike_path].attrs.keys():
-            self.duration = duration
-            self.ratio    = ratio
-            self.waves    = np.asarray(waves).squeeze()
-        else:
-            self.duration = None
-            self.ratio    = None
-            self.waves    = None
-
-    def __get_celltypeID(self):
-        """
-        Put celltype IDs in an array that corresponds to the unit order
-        """
-        cell_type = list()
-        for spikes in self.f['/segment-0000/spiketrains']:
-            spike_path = '/segment-0000/spiketrains/' + spikes
-            try:
-                cell_type.append(self.cell_type_dict[self.f[spike_path].attrs['cell_type'][0][0]])
-            except:
-                cell_type.append(self.cell_type_dict[self.f[spike_path].attrs['cell_type'][0]])
-
-        return np.asarray(cell_type)
 
     def __find_min_times(self):
         print('\n-----finding minimum trial lengths----')
@@ -358,75 +277,6 @@ class BehaviorAnalyzer(object):
             print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
                     '\nuse runspeed to classify trials')
             self.wt_boolean = wt_boolean
-
-    def __trim_lfp(self):
-        """
-        Trim LFP arrays to the length of the shortest trial.
-        Time zero of the LFP time corresponds to stimulus onset.
-        """
-        print('\n-----__trim_lfp-----')
-
-        num_shanks = 0
-        chan_per_shank = list()
-        lfp_boolean = False
-        for item in self.f['segment-0000'].items():
-            if 'lfps' in item[0]:
-                lfp_path = '/segment-0000/' + item[0]
-                # get the sampling rate
-                lfp_boolean = True
-                num_shanks += 1
-                chan_per_shank.append(self.f[lfp_path].shape[1])
-                sr = float(self.f[lfp_path].attrs['sampling_rate'])
-
-        if lfp_boolean:
-
-            print('LFP data found! trimming data to be all the same length in time')
-            # make time vector for LFP data
-            num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*sr ) # total time (s) * samples/sec
-            lfp_indices = np.arange(num_samples) - int( self.min_tbefore_stim * sr )
-            lfp_t       = lfp_indices / sr
-
-            for i, seg in enumerate(self.f):
-                shank_ind = 0
-                for k, item in enumerate(self.f[seg].items()):
-                    if 'lfps' in item[0]:
-                        lfp_path = seg + '/' + item[0]
-
-                        # find number of samples in the trial
-                        num_samp = len(self.f[lfp_path])
-
-                        # get stimulus onset
-                        stim_start = self.f[seg].attrs['stim_times'][0]
-
-                        # slide indices window over
-                        # get the frame that corresponds to the stimulus time
-                        # and add it to lfp_indices.
-                        good_inds = lfp_indices + int( stim_start*sr )
-
-                        if i == 0 and shank_ind == 0:
-                            min_trial_length = len(good_inds)
-                            lfp_data = [np.zeros((min_trial_length, x, len(f)), 'int16') for x in chan_per_shank]
-                        elif min_trial_length > len(good_inds):
-                            warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
-                                    LINE 208 __trim_lfp')
-
-                        if num_samp > len(good_inds):
-                            lfp_data[shank_ind][:, :, i] = self.f[lfp_path][good_inds, :]
-                        else:
-                            warnings.warn('\n**** length of LFPs is smaller than the length of the good indices ****\n'\
-                                    + '**** this data must have already been trimmed ****')
-                            lfp_data[shank_ind][:, :, i] = self.f[lfp_path][:]
-
-                        shank_ind += 1
-
-            self.lfp_t          = lfp_t
-            self.lfp_boolean    = lfp_boolean
-            self._lfp_min_samp  = num_samples
-            self.chan_per_shank = chan_per_shank
-            self.lfp_data       = lfp_data
-        else:
-            print('NO LFP DATA FOUND!\nSetting lfp_boolean to False')
-            self.lfp_boolean = lfp_boolean
 
     def reclassify_run_trials(self, time_before_stimulus= -1,\
             mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
@@ -595,12 +445,6 @@ class BehaviorAnalyzer(object):
         self.classify_whisking_trials(threshold='user')
         self.rates()
 
-    def get_annotations_index(self, key, value):
-        """Returns trial index for the given key value pair"""
-        stim_index = [ index for index, segment in enumerate(self.neo_obj.segments) \
-                if segment.annotations[key] == value]
-        return stim_index
-
     def wt_organize(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True, all_trials=False):
         """
         rates computes the absolute and evoked firing rate and counts for the
@@ -728,24 +572,28 @@ class BehaviorAnalyzer(object):
 if __name__ == "__main__":
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-#    if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
-#        data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-#    elif os.path.isdir('/media/greg/data/behavior/neobehavior/'):
-#        data_dir = '/media/greg/data/behavior/neobehavior/'
+    if os.path.isdir('/media/greg/data/behavior/hdfbehavior/')
+        data_dir = '/media/greg/data/behavior/hdfbehavior/'
+    elif os.path.isdir('/jenny/add/your/path/here/'):
+        data_dir = '/jenny/add/your/path/here/'
+
+    # each experiment needs an entry in the CSV file!
     mouse      = 'GT0007'
     experiment = 'FID1014'
+
     hdf_name   = mouse + '_' + experiment
     fid        = hdf_name
-    data_dir   = '/media/greg/data/behavior/'
-    hdf_fname  = '/media/greg/data/behavior/hdfbehavior/' + hdf_name + '.hdf5'
+    hdf_fname  = data_dir + hdf_name + '.hdf5'
 
     f = h5py.File(hdf_fname,'r+')
 
-    whisk = BehaviorAnalyzer(f, fid)
+    whisk = BehaviorAnalyzer(f, fid, data_dir)
 
+    # reclassify trials as run vs non-run
     whisk.reclassify_run_trials(mean_thresh=100, low_thresh=50)
     whisk.wt_organize()
 
+    # remove entries for trial type "0"
     stim_ids = np.unique(whisk.stim_ids_all)
     if 0 in stim_ids:
         whisk.stim_ids = whisk.stim_ids[:-1]
@@ -756,12 +604,16 @@ if __name__ == "__main__":
 ##### SCRATCH SPACE #####
 
 fig, ax = plt.subplots(2, 1)
+dtype = 1 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
 pos = 4
-ax[0].plot(whisk.wtt, whisk.wt[pos-1][:, 0, :], linewidth=0.5)
-ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, 0, :], axis=1), 'k')
+ax[0].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, :], linewidth=0.5)
+ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, :], axis=1), 'k')
+ax[0].set_ylim(90, 160)
 
-ax[1].plot(whisk.wtt, whisk.wt[9-pos-1][:, 0, :], linewidth=0.5)
-ax[1].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, 0, :], axis=1), 'k')
+ax[1].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, :], linewidth=0.5)
+ax[1].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, :], axis=1), 'k')
+ax[1].set_ylim(90, 160)
+
 
 
 
