@@ -651,12 +651,6 @@ class NeuroAnalyzer(object):
         self.classify_whisking_trials(threshold='user')
         self.rates()
 
-    def get_annotations_index(self, key, value):
-        """Returns trial index for the given key value pair"""
-        stim_index = [ index for index, segment in enumerate(self.neo_obj.segments) \
-                if segment.annotations[key] == value]
-        return stim_index
-
     def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True, all_trials=False):
         """
         rates computes the absolute and evoked firing rate and counts for the
