@@ -502,7 +502,7 @@ if __name__ == "__main__":
     fid        = experiment + '_' + mouse
     hdf_name   = mouse + '_' + experiment
     data_dir   = '/media/greg/data/behavior/'
-    hdf_fname  = '/media/greg/data/behavior/hdfbehavior/' + hdf_name + '_neo_object.h5'
+    hdf_fname  = '/media/greg/data/behavior/hdfbehavior/' + hdf_name + '.hdf5'
 
     # define parameters
     run_param_dict = {\
