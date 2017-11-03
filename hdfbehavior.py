@@ -104,8 +104,6 @@ class BehaviorAnalyzer(object):
             return None
 
         exp_info = df_exp_det_fid_index.loc[fid]
-        print("UGHHH")
-        print(exp_info)
 
         if key not in exp_info:
             warnings.warn('key "' + key + '" not found in experiment details csv file.\n\
@@ -556,13 +554,49 @@ class BehaviorAnalyzer(object):
 
         return timestamps
 
+    def get_psd(self, input_array, sr):
+        """
+        compute PSD of input array sampled at sampling rate sr
+        input_array: a samples x trial array
+        sr: sampling rate of input signal
+
+        Returns x, and mean y and sem y
+        """
+        f_temp = list()
+        num_trials = input_array.shape[1]
+        for trial in range(num_trials):
+            f, Pxx_den = sp.signal.periodogram(input_array[:, trial], sr)
+            if trial == 0:
+                frq_mat_temp = np.zeros((Pxx_den.shape[0], num_trials))
+            frq_mat_temp[:, trial] = Pxx_den
+
+        return f, frq_mat_temp
+
+    def plot_freq(self, f, frq_mat_temp, axis=None, color='k', error='sem'):
+        if axis == None:
+            axis = plt.gca()
+
+        mean_frq = np.mean(frq_mat_temp, axis=1)
+        se       = sp.stats.sem(frq_mat_temp, axis=1)
+
+        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
+        if error == 'ci':
+            err = se*sp.stats.t.ppf((1+0.95)/2.0, frq_mat_temp.shape[1]-1) # (1+1.95)/2 = 0.975
+        elif error == 'sem':
+            err = se
+
+        axis.plot(f, mean_frq, color=color)
+        axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
+        #axis.set_yscale('log')
+
+
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 
 if __name__ == "__main__":
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-    if os.path.isdir('/media/greg/data/behavior/hdfbehavior/')
+    if os.path.isdir('/media/greg/data/behavior/hdfbehavior/'):
         data_dir = '/media/greg/data/behavior/hdfbehavior/'
     elif os.path.isdir('/jenny/add/your/path/here/'):
         data_dir = '/jenny/add/your/path/here/'
@@ -593,6 +627,11 @@ if __name__ == "__main__":
 ##### SCRATCH SPACE #####
 ##### SCRATCH SPACE #####
 
+
+
+##### plot whisking variable vs time for all trials #####
+##### plot whisking variable vs time for all trials #####
+
 fig, ax = plt.subplots(2, 1)
 dtype = 1 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
 pos = 4
@@ -603,6 +642,21 @@ ax[0].set_ylim(90, 160)
 ax[1].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, :], linewidth=0.5)
 ax[1].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, :], axis=1), 'k')
 ax[1].set_ylim(90, 160)
+
+
+
+##### make power spectral density plots of whisking #####
+##### make power spectral density plots of whisking #####
+pos=4
+fig, ax = plt.subplots(1,1)
+f, frq_mat_temp = whisk.get_psd(whisk.wt[pos-1][:, 0, :], 500)
+whisk.plot_freq(f, frq_mat_temp, axis=ax, color='black')
+
+f, frq_mat_temp = whisk.get_psd(whisk.wt[9-pos-1][:, 0, :], 500)
+whisk.plot_freq(f, frq_mat_temp, axis=ax, color='red')
+ax.set_xlim(0,30)
+ax.set_ylim(1e-1, 1e3)
+ax.set_yscale('log')
 
 
 
