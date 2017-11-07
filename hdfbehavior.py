@@ -575,7 +575,7 @@ class BehaviorAnalyzer(object):
     def get_spectrogram(self, input_array, sr):
         num_trials = input_array.shape[1]
         for trial in range(num_trials):
-            f, t, Sxx = sp.signal.spectrogram(input_array[:, trial], sr)
+            f, t, Sxx = sp.signal.spectrogram(input_array[:, trial], sr, nperseg=256, noverlap=230, nfft=256)
             if trial == 0:
                 Sxx_mat_temp = np.zeros((Sxx.shape[0], Sxx.shape[1], num_trials))
             Sxx_mat_temp[:, :, trial] = Sxx
@@ -661,16 +661,15 @@ if __name__ == "__main__":
 ##### plot whisking variable vs time for all trials #####
 
 fig, ax = plt.subplots(2, 1)
-dtype = 1 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
-pos = 4
-ax[0].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, :], linewidth=0.5)
-ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, :], axis=1), 'k')
+dtype = 2 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
+pos = 1
+ax[0].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, 0:10], linewidth=0.5)
+ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, 0:10], axis=1), 'k')
 ax[0].set_ylim(90, 160)
 
-ax[1].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, :], linewidth=0.5)
-ax[1].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, :], axis=1), 'k')
+ax[1].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, 0:10], linewidth=0.5)
+ax[1].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, 0:10], axis=1), 'k')
 ax[1].set_ylim(90, 160)
-
 
 
 ##### make power spectral density plots of whisking #####
@@ -687,7 +686,9 @@ ax.set_ylim(1e-1, 1e3)
 ax.set_yscale('log')
 
 
-
+##### make spectrogram plots of whisking #####
+##### make spectrogram plots of whisking #####
+pos = 1
 fig, ax = plt.subplots(2,1)
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[pos-1][:, 0, :], 500)
 whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0])
