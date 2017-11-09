@@ -599,21 +599,17 @@ class BehaviorAnalyzer(object):
         axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
         #axis.set_yscale('log')
 
-    def plot_spectrogram(self, f, t, Sxx_mat_temp, axis=None, color='k', error='sem'):
+    def plot_spectrogram(self, f, t, Sxx_mat_temp, axis=None, color='k', error='sem', vmin=None, vmax=None):
+
         if axis == None:
             axis = plt.gca()
 
         mean_Sxx = np.mean(Sxx_mat_temp, axis=2)
-        se       = sp.stats.sem(Sxx_mat_temp, axis=2)
 
-        # inverse of the CDF is the percentile function. ppf is the percent point funciton of t.
-        if error == 'ci':
-            err = se*sp.stats.t.ppf((1+0.95)/2.0, Sxx_mat_temp.shape[2]-1) # (1+1.95)/2 = 0.975
-        elif error == 'sem':
-            err = se
-
-        axis.pcolormesh(t, f, mean_Sxx)
-#        axis.fill_between(f, mean_Sxx - err, mean_Sxx + err, facecolor=color, alpha=0.3)
+        if vmin == None:
+            axis.pcolormesh(t, f, mean_Sxx)
+        else:
+            axis.pcolormesh(t, f, mean_Sxx, vmin=vmin, vmax=vmax)
         #axis.set_yscale('log')
         axis.set_ylabel('Frequency (Hz)')
         axis.set_xlabel('Time (s)')
@@ -663,14 +659,14 @@ if __name__ == "__main__":
 fig, ax = plt.subplots(2, 1)
 dtype = 2 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
 pos = 1
-ax[0].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, 0:10], linewidth=0.5)
-ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, 0:10], axis=1), 'k')
+ax[0].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, :], linewidth=0.5)
+ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, :], axis=1), 'k')
 ax[0].set_ylim(90, 160)
 
-ax[1].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, 0:10], linewidth=0.5)
-ax[1].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, 0:10], axis=1), 'k')
+ax[1].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, :], linewidth=0.5)
+ax[1].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, :], axis=1), 'k')
 ax[1].set_ylim(90, 160)
-
+fig.show()
 
 ##### make power spectral density plots of whisking #####
 ##### make power spectral density plots of whisking #####
@@ -684,19 +680,20 @@ whisk.plot_freq(f, frq_mat_temp, axis=ax, color='red')
 ax.set_xlim(0,30)
 ax.set_ylim(1e-1, 1e3)
 ax.set_yscale('log')
-
+fig.show()
 
 ##### make spectrogram plots of whisking #####
 ##### make spectrogram plots of whisking #####
-pos = 1
+pos = 2
 fig, ax = plt.subplots(2,1)
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0])
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0], vmin=0, vmax=10)
 ax[0].set_ylim(0, 30)
 
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[9-pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1])
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1], vmin=0, vmax=10)
 ax[1].set_ylim(0, 30)
+fig.show()
 
 
 
