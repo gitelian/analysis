@@ -86,6 +86,18 @@ plt.title('{} PSD'.format(neuro.region_dict[shank]))
 
 plt.show()
 
+# mean LFP during control position
+m1_nolight = np.mean(lfps[0][8][:, 15, :], axis=1)
+m1_s1light = np.mean(lfps[0][8+9][:, 15, :], axis=1)
+plt.figure()
+plt.plot(neuro.lfp_t, m1_nolight, 'k', neuro.lfp_t, m1_s1light, 'r')
+
+# mean LFP during control position
+s1_nolight = np.mean(lfps[1][4][:, 4, :], axis=1)
+s1_m1light = np.mean(lfps[1][4+9+9][:, 4, :], axis=1)
+plt.figure()
+plt.plot(neuro.lfp_t, s1_nolight, 'k', neuro.lfp_t, s1_m1light, 'b')
+
 
 ##### iCSD analysis #####
 ##### iCSD analysis #####
