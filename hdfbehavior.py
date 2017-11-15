@@ -687,11 +687,11 @@ fig.show()
 pos = 2
 fig, ax = plt.subplots(2,1)
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0], vmin=0, vmax=10)
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0], vmin=0, vmax=3)
 ax[0].set_ylim(0, 30)
 
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[9-pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1], vmin=0, vmax=10)
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1], vmin=0, vmax=3)
 ax[1].set_ylim(0, 30)
 fig.show()
 
