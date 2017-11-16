@@ -99,6 +99,22 @@ plt.figure()
 plt.plot(neuro.lfp_t, s1_nolight, 'k', neuro.lfp_t, s1_m1light, 'b')
 
 
+##### LFP + Whisker tracking #####
+##### LFP + Whisker tracking #####
+region   = 1
+stim_ind = 8
+chan     = 4
+scale    = 50
+trial    = 1
+
+fig, ax = plt.subplots(2, 1)
+ax[0].plot(neuro.lfp_t, lfps[region][stim_ind][:, trial, chan],\
+        neuro.wtt, (neuro.wt[stim_ind][:, 0, trial]-neuro.wt[stim_ind][:, 1, trial])*scale)
+
+ax[1].plot(neuro.lfp_t, lfps[region][stim_ind+9][:, trial, chan],\
+        neuro.wtt, (neuro.wt[stim_ind+9][:, 0, trial]-neuro.wt[stim_ind+9][:, 1, trial])*scale)
+
+
 ##### iCSD analysis #####
 ##### iCSD analysis #####
 
