@@ -192,7 +192,7 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
 # 1302 and 1318 gave errors while loading...investigate this
 fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336', '1338', '1340', '1343', '1345']
 # FID1330 and beyond has episodic HSV
-fids = ['1330', '1336', '1338', '1339', '1340', '1343', '1345']
+fids = ['1336', '1338', '1339', '1340', '1343', '1345']
 #fids = ['1336','1338', '1340', '1343', '1345']
 
 #fids = ['1302', '1318', '1330']
@@ -432,6 +432,33 @@ ax[1][1].set_title('S1 FS units')
 ax[1][1].set_xlabel('No Light')
 ax[1][1].set_ylabel('M1 Silencing')
 ax[1][1].plot([0, 1], [0, 1], 'k')
+
+###### Plot selectivity histogram #####
+###### Plot selectivity histogram #####
+
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+m1_FS_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_FS_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+
+m1_diff = selectivity[m1_inds, 1] - selectivity[m1_inds, 0]
+s1_diff = selectivity[s1_inds, 2] - selectivity[s1_inds, 0]
+
+#m1_inds = npand(region==0, cell_type=='RS')
+#s1_inds = npand(region==1, cell_type=='RS')
+#m1_FS_inds = npand(region==0, cell_type=='FS')
+#s1_FS_inds = npand(region==1, cell_type=='FS')
+
+fig, ax = plt.subplots(1, 2)
+bins = np.arange(-1, 1, 0.02)
+
+ax[0].hist(m1_diff, bins=bins)
+ax[0].set_title('M1 RS units')
+ax[0].set_xlabel('Change in selectivity')
+
+ax[1].hist(s1_diff, bins=bins)
+ax[1].set_title('S1 RS units')
+ax[1].set_xlabel('Change in selectivity')
 
 ###### Plot selectivity by depth
 m1_inds = npand(npand(region==0, driven==False), cell_type=='RS')
