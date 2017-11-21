@@ -252,6 +252,8 @@ preference  = np.empty((1, 3))
 best_pos    = np.empty((1, ))
 abs_rate    = np.empty((1, 27, 2))
 evk_rate    = np.empty((1, 27, 2))
+abs_tc      = np.empty((1, 3, 2))
+evk_tc      = np.empty((1, 3, 2))
 max_fr      = np.empty((1, ))
 burst_rate  = np.empty((1, 27, 2))
 adapt_ratio = np.empty((1, 27, 2))
@@ -269,6 +271,11 @@ for neuro in experiments:
     omi         = np.append(omi, neuro.get_omi(), axis=0)
     preference  = np.append(preference, neuro.preference, axis=0)
     best_pos    = np.append(best_pos, neuro.best_contact)
+
+    # compute mean tuning curve
+    abs_tc = np.append(abs_tc, neuro.get_mean_tc(kind='abs_rate'), axis=0)
+    evk_tc = np.append(evk_tc, neuro.get_mean_tc(kind='evk_rate'), axis=0)
+
 
     for unit_index in range(neuro.num_units):
 
@@ -315,6 +322,8 @@ best_pos    = best_pos[1:,]
 best_pos    = best_pos.astype(int)
 abs_rate    = abs_rate[1:, :]
 evk_rate    = evk_rate[1:, :]
+abs_tc      = abs_tc[1:, :]
+evk_tc      = evk_tc[1:, :]
 max_fr      = max_fr[1:,]
 burst_rate  = burst_rate[1:, :]
 adapt_ratio = adapt_ratio[1:, :]
@@ -450,7 +459,7 @@ s1_diff = selectivity[s1_inds, 2] - selectivity[s1_inds, 0]
 #s1_FS_inds = npand(region==1, cell_type=='FS')
 
 fig, ax = plt.subplots(1, 2)
-bins = np.arange(-1, 1, 0.02)
+bins = np.arange(-1, 1, 0.04)
 
 ax[0].hist(m1_diff, bins=bins)
 ax[0].set_title('M1 RS units')
@@ -718,6 +727,66 @@ for row in ax:
 #        col.set_xlim(-xlim_max, xlim_max)
         col.plot([-xylim_max, xylim_max], [-xylim_max, xylim_max], 'k')
 
+##### plot driven rates mean tuning curve #####
+##### plot driven rates mean tuning curve #####
+
+## RS top left
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
+fig.suptitle('Driven Rates', fontsize=20)
+ax[0][0].errorbar(abs_tc[m1_inds, 0, 0], abs_tc[m1_inds, 1, 0], \
+        xerr=abs_tc[m1_inds, 0, 1], yerr=abs_tc[m1_inds, 1, 1], c='k', fmt='o', ecolor='k')
+ax[0][0].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 1, 0], \
+        xerr=abs_tc[s1_inds, 0, 1], yerr=abs_tc[s1_inds, 1, 1], c='r', fmt='o', ecolor='r')
+ax[0][0].set_title('RS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][0].set_ylabel('Light On\nfiring rate (Hz)')
+
+## RS bottom left
+ax[1][0].errorbar(abs_tc[m1_inds, 0, 0], abs_tc[m1_inds, 2, 0], \
+        xerr=abs_tc[m1_inds, 0, 1], yerr=abs_tc[m1_inds, 2, 1], c='k', fmt='o', ecolor='k')
+ax[1][0].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 2, 0], \
+        xerr=abs_tc[s1_inds, 0, 1], yerr=abs_tc[s1_inds, 2, 1], c='r', fmt='o', ecolor='r')
+ax[1][0].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[1][0].set_ylabel('Light On\nfiring rate (Hz)')
+ax[1][0].set_xlabel('Light Off\nfiring rate (Hz)')
+
+## FS top middle
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+m1_best_pos = best_pos[m1_inds].astype(int)
+s1_best_pos = best_pos[s1_inds].astype(int)
+ax[0][1].errorbar(abs_tc[m1_inds, 0, 0], abs_tc[m1_inds, 1, 0], \
+        xerr=abs_tc[m1_inds, 0, 1], yerr=abs_tc[m1_inds, 1, 1], c='k', fmt='o', ecolor='k')
+ax[0][1].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 1, 0], \
+        xerr=abs_tc[s1_inds, 0, 1], yerr=abs_tc[s1_inds, 1, 1], c='r', fmt='o', ecolor='r')
+ax[0][1].set_title('FS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
+
+## FS bottom middle
+ax[1][1].errorbar(abs_tc[m1_inds, 0, 0], abs_tc[m1_inds, 2, 0], \
+        xerr=abs_tc[m1_inds, 0, 1], yerr=abs_tc[m1_inds, 2, 1], c='k', fmt='o', ecolor='k')
+ax[1][1].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 2, 0], \
+        xerr=abs_tc[s1_inds, 0, 1], yerr=abs_tc[s1_inds, 2, 1], c='r', fmt='o', ecolor='r')
+ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
+
+##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
+ylim_max = 0
+xlim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+        if xlim_temp > xlim_max:
+            xlim_max = xlim_temp
+for row in ax:
+    for col in row:
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([0, xlim_max], [0, ylim_max], 'k')
 
 ##### plot burst rates for RS units #####
 ##### plot burst rates for RS units #####
