@@ -116,7 +116,7 @@ class NeuroAnalyzer(object):
         self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
-        self.__trim_lfp()
+#        self.__trim_lfp()
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
@@ -783,6 +783,31 @@ class NeuroAnalyzer(object):
 
         if self.wt_boolean:
             self.wt        = wt
+
+    def get_mean_tc(self, kind='abs_rate'):
+        """
+        compute mean tuning curve with standard error in 3rd dimension
+
+        returns a matrix of size (num_units x num_maipulations (e.g. 3) x 2
+        (i.e. mean and sem)
+
+        """
+
+        kind_dict      = {'abs_rate': 0, 'abs_count': 1, 'evk_rate': 2, 'evk_count': 3}
+        kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
+        rates          = kind_of_tuning[kind_dict[kind]]
+
+        num_manipulations = self.stim_ids.shape[0]/self.control_pos
+        mean_tc = np.zeros((self.num_units, num_manipulations, 2))
+
+        for manip in range(num_manipulations):
+            temp = np.empty((1, self.num_units))
+            for k in range(self.control_pos - 1):
+                temp = np.append(temp, rates[(manip*self.control_pos + k)], axis=0)
+            mean_tc[:, manip, 0] = np.mean(temp, axis=0)
+            mean_tc[:, manip, 1] = sp.stats.sem(temp, axis=0)
+
+        return mean_tc
 
     def reclassify_units(self):
         """use OMI and wave duration to reclassify units"""
