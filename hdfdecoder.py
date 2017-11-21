@@ -806,6 +806,90 @@ for fname in file_list:
     # save figure
     fig.savefig('/home/greg/Desktop/decoding_unit_performance/' +  fname[0:-8] + '.pdf')
 
+##### make pcc vs selectivity figures/correlation analysis #####
+##### make pcc vs selectivity figures/correlation analysis #####
+
+dir_path = '/media/greg/data/neuro/figures/decoding_unit_performance/pcc_arrays'
+npand   = np.logical_and
+file_list = np.sort(os.listdir(dir_path))
+exps = list()
+m1_sel_nolight = list()
+m1_pcc_nolight = list()
+
+m1_sel_s1light = list()
+m1_pcc_s1light = list()
+
+s1_sel_nolight = list()
+s1_pcc_nolight = list()
+
+s1_sel_m1light = list()
+s1_pcc_m1light = list()
+
+for fname in file_list:
+    # open file
+    temp = sp.io.loadmat(dir_path + os.sep + fname)
+
+    # extract variables
+    m1_pcc_array = temp['m1_pcc_array']
+    m1_mean_pcc  = m1_pcc_array.mean(axis=0)
+    m1_std_pcc   = m1_pcc_array.std(axis=0)
+
+    s1_light_pcc_array = temp['s1_light_pcc_array']
+    s1_light_mean_pcc  = s1_light_pcc_array.mean(axis=0)
+    s1_light_std_pcc   = s1_light_pcc_array.std(axis=0)
+
+    s1_pcc_array = temp['s1_pcc_array']
+    s1_mean_pcc  = s1_pcc_array.mean(axis=0)
+    s1_std_pcc   = s1_pcc_array.std(axis=0)
+
+    m1_light_pcc_array = temp['m1_light_pcc_array']
+    m1_light_mean_pcc  = m1_light_pcc_array.mean(axis=0)
+    m1_light_std_pcc   = m1_light_pcc_array.std(axis=0)
+
+    # add pcc values to lists
+    m1_pcc_nolight.append(m1_mean_pcc)
+    m1_pcc_s1light.append(s1_light_mean_pcc)
+
+    s1_pcc_nolight.append(s1_mean_pcc)
+    s1_pcc_m1light.append(m1_light_mean_pcc)
+
+    # run hdfanalyzer
+    get_ipython().magic(u"run hdfanalyzer.py {}".format(fname[3:7]))
+    exps.append(neuro)
+
+    # get m1 and s1 indices
+    m1_inds = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='RS')
+    s1_inds = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='RS')
+
+    # get mean selectivity for m1 and s1
+    m1_sel_nolight.append(np.mean(neuro.selectivity[m1_inds, 0]))
+    m1_sel_s1light.append(np.mean(neuro.selectivity[m1_inds, 1]))
+
+    s1_sel_nolight.append(np.mean(neuro.selectivity[s1_inds, 0]))
+    s1_sel_m1light.append(np.mean(neuro.selectivity[s1_inds, 2]))
+
+m1_pcc_nolight = np.asarray(m1_pcc_nolight)
+m1_pcc_s1light = np.asarray(m1_pcc_s1light)
+
+s1_pcc_nolight = np.asarray(s1_pcc_nolight)
+s1_pcc_m1light = np.asarray(s1_pcc_m1light)
+
+m1_sel_nolight = np.asarray(m1_sel_nolight)
+m1_sel_s1light = np.asarray(m1_sel_s1light)
+
+s1_sel_nolight = np.asarray(s1_sel_nolight)
+s1_sel_m1light = np.asarray(s1_sel_m1light)
+
+
+for k in range(len(file_list)):
+    print('#####     #####\n#####     #####')
+    print('experiment: {}'.format(file_list[k]))
+    print('\nm1 selectivity nolight vs s1light {}, {}'.format(m1_sel_nolight[k], m1_sel_s1light[k]))
+    print('m1 pcc nolight vs s1light {}, {}'.format(m1_pcc_nolight[k][-1], m1_pcc_s1light[k][-1]))
+
+    print('\ns1 selectivity nolight vs m1light {}, {}'.format(s1_sel_nolight[k], s1_sel_m1light[k]))
+    print('s1 pcc nolight vs m1light {}, {}'.format(s1_pcc_nolight[k][-1], s1_pcc_m1light[k][-1]))
+
 
 
 ###################################################################
