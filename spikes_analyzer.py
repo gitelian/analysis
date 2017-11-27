@@ -344,7 +344,13 @@ npand   = np.logical_and
 #sio.savemat(burst_path, a)
 
 
-###### Plot selectivity #####
+
+##### Selectivity analysis #####
+##### Selectivity analysis #####
+
+
+###### Plot selectivity histogram #####
+###### Plot selectivity histogram #####
 
 ## RS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
@@ -399,6 +405,35 @@ for row in ax:
     for col in row:
         col.set_ylim(0, ylim_max)
 
+
+##### plot selectivity histogram M1 vs S1 #####
+##### plot selectivity histogram M1 vs S1 #####
+
+bins = np.arange(0, 1, 0.05)
+fig, ax = plt.subplots(1, 2)
+fig.suptitle('selectivity', fontsize=20)
+
+## RS
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+#hist(selectivity[npand(cell_type==unit_type, region == region[unit_count]), 0], bins=np.arange(0, 1, 0.05)
+
+ax[0].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[0].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[0].set_title('RS units M1: {} units, S1: {} units\nno light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0].legend(['M1', 'S1'])
+
+## FS
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+#hist(selectivity[npand(cell_type==unit_type, region == region[unit_count]), 0], bins=np.arange(0, 1, 0.05)
+
+ax[1].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax[1].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='r')
+ax[1].set_title('FS units M1: {} units, S1: {} units\nno light'.format(sum(m1_inds), sum(s1_inds)))
+ax[1].legend(['M1', 'S1'])
+
+
 ###### Plot selectivity Scatter #####
 ###### Plot selectivity Scatter #####
 
@@ -442,32 +477,55 @@ ax[1][1].set_xlabel('No Light')
 ax[1][1].set_ylabel('M1 Silencing')
 ax[1][1].plot([0, 1], [0, 1], 'k')
 
+
 ###### Plot selectivity histogram #####
 ###### Plot selectivity histogram #####
 
+fig, ax = plt.subplots(2, 2, sharex=True, sharey=True)
+bins = np.arange(-1, 1, 0.04)
+
+# RS units
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-m1_FS_inds = npand(npand(region==0, driven==True), cell_type=='FS')
-s1_FS_inds = npand(npand(region==1, driven==True), cell_type=='FS')
 
 m1_diff = selectivity[m1_inds, 1] - selectivity[m1_inds, 0]
 s1_diff = selectivity[s1_inds, 2] - selectivity[s1_inds, 0]
 
-#m1_inds = npand(region==0, cell_type=='RS')
-#s1_inds = npand(region==1, cell_type=='RS')
-#m1_FS_inds = npand(region==0, cell_type=='FS')
-#s1_FS_inds = npand(region==1, cell_type=='FS')
+ax[0][0].hist(m1_diff, bins=bins)
+ax[0][0].set_title('M1 RS units')
+ax[0][0].set_xlabel('Change in selectivity')
 
-fig, ax = plt.subplots(1, 2)
-bins = np.arange(-1, 1, 0.04)
+ax[0][1].hist(s1_diff, bins=bins)
+ax[0][1].set_title('S1 RS units')
+ax[0][1].set_xlabel('Change in selectivity')
 
-ax[0].hist(m1_diff, bins=bins)
-ax[0].set_title('M1 RS units')
-ax[0].set_xlabel('Change in selectivity')
+# FS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
 
-ax[1].hist(s1_diff, bins=bins)
-ax[1].set_title('S1 RS units')
-ax[1].set_xlabel('Change in selectivity')
+m1_diff = selectivity[m1_inds, 1] - selectivity[m1_inds, 0]
+s1_diff = selectivity[s1_inds, 2] - selectivity[s1_inds, 0]
+
+ax[1][0].hist(m1_diff, bins=bins)
+ax[1][0].set_title('M1 FS units')
+ax[1][0].set_xlabel('Change in selectivity')
+
+ax[1][1].hist(s1_diff, bins=bins)
+ax[1][1].set_title('S1 FS units')
+ax[1][1].set_xlabel('Change in selectivity')
+
+## set ylim to the max ylim of all subplots
+ylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = col.get_ylim()[1]
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+for row in ax:
+    for col in row:
+        col.set_ylim(0, ylim_max)
+        col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
+
 
 ###### Plot selectivity by depth
 m1_inds = npand(npand(region==0, driven==False), cell_type=='RS')
@@ -477,7 +535,14 @@ ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
 ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
 ax.set_ylim(0, 1100)
 
+
+
+##### depth analysis #####
+##### depth analysis #####
+
+
 ###### Plot preferred position by depth
+
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 fig, ax = plt.subplots(1, 1, figsize=(8,8))
@@ -509,6 +574,12 @@ fig, ax = plt.subplots(1, 1, figsize=(8,8))
 ax.plot(evk_rate[m1_inds, best_pos[m1_inds], 0], depths[m1_inds], 'ko')
 ax.plot(evk_rate[s1_inds, best_pos[s1_inds], 0], depths[s1_inds], 'ro')
 ax.set_ylim(0, 1100)
+
+
+
+##### preferred position analysis #####
+##### preferred position analysis #####
+
 
 ###### Plot preferred position scatter #####
 ###### Plot preferred position scatter #####
@@ -562,6 +633,12 @@ for row in ax:
 #        col.set_xlim(-xlim_max, xlim_max)
         col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
 
+
+
+##### OMI analysis #####
+##### OMI analysis #####
+
+
 ##### plot OMI #####
 ##### plot OMI #####
 
@@ -593,81 +670,14 @@ ax[1][1].hist(omi[s1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r'
 ax[1][1].set_title('M1 light')
 ax[1][1].legend(['M1', 'S1'])
 
-##### plot spontaneous rates #####
-##### plot spontaneous rates #####
-
-## RS
-m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
-fig.suptitle('Spontaneous Rates', fontsize=20)
-ax[0][0].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][0].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[0][0].get_xlim(), ax[0][0].get_ylim()])
-ax[0][0].set_xlim(0, max_val)
-ax[0][0].set_ylim(0, max_val)
-ax[0][0].plot([0, max_val], [0, max_val], 'b')
-ax[0][0].set_title('RS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
-ax[0][0].set_ylabel('Light On\nfiring rate (Hz)')
-
-ax[1][0].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9+9, 1], c='k', fmt='o', ecolor='k')
-ax[1][0].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[1][0].get_xlim(), ax[1][0].get_ylim()])
-ax[1][0].set_xlim(0, max_val)
-ax[1][0].set_ylim(0, max_val)
-ax[1][0].plot([0, max_val], [0, max_val], 'b')
-ax[1][0].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
-ax[1][0].set_xlabel('Light On\nfiring rate (Hz)')
-ax[1][0].set_ylabel('Light Off\nfiring rate (Hz)')
-
-## FS
-m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
-ax[0][1].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][1].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[0][1].get_xlim(), ax[0][1].get_ylim()])
-ax[0][1].set_xlim(0, max_val)
-ax[0][1].set_ylim(0, max_val)
-ax[0][1].plot([0, max_val], [0, max_val], 'b')
-ax[0][1].set_title('FS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
-
-ax[1][1].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9+9, 1], c='k', fmt='o', ecolor='k')
-ax[1][1].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9+9, 1], c='r', fmt='o', ecolor='r')
-max_val = np.max([ax[1][1].get_xlim(), ax[1][1].get_ylim()])
-ax[1][1].set_xlim(0, max_val)
-ax[1][1].set_ylim(0, max_val)
-ax[1][1].plot([0, max_val], [0, max_val], 'b')
-ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
-ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
 
 
-##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
-ylim_max = 0
-xlim_max = 0
-for row in ax:
-    for col in row:
-        ylim_temp = np.max(np.abs(col.get_ylim()))
-        xlim_temp = np.max(np.abs(col.get_xlim()))
-        if ylim_temp > ylim_max:
-            ylim_max = ylim_temp
-        if xlim_temp > xlim_max:
-            xlim_max = xlim_temp
-for row in ax:
-    for col in row:
-#        col.set_ylim(-ylim_max, ylim_max)
-#        col.set_xlim(-xlim_max, xlim_max)
-        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
+##### Driven/evoked rate analysis #####
+##### Driven/evoked rate analysis #####
 
-##### plot change in mean driven rates histogram #####
-##### plot change in mean driven rates histogram #####
+
+##### plot change in mean absolute rates histogram #####
+##### plot change in mean absolute driven rates histogram #####
 
 fig, ax = plt.subplots(2, 2)
 bins = np.arange(-20, 20, 1)
@@ -702,44 +712,17 @@ ax[1][1].hist(s1_diff, bins=bins)
 ax[1][1].set_title('S1 FS units')
 ax[1][1].set_xlabel('Change in mean rate')
 
-
-##### plot change in mean spontaneous rates histogram #####
-##### plot change in mean spontaneous rates histogram #####
-
-fig, ax = plt.subplots(2, 2)
-bins = np.arange(-20, 20, 1)
-
-# RS units
-m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-
-m1_diff = abs_rate[m1_inds, 8+9, 0] - abs_rate[m1_inds, 8, 0]
-s1_diff = abs_rate[s1_inds, 8+9+9, 0] - abs_rate[s1_inds, 8, 0]
-
-ax[0][0].hist(m1_diff, bins=bins)
-ax[0][0].set_title('M1 RS units')
-ax[0][0].set_xlabel('Change in baseline rate')
-
-ax[0][1].hist(s1_diff, bins=bins)
-ax[0][1].set_title('S1 RS units')
-ax[0][1].set_xlabel('Change in baseline rate')
-
-# FS units
-m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
-
-m1_diff = abs_rate[m1_inds, 8+9, 0] - abs_rate[m1_inds, 8, 0]
-s1_diff = abs_rate[s1_inds, 8+9+9, 0] - abs_rate[s1_inds, 8, 0]
-
-ax[1][0].hist(m1_diff, bins=bins)
-ax[1][0].set_title('M1 FS units')
-ax[1][0].set_xlabel('Change in baseline rate')
-
-ax[1][1].hist(s1_diff, bins=bins)
-ax[1][1].set_title('S1 FS units')
-ax[1][1].set_xlabel('Change in baseline rate')
-
-
+## set ylim to the max ylim of all subplots
+ylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = col.get_ylim()[1]
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+for row in ax:
+    for col in row:
+        col.set_ylim(0, ylim_max)
+        col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
 ##### plot driven rates best position #####
 ##### plot driven rates best position #####
 
@@ -801,15 +784,83 @@ for row in ax:
 #        col.set_xlim(-xlim_max, xlim_max)
         col.plot([-xylim_max, xylim_max], [-xylim_max, xylim_max], 'k')
 
-##### plot driven rates mean tuning curve #####
-##### plot driven rates mean tuning curve #####
+
+
+##### Absolute firing rate analysis #####
+##### Absolute firing rate analysis #####
+
+
+##### plot absolute firing rates best position #####
+##### plot absolute firing rates best position #####
+
+## RS top left
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+m1_best_pos = best_pos[m1_inds].astype(int)
+s1_best_pos = best_pos[s1_inds].astype(int)
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
+fig.suptitle('Mean Absolute Firing Rates (best pos)', fontsize=20)
+ax[0][0].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9, 0], \
+        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
+ax[0][0].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9, 0], \
+        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
+ax[0][0].set_title('RS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][0].set_ylabel('Light On\nfiring rate (Hz)')
+
+## RS bottom left
+ax[1][0].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9+9, 0], \
+        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
+ax[1][0].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9+9, 0], \
+        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
+ax[1][0].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[1][0].set_ylabel('Light On\nfiring rate (Hz)')
+ax[1][0].set_xlabel('Light Off\nfiring rate (Hz)')
+
+## FS top middle
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+m1_best_pos = best_pos[m1_inds].astype(int)
+s1_best_pos = best_pos[s1_inds].astype(int)
+ax[0][1].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9, 0], \
+        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
+ax[0][1].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9, 0], \
+        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
+ax[0][1].set_title('FS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
+
+## FS bottom middle
+ax[1][1].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9+9, 0], \
+        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9+9, 1], c='k', fmt='o', ecolor='k')
+ax[1][1].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9+9, 0], \
+        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
+ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
+
+##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
+xylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
+        xylim_temp = np.max([xlim_temp, ylim_temp])
+        if xylim_temp > xylim_max:
+            xylim_max = xylim_temp
+for row in ax:
+    for col in row:
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([0, xylim_max], [0, xylim_max], 'k')
+
+
+##### plot absolute firing rates mean tuning curve #####
+##### plot absolute firing rates mean tuning curve #####
 
 ## RS top left
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 
 fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
-fig.suptitle('Driven Rates', fontsize=20)
+fig.suptitle('Mean Absolute Firing Rates', fontsize=20)
 ax[0][0].errorbar(abs_tc[m1_inds, 0, 0], abs_tc[m1_inds, 1, 0], \
         xerr=abs_tc[m1_inds, 0, 1], yerr=abs_tc[m1_inds, 1, 1], c='k', fmt='o', ecolor='k')
 ax[0][0].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 1, 0], \
@@ -829,8 +880,6 @@ ax[1][0].set_xlabel('Light Off\nfiring rate (Hz)')
 ## FS top middle
 m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
-m1_best_pos = best_pos[m1_inds].astype(int)
-s1_best_pos = best_pos[s1_inds].astype(int)
 ax[0][1].errorbar(abs_tc[m1_inds, 0, 0], abs_tc[m1_inds, 1, 0], \
         xerr=abs_tc[m1_inds, 0, 1], yerr=abs_tc[m1_inds, 1, 1], c='k', fmt='o', ecolor='k')
 ax[0][1].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 1, 0], \
@@ -844,6 +893,193 @@ ax[1][1].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 2, 0], \
         xerr=abs_tc[s1_inds, 0, 1], yerr=abs_tc[s1_inds, 2, 1], c='r', fmt='o', ecolor='r')
 ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
+
+##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
+xylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = np.max(np.abs(col.get_ylim()))
+        xlim_temp = np.max(np.abs(col.get_xlim()))
+        xylim_temp = np.max([xlim_temp, ylim_temp])
+        if xylim_temp > xylim_max:
+            xylim_max = xylim_temp
+for row in ax:
+    for col in row:
+#        col.set_ylim(-ylim_max, ylim_max)
+#        col.set_xlim(-xlim_max, xlim_max)
+        col.plot([0, xylim_max], [0, xylim_max], 'k')
+
+
+##### plot change in mean absolute rates histogram best position #####
+##### plot change in mean absolute rates histogram best position #####
+
+fig, ax = plt.subplots(2, 2)
+fig.suptitle('Change in firing rate (best pos)', fontsize=16)
+
+bins = np.arange(-20, 20, 1)
+
+# RS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+m1_diff = abs_rate[m1_inds, best_pos[m1_inds]+9, 0] - abs_rate[m1_inds, best_pos[m1_inds], 0]
+s1_diff = abs_rate[s1_inds, best_pos[s1_inds]+9+9, 0] - abs_rate[s1_inds, best_pos[s1_inds], 0]
+
+ax[0][0].hist(m1_diff, bins=bins)
+ax[0][0].set_title('M1 RS units')
+ax[0][0].set_xlabel('Change in mean rate')
+
+ax[0][1].hist(s1_diff, bins=bins)
+ax[0][1].set_title('S1 RS units')
+ax[0][1].set_xlabel('Change in mean rate')
+
+# FS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+
+m1_diff = abs_rate[m1_inds, best_pos[m1_inds]+9, 0] - abs_rate[m1_inds, best_pos[m1_inds], 0]
+s1_diff = abs_rate[s1_inds, best_pos[s1_inds]+9+9, 0] - abs_rate[s1_inds, best_pos[s1_inds], 0]
+
+ax[1][0].hist(m1_diff, bins=bins)
+ax[1][0].set_title('M1 FS units')
+ax[1][0].set_xlabel('Change in mean rate')
+
+ax[1][1].hist(s1_diff, bins=bins)
+ax[1][1].set_title('S1 FS units')
+ax[1][1].set_xlabel('Change in mean rate')
+
+## set ylim to the max ylim of all subplots
+ylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = col.get_ylim()[1]
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+for row in ax:
+    for col in row:
+        col.set_ylim(0, ylim_max)
+        col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
+
+
+##### plot change in mean absolute rates histogram #####
+##### plot change in mean absolute rates histogram #####
+
+fig, ax = plt.subplots(2, 2)
+fig.suptitle('Change in firing rate (mean tc)', fontsize=16)
+
+bins = np.arange(-20, 20, 1)
+
+# RS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+m1_diff = abs_tc[m1_inds, 1, 0] - abs_tc[m1_inds, 0, 0]
+s1_diff = abs_tc[s1_inds, 2, 0] - abs_tc[s1_inds, 0, 0]
+
+ax[0][0].hist(m1_diff, bins=bins)
+ax[0][0].set_title('M1 RS units')
+ax[0][0].set_xlabel('Change in mean rate')
+
+ax[0][1].hist(s1_diff, bins=bins)
+ax[0][1].set_title('S1 RS units')
+ax[0][1].set_xlabel('Change in mean rate')
+
+# FS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+
+m1_diff = abs_tc[m1_inds, 1, 0] - abs_tc[m1_inds, 0, 0]
+s1_diff = abs_tc[s1_inds, 2, 0] - abs_tc[s1_inds, 0, 0]
+
+ax[1][0].hist(m1_diff, bins=bins)
+ax[1][0].set_title('M1 FS units')
+ax[1][0].set_xlabel('Change in mean rate')
+
+ax[1][1].hist(s1_diff, bins=bins)
+ax[1][1].set_title('S1 FS units')
+ax[1][1].set_xlabel('Change in mean rate')
+
+## set ylim to the max ylim of all subplots
+ylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = col.get_ylim()[1]
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+for row in ax:
+    for col in row:
+        col.set_ylim(0, ylim_max)
+        col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
+
+
+
+
+##### Spontaneous/baseline rate analysis #####
+##### Spontaneous/baseline rate analysis #####
+
+
+##### plot spontaneous/baseline rates #####
+##### plot spontaneous/baseline rates #####
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
+fig.suptitle('Spontaneous Rates', fontsize=20)
+
+## RS
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+ax[0][0].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9, 0], \
+        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='k', fmt='o', ecolor='k')
+ax[0][0].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9, 0], \
+        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9, 1], c='r', fmt='o', ecolor='r')
+
+max_val = np.max([ax[0][0].get_xlim(), ax[0][0].get_ylim()])
+ax[0][0].set_xlim(0, max_val)
+ax[0][0].set_ylim(0, max_val)
+ax[0][0].plot([0, max_val], [0, max_val], 'b')
+ax[0][0].set_title('RS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][0].set_ylabel('Light On\nfiring rate (Hz)')
+
+ax[1][0].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9+9, 0], \
+        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9+9, 1], c='k', fmt='o', ecolor='k')
+ax[1][0].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9+9, 0], \
+        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9+9, 1], c='r', fmt='o', ecolor='r')
+
+max_val = np.max([ax[1][0].get_xlim(), ax[1][0].get_ylim()])
+ax[1][0].set_xlim(0, max_val)
+ax[1][0].set_ylim(0, max_val)
+ax[1][0].plot([0, max_val], [0, max_val], 'b')
+ax[1][0].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[1][0].set_xlabel('Light On\nfiring rate (Hz)')
+ax[1][0].set_ylabel('Light Off\nfiring rate (Hz)')
+
+## FS
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+
+ax[0][1].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9, 0], \
+        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='k', fmt='o', ecolor='k')
+ax[0][1].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9, 0], \
+        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9, 1], c='r', fmt='o', ecolor='r')
+
+max_val = np.max([ax[0][1].get_xlim(), ax[0][1].get_ylim()])
+ax[0][1].set_xlim(0, max_val)
+ax[0][1].set_ylim(0, max_val)
+ax[0][1].plot([0, max_val], [0, max_val], 'b')
+ax[0][1].set_title('FS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
+
+ax[1][1].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9+9, 0], \
+        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9+9, 1], c='k', fmt='o', ecolor='k')
+ax[1][1].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9+9, 0], \
+        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9+9, 1], c='r', fmt='o', ecolor='r')
+
+max_val = np.max([ax[1][1].get_xlim(), ax[1][1].get_ylim()])
+ax[1][1].set_xlim(0, max_val)
+ax[1][1].set_ylim(0, max_val)
+ax[1][1].plot([0, max_val], [0, max_val], 'b')
+ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
+
 
 ##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
 ylim_max = 0
@@ -860,7 +1096,63 @@ for row in ax:
     for col in row:
 #        col.set_ylim(-ylim_max, ylim_max)
 #        col.set_xlim(-xlim_max, xlim_max)
-        col.plot([0, xlim_max], [0, ylim_max], 'k')
+        col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
+
+
+##### plot change in mean spontaneous rates histogram #####
+##### plot change in mean spontaneous rates histogram #####
+
+fig, ax = plt.subplots(2, 2)
+fig.suptitle('Change in baseline firing rate', fontsize=16)
+
+bins = np.arange(-20, 20, 1)
+
+# RS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+m1_diff = abs_rate[m1_inds, neuro.control_pos -1+9, 0] - abs_rate[m1_inds, neuro.control_pos -1, 0]
+s1_diff = abs_rate[s1_inds, neuro.control_pos -1+9+9, 0] - abs_rate[s1_inds, neuro.control_pos -1, 0]
+
+ax[0][0].hist(m1_diff, bins=bins)
+ax[0][0].set_title('M1 RS units')
+ax[0][0].set_xlabel('Change in baseline rate')
+
+ax[0][1].hist(s1_diff, bins=bins)
+ax[0][1].set_title('S1 RS units')
+ax[0][1].set_xlabel('Change in baseline rate')
+
+# FS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+
+m1_diff = abs_rate[m1_inds, neuro.control_pos -1+9, 0] - abs_rate[m1_inds, neuro.control_pos -1, 0]
+s1_diff = abs_rate[s1_inds, neuro.control_pos -1+9+9, 0] - abs_rate[s1_inds, neuro.control_pos -1, 0]
+
+ax[1][0].hist(m1_diff, bins=bins)
+ax[1][0].set_title('M1 FS units')
+ax[1][0].set_xlabel('Change in baseline rate')
+
+ax[1][1].hist(s1_diff, bins=bins)
+ax[1][1].set_title('S1 FS units')
+ax[1][1].set_xlabel('Change in baseline rate')
+
+## set ylim to the max ylim of all subplots
+ylim_max = 0
+for row in ax:
+    for col in row:
+        ylim_temp = col.get_ylim()[1]
+        if ylim_temp > ylim_max:
+            ylim_max = ylim_temp
+for row in ax:
+    for col in row:
+        col.set_ylim(0, ylim_max)
+        col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
+
+
+##### Burst rate analysis #####
+##### Burst rate analysis #####
+
 
 ##### plot burst rates for RS units #####
 ##### plot burst rates for RS units #####
