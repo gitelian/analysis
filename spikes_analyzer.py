@@ -645,7 +645,7 @@ for row in ax:
 ## RS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-bins = np.arange(-1.0, 1.0, 0.10)
+bins = np.arange(-1.0, 1.0, 0.05)
 
 fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
 fig.suptitle('Mean OMI', fontsize=20)
@@ -1011,6 +1011,27 @@ for row in ax:
         col.set_ylim(0, ylim_max)
         col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
 
+
+##### gain/offset analysis of absolute rates #####
+##### gain/offset analysis of absolute rates #####
+
+## RS top left
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+m1_nolight = abs_tc[m1_inds, 0, 0]
+m1_s1light = abs_tc[m1_inds, 1, 0]
+m1slope, m1intercept, m1r_value, m1p_value, m1std_err = sp.stats.linregress(m1_nolight, m1_s1light)
+
+s1_nolight = abs_tc[s1_inds, 0, 0]
+s1_m1light = abs_tc[s1_inds, 2, 0]
+s1slope, s1intercept, s1r_value, s1p_value, s1std_err = sp.stats.linregress(s1_nolight, s1_m1light)
+
+
+numerator = s1slope - m1slope
+denominator = pow( ( pow(s1std_err, 2) + pow(m1std_err, 2)), 1/2.)
+z = numerator / denominator
+p_values = sp.stats.norm.sf(abs(z))*2 #twosided
 
 
 
