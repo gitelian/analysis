@@ -803,7 +803,9 @@ class NeuroAnalyzer(object):
         for manip in range(num_manipulations):
             temp = np.empty((1, self.num_units))
             for k in range(self.control_pos - 1):
+                # rates is size: num_trials x num_units
                 temp = np.append(temp, rates[(manip*self.control_pos + k)], axis=0)
+            temp = temp[1:, :] # remove first row of junk
             mean_tc[:, manip, 0] = np.mean(temp, axis=0)
             mean_tc[:, manip, 1] = sp.stats.sem(temp, axis=0)
 
