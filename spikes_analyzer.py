@@ -666,6 +666,80 @@ for row in ax:
 #        col.set_xlim(-xlim_max, xlim_max)
         col.plot([-xlim_max, xlim_max], [-ylim_max, ylim_max], 'k')
 
+##### plot change in mean driven rates histogram #####
+##### plot change in mean driven rates histogram #####
+
+fig, ax = plt.subplots(2, 2)
+bins = np.arange(-20, 20, 1)
+
+# RS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+m1_diff = abs_tc[m1_inds, 1, 0] - abs_tc[m1_inds, 0, 0]
+s1_diff = abs_tc[s1_inds, 2, 0] - abs_tc[s1_inds, 0, 0]
+
+ax[0][0].hist(m1_diff, bins=bins)
+ax[0][0].set_title('M1 RS units')
+ax[0][0].set_xlabel('Change in mean rate')
+
+ax[0][1].hist(s1_diff, bins=bins)
+ax[0][1].set_title('S1 RS units')
+ax[0][1].set_xlabel('Change in mean rate')
+
+# FS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+
+m1_diff = abs_tc[m1_inds, 1, 0] - abs_tc[m1_inds, 0, 0]
+s1_diff = abs_tc[s1_inds, 2, 0] - abs_tc[s1_inds, 0, 0]
+
+ax[1][0].hist(m1_diff, bins=bins)
+ax[1][0].set_title('M1 FS units')
+ax[1][0].set_xlabel('Change in mean rate')
+
+ax[1][1].hist(s1_diff, bins=bins)
+ax[1][1].set_title('S1 FS units')
+ax[1][1].set_xlabel('Change in mean rate')
+
+
+##### plot change in mean spontaneous rates histogram #####
+##### plot change in mean spontaneous rates histogram #####
+
+fig, ax = plt.subplots(2, 2)
+bins = np.arange(-20, 20, 1)
+
+# RS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+m1_diff = abs_rate[m1_inds, 8+9, 0] - abs_rate[m1_inds, 8, 0]
+s1_diff = abs_rate[s1_inds, 8+9+9, 0] - abs_rate[s1_inds, 8, 0]
+
+ax[0][0].hist(m1_diff, bins=bins)
+ax[0][0].set_title('M1 RS units')
+ax[0][0].set_xlabel('Change in baseline rate')
+
+ax[0][1].hist(s1_diff, bins=bins)
+ax[0][1].set_title('S1 RS units')
+ax[0][1].set_xlabel('Change in baseline rate')
+
+# FS units
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+
+m1_diff = abs_rate[m1_inds, 8+9, 0] - abs_rate[m1_inds, 8, 0]
+s1_diff = abs_rate[s1_inds, 8+9+9, 0] - abs_rate[s1_inds, 8, 0]
+
+ax[1][0].hist(m1_diff, bins=bins)
+ax[1][0].set_title('M1 FS units')
+ax[1][0].set_xlabel('Change in baseline rate')
+
+ax[1][1].hist(s1_diff, bins=bins)
+ax[1][1].set_title('S1 FS units')
+ax[1][1].set_xlabel('Change in baseline rate')
+
+
 ##### plot driven rates best position #####
 ##### plot driven rates best position #####
 
