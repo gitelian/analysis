@@ -1284,6 +1284,52 @@ class NeuroAnalyzer(object):
 
         return ratios
 
+    def get_rates_vs_strength(self, normed=False):
+        """sort firing rates from min to max. normalize if specified"""
+
+        if hasattr(self, 'abs_rate') is False:
+            self.rates()
+
+        control_pos = self.control_pos
+        num_cond = self.stim_ids.shape[0]
+        num_manipulations = num_cond/control_pos
+        meanr_sorted = np.zeros((self.num_units, control_pos, num_manipulations))
+        semr_sorted = np.zeros((self.num_units, control_pos, num_manipulations))
+
+        for unit_index in range(self.num_units):
+
+            # compute mean and standard error firing rates
+            meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
+            semr_abs  = np.array([sp.stats.sem(k[:, unit_index]) for k in self.abs_rate])
+
+            # sort from smallest response to larget
+            sort_inds = np.argsort(meanr_abs[0:control_pos-1])
+
+            # if norm then normalize by max firing rate of no light conditions
+            if normed:
+                maxr = meanr_abs[sort_inds[-1]] # last index is for max value
+                for pos in range(num_cond):
+                    meanr_abs = np.array([np.mean(k[:, unit_index]/maxr) for k in self.abs_rate])
+                    semr_abs  = np.array([sp.stats.sem(k[:, unit_index]/maxr) for k in self.abs_rate])
+
+            # for each manipulation sort and save values to arrays
+            for manip in range(num_manipulations):
+
+                # add control/no contact position
+                meanr_sorted[unit_index, 0, manip] = meanr_abs[(control_pos*(manip+1)-1)]
+                semr_sorted[unit_index, 0, manip]  = semr_abs[(control_pos*(manip+1)-1)]
+
+                # add contact positions
+                temp_mean = meanr_abs[(manip*control_pos):(manip+1)*control_pos]
+                temp_sem  = semr_abs[(manip*control_pos):(manip+1)*control_pos]
+
+                meanr_sorted[unit_index, 1:(control_pos), manip] = temp_mean[sort_inds]
+                semr_sorted[unit_index, 1:(control_pos), manip]  = temp_sem[sort_inds]
+
+        return meanr_sorted, semr_sorted
+
+
+
 ###############################################################################
 ##### Whisker tracking functions #####
 ###############################################################################
