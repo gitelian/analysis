@@ -257,6 +257,7 @@ evk_tc      = np.empty((1, 3, 2))
 max_fr      = np.empty((1, ))
 burst_rate  = np.empty((1, 27, 2))
 adapt_ratio = np.empty((1, 27, 2))
+meanr       = np.empty((1, 9, 3))
 
 for neuro in experiments:
     # calculate measures that weren't calculated at init
@@ -271,6 +272,7 @@ for neuro in experiments:
     omi         = np.append(omi, neuro.get_omi(), axis=0)
     preference  = np.append(preference, neuro.preference, axis=0)
     best_pos    = np.append(best_pos, neuro.best_contact)
+    meanr       = np.append(meanr, neuro.get_rates_vs_strength(normed=True), axis=0)
 
     # compute mean tuning curve
     abs_tc = np.append(abs_tc, neuro.get_mean_tc(kind='abs_rate'), axis=0)
@@ -320,6 +322,7 @@ selectivity = selectivity[1:, :]
 preference  = preference[1:, :]
 best_pos    = best_pos[1:,]
 best_pos    = best_pos.astype(int)
+meanr       = meanr[1:, :]
 abs_rate    = abs_rate[1:, :]
 evk_rate    = evk_rate[1:, :]
 abs_tc      = abs_tc[1:, :]
@@ -1132,8 +1135,8 @@ bins = np.arange(-20, 20, 1)
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 
-m1_diff = abs_rate[m1_inds, neuro.control_pos -1+9, 0] - abs_rate[m1_inds, neuro.control_pos -1, 0]
-s1_diff = abs_rate[s1_inds, neuro.control_pos -1+9+9, 0] - abs_rate[s1_inds, neuro.control_pos -1, 0]
+m1_diff = abs_rate[m1_inds, neuro.control_pos-1+9, 0] - abs_rate[m1_inds, neuro.control_pos-1, 0]
+s1_diff = abs_rate[s1_inds, neuro.control_pos-1+9+9, 0] - abs_rate[s1_inds, neuro.control_pos-1, 0]
 
 ax[0][0].hist(m1_diff, bins=bins)
 ax[0][0].set_title('M1 RS units')
