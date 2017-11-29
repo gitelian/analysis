@@ -936,6 +936,30 @@ sp.stats.pearsonr(sel_combo_diff, pcc_combo_diff)
 plt.scatter(m1_depth, m1_pcc_diff)
 plt.scatter(s1_depth, s1_pcc_diff)
 
+
+# compute PCC per unit
+m1 = list()
+s1 = list()
+for k in range(len(file_list)):
+    m1.append(np.mean(m1_pcc_nolight[k][12])/12.0)
+    s1.append(np.mean(s1_pcc_nolight[k][12])/12.0)
+
+m1 = np.asarray(m1)
+s1 = np.asarray(s1)
+
+fig, ax = plt.subplots()
+ax.bar(0, np.mean(m1),
+        0.5,
+        alpha=0.5,
+        color='b',
+        yerr=sp.stats.sem(m1))
+
+ax.bar(0.75, np.mean(s1),
+        0.5,
+        alpha=0.5,
+        color='r',
+        yerr=sp.stats.sem(s1))
+
 ###################################################################
 ###################################################################
 
