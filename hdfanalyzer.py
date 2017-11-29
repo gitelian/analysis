@@ -801,7 +801,7 @@ class NeuroAnalyzer(object):
         mean_tc = np.zeros((self.num_units, num_manipulations, 2))
 
         for manip in range(num_manipulations):
-            temp = np.empty((1, self.num_units))
+            temp = np.zeros((1, self.num_units)) # was originally empty()
             for k in range(self.control_pos - 1):
                 # rates is size: num_trials x num_units
                 temp = np.append(temp, rates[(manip*self.control_pos + k)], axis=0)
@@ -813,7 +813,6 @@ class NeuroAnalyzer(object):
 
     def reclassify_units(self):
         """use OMI and wave duration to reclassify units"""
-
         new_labels = list()
         if hasattr(self, 'cell_type_og') is False:
             print('no units were reclassified')
