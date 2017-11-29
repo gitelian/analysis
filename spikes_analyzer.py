@@ -537,8 +537,8 @@ for row in ax:
 
 ###### Plot selectivity by depth
 
-m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
 fig, ax = plt.subplots(1, 1, figsize=(8,8))
 ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
 ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
@@ -858,6 +858,9 @@ ax[0][0].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_p
         xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
 ax[0][0].set_title('RS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[0][0].set_ylabel('Light On\nfiring rate (Hz)')
+# set log scale
+#ax[0][0].set_yscale('log')
+#ax[0][0].set_xscale('log')
 
 ## RS bottom left
 ax[1][0].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9+9, 0], \
@@ -867,6 +870,9 @@ ax[1][0].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_p
 ax[1][0].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[1][0].set_ylabel('Light On\nfiring rate (Hz)')
 ax[1][0].set_xlabel('Light Off\nfiring rate (Hz)')
+# set log scale
+#ax[1][0].set_yscale('log')
+#ax[1][0].set_xscale('log')
 
 ## FS top middle
 m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
@@ -878,6 +884,9 @@ ax[0][1].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_p
 ax[0][1].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9, 0], \
         xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
 ax[0][1].set_title('FS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
+# set log scale
+#ax[0][1].set_yscale('log')
+#ax[0][1].set_xscale('log')
 
 ## FS bottom middle
 ax[1][1].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9+9, 0], \
@@ -886,6 +895,9 @@ ax[1][1].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_p
         xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9+9, 1], c='r', fmt='o', ecolor='r')
 ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
+# set log scale
+#ax[1][1].set_yscale('log')
+#ax[1][1].set_xscale('log')
 
 ##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
 xylim_max = 0
@@ -918,6 +930,9 @@ ax[0][0].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 1, 0], \
         xerr=abs_tc[s1_inds, 0, 1], yerr=abs_tc[s1_inds, 1, 1], c='r', fmt='o', ecolor='r')
 ax[0][0].set_title('RS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[0][0].set_ylabel('Light On\nfiring rate (Hz)')
+# set log scale
+#ax[0][0].set_yscale('log')
+#ax[0][0].set_xscale('log')
 
 ## RS bottom left
 ax[1][0].errorbar(abs_tc[m1_inds, 0, 0], abs_tc[m1_inds, 2, 0], \
@@ -927,6 +942,9 @@ ax[1][0].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 2, 0], \
 ax[1][0].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[1][0].set_ylabel('Light On\nfiring rate (Hz)')
 ax[1][0].set_xlabel('Light Off\nfiring rate (Hz)')
+# set log scale
+#ax[1][0].set_yscale('log')
+#ax[1][0].set_xscale('log')
 
 ## FS top middle
 m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
@@ -936,6 +954,9 @@ ax[0][1].errorbar(abs_tc[m1_inds, 0, 0], abs_tc[m1_inds, 1, 0], \
 ax[0][1].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 1, 0], \
         xerr=abs_tc[s1_inds, 0, 1], yerr=abs_tc[s1_inds, 1, 1], c='r', fmt='o', ecolor='r')
 ax[0][1].set_title('FS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
+# set log scale
+#ax[0][1].set_yscale('log')
+#ax[0][1].set_xscale('log')
 
 ## FS bottom middle
 ax[1][1].errorbar(abs_tc[m1_inds, 0, 0], abs_tc[m1_inds, 2, 0], \
@@ -944,6 +965,9 @@ ax[1][1].errorbar(abs_tc[s1_inds, 0, 0], abs_tc[s1_inds, 2, 0], \
         xerr=abs_tc[s1_inds, 0, 1], yerr=abs_tc[s1_inds, 2, 1], c='r', fmt='o', ecolor='r')
 ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
 ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
+# set log scale
+#ax[1][1].set_yscale('log')
+#ax[1][1].set_xscale('log')
 
 ##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
 xylim_max = 0
@@ -1015,7 +1039,7 @@ for row in ax:
 ##### plot change in mean absolute rates histogram #####
 ##### plot change in mean absolute rates histogram #####
 
-fig, ax = plt.subplots(2, 2)
+fig, ax = plt.subplots(2, 2, sharex=True)
 fig.suptitle('Change in firing rate (mean tc)', fontsize=16)
 
 bins = np.arange(-20, 20, 1)
