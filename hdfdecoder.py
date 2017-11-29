@@ -825,6 +825,9 @@ s1_pcc_nolight = list()
 s1_sel_m1light = list()
 s1_pcc_m1light = list()
 
+m1_depth       = list()
+s1_depth       = list()
+
 for fname in file_list:
     # open file
     temp = sp.io.loadmat(dir_path + os.sep + fname)
@@ -858,8 +861,10 @@ for fname in file_list:
     exps.append(neuro)
 
     # get m1 and s1 indices
-    m1_inds = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='RS')
-    s1_inds = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='RS')
+    #m1_inds = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='RS')
+    #s1_inds = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='RS')
+    m1_inds = npand(neuro.shank_ids==0, neuro.driven_units==True)
+    s1_inds = npand(neuro.shank_ids==1, neuro.driven_units==True)
 
     # get mean selectivity for m1 and s1
     m1_sel_nolight.append(np.mean(neuro.selectivity[m1_inds, 0]))
@@ -867,6 +872,11 @@ for fname in file_list:
 
     s1_sel_nolight.append(np.mean(neuro.selectivity[s1_inds, 0]))
     s1_sel_m1light.append(np.mean(neuro.selectivity[s1_inds, 2]))
+
+    # get mean depth for m1 and s1 units
+    neuro.depths = np.asarray(neuro.depths)
+    m1_depth.append(np.mean(neuro.depths[m1_inds]))
+    s1_depth.append(np.mean(neuro.depths[s1_inds]))
 
 m1_pcc_nolight = np.asarray(m1_pcc_nolight)
 m1_pcc_s1light = np.asarray(m1_pcc_s1light)
@@ -880,17 +890,49 @@ m1_sel_s1light = np.asarray(m1_sel_s1light)
 s1_sel_nolight = np.asarray(s1_sel_nolight)
 s1_sel_m1light = np.asarray(s1_sel_m1light)
 
+m1_depth       = np.asarray(m1_depth)
+s1_depth       = np.asarray(s1_depth)
+
 
 for k in range(len(file_list)):
     print('#####     #####\n#####     #####')
     print('experiment: {}'.format(file_list[k]))
     print('\nm1 selectivity nolight vs s1light {}, {}'.format(m1_sel_nolight[k], m1_sel_s1light[k]))
+    print('m1 depth: {}'.format(m1_depth[k]))
     print('m1 pcc nolight vs s1light {}, {}'.format(m1_pcc_nolight[k][-1], m1_pcc_s1light[k][-1]))
 
     print('\ns1 selectivity nolight vs m1light {}, {}'.format(s1_sel_nolight[k], s1_sel_m1light[k]))
     print('s1 pcc nolight vs m1light {}, {}'.format(s1_pcc_nolight[k][-1], s1_pcc_m1light[k][-1]))
+    print('s1 depth: {}'.format(s1_depth[k]))
+
+m1_pcc_mean_nolight = np.asarray([np.mean(k) for k in m1_pcc_nolight])
+m1_pcc_mean_s1light = np.asarray([np.mean(k) for k in m1_pcc_s1light])
+
+m1_sel_diff = m1_sel_s1light - m1_sel_nolight
+m1_pcc_diff = m1_pcc_mean_s1light - m1_pcc_mean_nolight
+plt.scatter(m1_sel_diff, m1_pcc_diff)
+
+s1_pcc_mean_nolight = np.asarray([np.mean(k) for k in s1_pcc_nolight])
+s1_pcc_mean_m1light = np.asarray([np.mean(k) for k in s1_pcc_m1light])
+
+s1_sel_diff = s1_sel_m1light - s1_sel_nolight
+s1_pcc_diff = s1_pcc_mean_m1light - s1_pcc_mean_nolight
+plt.scatter(s1_sel_diff, s1_pcc_diff)
+hlines(0, -.2, .2, linestyle='dashed', linewidth=1)
+vlines(0, -25, 25, linestyle='dashed', linewidth=1)
+xlabel('change in selectivity')
+ylabel('change in PCC')
+title('PCC vs selevtivity changes')
 
 
+sel_combo_diff = np.concatenate( (m1_sel_diff, s1_sel_diff))
+pcc_combo_diff = np.concatenate( (m1_pcc_diff, s1_pcc_diff))
+
+sp.stats.pearsonr(sel_combo_diff, pcc_combo_diff)
+
+
+plt.scatter(m1_depth, m1_pcc_diff)
+plt.scatter(s1_depth, s1_pcc_diff)
 
 ###################################################################
 ###################################################################
