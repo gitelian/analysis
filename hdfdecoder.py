@@ -863,8 +863,10 @@ for fname in file_list:
     # get m1 and s1 indices
     #m1_inds = npand(npand(neuro.shank_ids==0, neuro.driven_units==True), neuro.cell_type=='RS')
     #s1_inds = npand(npand(neuro.shank_ids==1, neuro.driven_units==True), neuro.cell_type=='RS')
-    m1_inds = npand(neuro.shank_ids==0, neuro.driven_units==True)
-    s1_inds = npand(neuro.shank_ids==1, neuro.driven_units==True)
+    #m1_inds = npand(neuro.shank_ids==0, neuro.driven_units==True)
+    #s1_inds = npand(neuro.shank_ids==1, neuro.driven_units==True)
+    m1_inds = neuro.shank_ids==0
+    s1_inds = neuro.shank_ids==1
 
     # get mean selectivity for m1 and s1
     m1_sel_nolight.append(np.mean(neuro.selectivity[m1_inds, 0]))
