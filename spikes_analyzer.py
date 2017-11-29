@@ -272,7 +272,7 @@ for neuro in experiments:
     omi         = np.append(omi, neuro.get_omi(), axis=0)
     preference  = np.append(preference, neuro.preference, axis=0)
     best_pos    = np.append(best_pos, neuro.best_contact)
-    meanr       = np.append(meanr, neuro.get_rates_vs_strength(normed=True), axis=0)
+    meanr       = np.append(meanr, neuro.get_rates_vs_strength(normed=True)[0], axis=0)
 
     # compute mean tuning curve
     abs_tc = np.append(abs_tc, neuro.get_mean_tc(kind='abs_rate'), axis=0)
@@ -530,19 +530,41 @@ for row in ax:
         col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
 
 
+
+##### depth analysis #####
+##### depth analysis #####
+
+
 ###### Plot selectivity by depth
-m1_inds = npand(npand(region==0, driven==False), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==False), cell_type=='RS')
+
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 fig, ax = plt.subplots(1, 1, figsize=(8,8))
 ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
 ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
 ax.set_ylim(0, 1100)
+ax.invert_yaxis()
 
+# plot change in selectivity by depth for M1
+delta_sel = selectivity[m1_inds, 1] - selectivity[m1_inds, 0]
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.plot(delta_sel, depths[m1_inds], 'ko')
+ax.set_ylim(0, 1100)
+ax.vlines(0, 0, 1100, linestyles='dashed', color='k')
+ax.set_title('Change in M1 selectivity with S1 silencing')
+ax.set_xlabel('change in selectivity')
+ax.set_ylabel('Depth (um)')
+ax.invert_yaxis()
 
-
-##### depth analysis #####
-##### depth analysis #####
-
+# plot change in selectivity by depth for S1
+delta_sel = selectivity[s1_inds, 2] - selectivity[s1_inds, 0]
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.plot(delta_sel, depths[s1_inds], 'ko')
+ax.set_ylim(0, 1100)
+ax.vlines(0, 0, 1100, linestyles='dashed', color='k')
+ax.set_title('Change in S1 selectivity with M1 silencing')
+ax.set_ylabel('Depth (um)')
+ax.invert_yaxis()
 
 ###### Plot preferred position by depth
 
@@ -578,6 +600,32 @@ ax.plot(evk_rate[m1_inds, best_pos[m1_inds], 0], depths[m1_inds], 'ko')
 ax.plot(evk_rate[s1_inds, best_pos[s1_inds], 0], depths[s1_inds], 'ro')
 ax.set_ylim(0, 1100)
 
+
+##### plot change in firing rate by depth
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+
+# M1
+m1_diff = abs_tc[m1_inds, 1, 0] - abs_tc[m1_inds, 0, 0]
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.plot(m1_diff, depths[m1_inds], 'ko')
+ax.set_ylim(0, 1100)
+ax.vlines(0, 0, 1100, linestyles='dashed', color='k')
+ax.set_title('Change in M1 firing rates with S1 silencing')
+ax.set_ylabel('Depth (um)')
+ax.set_xlabel('Change in firing rate (Hz)')
+ax.invert_yaxis()
+
+# S1
+s1_diff = abs_tc[s1_inds, 2, 0] - abs_tc[s1_inds, 0, 0]
+fig, ax = plt.subplots(1, 1, figsize=(8,8))
+ax.plot(s1_diff, depths[s1_inds], 'ko')
+ax.set_ylim(0, 1100)
+ax.vlines(0, 0, 1100, linestyles='dashed', color='k')
+ax.set_title('Change in S1 firing rates with M1 silencing')
+ax.set_ylabel('Depth (um)')
+ax.set_xlabel('Change in firing rate (Hz)')
+ax.invert_yaxis()
 
 
 ##### preferred position analysis #####
@@ -1172,6 +1220,92 @@ for row in ax:
     for col in row:
         col.set_ylim(0, ylim_max)
         col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
+
+
+
+##### Firing rate vs stimulus strength analysis #####
+##### Firing rate vs stimulus strength analysis #####
+
+
+##### plot FR vs strength for all units #####
+##### plot FR vs strength for all units #####
+
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+# M1 mean + sem sorted tuning curves No light
+m1_mean_nolight = mean(meanr[m1_inds, :, 0], axis=0)
+m1_sem_nolight  = sp.stats.sem(meanr[m1_inds, :, 0], axis=0)
+
+# M1 mean + sem sorted tuning curves S1 light
+m1_mean_s1light = mean(meanr[m1_inds, :, 1], axis=0)
+m1_sem_s1light  = sp.stats.sem(meanr[m1_inds, :, 1], axis=0)
+
+# S1 mean + sem sorted tuning curves No light
+s1_mean_nolight = mean(meanr[s1_inds, :, 0], axis=0)
+s1_sem_nolight  = sp.stats.sem(meanr[s1_inds, :, 0], axis=0)
+
+# S1 mean + sem sorted tuning curves m1 light
+s1_mean_m1light = mean(meanr[s1_inds, :, 2], axis=0)
+s1_sem_m1light  = sp.stats.sem(meanr[s1_inds, :, 1], axis=0)
+
+fig, ax = plt.subplots(1, 2)
+fig.suptitle('Firing rate vs stimulus strength')
+
+pos = np.arange(9)
+
+# M1 nolight
+ax[0].plot(pos, m1_mean_nolight, color='k')
+ax[0].fill_between(pos, m1_mean_nolight - m1_sem_nolight, m1_mean_nolight + m1_sem_nolight, facecolor='k', alpha=0.3)
+# M1 s1light
+ax[0].plot(pos, m1_mean_s1light, color='r')
+ax[0].fill_between(pos, m1_mean_s1light - m1_sem_s1light, m1_mean_s1light + m1_sem_s1light, facecolor='r', alpha=0.3)
+ax[0].set_xlabel('stimulus strength')
+ax[0].set_ylim(0.35, 1.05)
+ax[0].set_title('M1 RS units')
+
+# S1 nolight
+ax[1].plot(pos, s1_mean_nolight, color='k')
+ax[1].fill_between(pos, s1_mean_nolight - s1_sem_nolight, s1_mean_nolight + s1_sem_nolight, facecolor='k', alpha=0.3)
+# S1 s1light
+ax[1].plot(pos, s1_mean_m1light, color='b')
+ax[1].fill_between(pos, s1_mean_m1light - s1_sem_m1light, s1_mean_m1light + s1_sem_m1light, facecolor='b', alpha=0.3)
+ax[1].set_xlabel('stimulus strength')
+ax[1].set_ylim(0.35, 1.05)
+ax[1].set_title('S1 RS units')
+
+
+##### plot change from no manipulation of FR vs strength tuning curves #####
+##### plot change from no manipulation of FR vs strength tuning curves #####
+
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
+# M1 diff
+m1_diff = meanr[m1_inds, :, 1] - meanr[m1_inds, :, 0]
+m1mean  = np.mean(m1_diff, axis=0)
+m1sem   = sp.stats.sem(m1_diff, axis=0)
+
+# M1 diff
+s1_diff = meanr[s1_inds, :, 2] - meanr[s1_inds, :, 0]
+s1mean  = np.mean(s1_diff, axis=0)
+s1sem   = sp.stats.sem(s1_diff, axis=0)
+
+fig, ax = plt.subplots(1, 1)
+pos = np.arange(9)
+
+# M1
+ax.plot(pos, m1mean, color='r')
+ax.fill_between(pos, m1mean- m1sem, m1mean+ m1sem, facecolor='r', alpha=0.3)
+
+# S1
+ax.plot(pos, s1mean, color='b')
+ax.fill_between(pos, s1mean- s1sem, s1mean+ s1sem, facecolor='b', alpha=0.3)
+
+ax.hlines(0, pos[0], pos[-1], linestyle='dashed', color='k')
+ax.set_ylabel('Change in normalized firing rate')
+ax.set_xlabel('stimulus strength')
+ax.set_title('Change in spike rate with light and stimulus strength')
 
 
 ##### Burst rate analysis #####
