@@ -116,7 +116,7 @@ class NeuroAnalyzer(object):
         self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
-#        self.__trim_lfp()
+        self.__trim_lfp()
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
@@ -257,7 +257,8 @@ class NeuroAnalyzer(object):
             try:
                 cell_type.append(self.cell_type_dict[self.f[spike_path].attrs['cell_type'][0][0]])
             except:
-                cell_type.append(self.cell_type_dict[self.f[spike_path].attrs['cell_type'][0]])
+                #cell_type.append(self.cell_type_dict[self.f[spike_path].attrs['cell_type'][0]])
+                cell_type.append(self.cell_type_dict[self.f[spike_path].attrs['cell_type']])
 
         return np.asarray(cell_type)
 
@@ -524,7 +525,8 @@ class NeuroAnalyzer(object):
                     self.trial_class['run_boolean'][count] = False
                     #self.neo_obj.segments[count].annotations['run_boolean'] = False
             elif set_all_to_true == 1:
-                self.neo_obj.segments[count].annotations['run_boolean'] = True
+                self.trial_class['run_boolean'][count] = True
+                #self.neo_obj.segments[count].annotations['run_boolean'] = True
 
 
     def get_num_good_trials(self, kind='run_boolean'):
@@ -856,19 +858,25 @@ class NeuroAnalyzer(object):
 
             self.cell_type = new_labels
 
-    def get_lfps(self, kind='run_boolean'):
+    def get_lfps(self, kind='run_boolean', running=True):
         lfps = [list() for x in range(len(self.shank_names))]
         # preallocation loop
         for shank in range(len(self.shank_names)):
-            for k, trials_ran in enumerate(self.num_good_trials):
-                lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_ran )))
+
+            if running:
+                for k, trials_ran in enumerate(self.num_good_trials):
+                    lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_ran )))
+            elif not running:
+                for k, trials_not_ran in enumerate(self.num_slow_trials):
+                    lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_not_ran )))
 
         for shank in range(len(self.shank_names)):
             for stim_ind, stim_id in enumerate(self.stim_ids):
                 good_trial_ind = 0
 
                 for k, seg in enumerate(self.f):
-                    if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
+                    #if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == running:
+                    if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == running):
                         lfps[shank][stim_ind][:, :, good_trial_ind] = self.lfp_data[shank][:, :, k]
                         good_trial_ind += 1
         self.lfps = lfps
@@ -1092,6 +1100,8 @@ class NeuroAnalyzer(object):
 ################################################################################
 
     def get_selectivity(self):
+        """compute selectivity for all units and manipulations"""
+
         if hasattr(self, 'abs_rate') is False:
             self.rates()
         control_pos = self.control_pos
@@ -1109,6 +1119,75 @@ class NeuroAnalyzer(object):
                         (np.sqrt(x.shape[0]) - 1))
 
         self.selectivity = sel_mat
+
+    def get_bootstrap_selectivity(self):
+        if hasattr(self, 'abs_rate') is False:
+            self.rates()
+
+        if hasattr(self, 'selectivity') is False:
+            self.get_selectivity()
+
+        control_pos = self.control_pos
+        num_manip   = self.stim_ids.shape[0]/control_pos
+        num_pos     = control_pos - 1
+        num_units   = self.num_units
+
+        # compute difference in selectivity values for each unit and manip
+        sel_diff = np.diff(self.selectivity, axis=1)
+
+        # combine spike rate data
+        for manip in range(1, num_manip):
+
+            # for the no light conditions
+            all_rates = np.zeros((1, num_units))
+            for pos in np.arange(0, num_pos):
+                all_rates = np.append(all_rates, self.abs_rate[pos], axis=0)
+
+            all_rates = all_rates[1:, :]
+
+            # for manipulation n conditions:
+            manip_rates = np.zeros((1, num_units))
+            for pos in np.arange(manip*control_pos, ((manip+1)*control_pos-1)):
+                manip_rates = np.append(manip_rates, self.abs_rate[pos], axis=0)
+
+            manip_rates = manip_rates[1:, :]
+
+        ##### This is the part that needs development #####
+        ##### This is the part that needs development #####
+
+        # iterate through each position for a given manipulation
+        boot_samps = np.zeros((10000,))
+        boot_samps1 = np.zeros((10000,))
+        for n in range(10000):
+            temp_tc = np.zeros((num_pos, ))
+            temp_tc1 = np.zeros((num_pos,))
+            for k in range(num_pos):
+                # grab random samples from each position (no light)
+                nsamp = neuro.num_good_trials[k]
+                meanr_temp = np.mean(np.random.choice(self.abs_rate[k][:, 2], size=nsamp, replace=True))
+                temp_tc[k] = meanr_temp
+
+                # grab random samples from each position (s1 light)
+                nsamp = neuro.num_good_trials[k+9]
+                meanr_temp = np.mean(np.random.choice(self.abs_rate[k+9][:, 2], size=nsamp, replace=True))
+                temp_tc1[k] = np.random.choice(self.abs_rate[k+9][:, 0])
+
+            # compute selectivity for fake tuning curve 1
+            sel_temp = \
+                    1 - ((np.linalg.norm(temp_tc/np.max(temp_tc))- 1)/\
+                        (np.sqrt(temp_tc.shape[0]) - 1))
+            boot_samps[n] = sel_temp
+
+            # compute selectivity for fake tuning curve 2
+            sel_temp1 = \
+                    1 - ((np.linalg.norm(temp_tc1/np.max(temp_tc1))- 1)/\
+                        (np.sqrt(temp_tc1.shape[0]) - 1))
+            boot_samps1[n] = sel_temp1
+
+
+
+
+
 
     def get_omi(self, pos=-1):
         """
