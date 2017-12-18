@@ -675,6 +675,7 @@ if __name__ == "__main__":
 
         # get control position
         control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
+        print('control position: {}'.format(control_pos))
 
         # Put data into a hdf5 file and save
         f.attrs["description"] = "This is a hdf5 file for experiment " + fid
