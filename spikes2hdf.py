@@ -24,7 +24,7 @@ def load_spike_file(path):
     trials      = np.ravel(np.asarray(spks['trials']))         # ndarray shape(n) n: num of spike times for all units
     spike_times = np.ravel(np.asarray(spks['spiketimes']))     # ndarray shape(n) n: num of spike times for all units
     waves       = np.asarray(spks['waveforms']).T     # ndarray shape(n x m x p) n: num of spike times for all units m: num of range(m)les in waveform
-    trial_times = np.ravel(np.asarray(spks['trial_times']))    # p: num of recording channels
+    trial_times = np.asarray(spks['trial_times']).T    # p: num of recording channels
     labels      = np.asarray(spks['labels']).T
     nsamp       = waves.shape[1]
     nchan       = waves.shape[2]  # get number of channels used
