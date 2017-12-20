@@ -20,11 +20,11 @@ def load_spike_file(path):
     """
     mat  = h5py.File(path)
     spks = mat['spikes']
-    assigns     = np.asarray(spks['assigns']).T        # ndarray shape(n) n: num of spike times for all units
-    trials      = np.asarray(spks['trials']).T         # ndarray shape(n) n: num of spike times for all units
-    spike_times = np.asarray(spks['spiketimes']).T     # ndarray shape(n) n: num of spike times for all units
-    waves       = np.asarray(spks['waveforms']).T      # ndarray shape(n x m x p) n: num of spike times for all units m: num of range(m)les in waveform
-    trial_times = np.asarray(spks['trial_times']).T    # p: num of recording channels
+    assigns     = np.ravel(np.asarray(spks['assigns']))        # ndarray shape(n) n: num of spike times for all units
+    trials      = np.ravel(np.asarray(spks['trials']))         # ndarray shape(n) n: num of spike times for all units
+    spike_times = np.ravel(np.asarray(spks['spiketimes']))     # ndarray shape(n) n: num of spike times for all units
+    waves       = np.asarray(spks['waveforms']).T     # ndarray shape(n x m x p) n: num of spike times for all units m: num of range(m)les in waveform
+    trial_times = np.ravel(np.asarray(spks['trial_times']))    # p: num of recording channels
     labels      = np.asarray(spks['labels']).T
     nsamp       = waves.shape[1]
     nchan       = waves.shape[2]  # get number of channels used
@@ -513,6 +513,7 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
 
                     ## GETS SPIKE TIMES FOR ONE UNIT FOR ONE TRIAL ##
                     spk_times_bool = sp.logical_and(trials == trial_ind + 1, assigns == unit) # trial_ind + 1 since trials are 1 based
+#                    spk_times_bool = sp.logical_and(trials == trial_ind + 1, assigns[0] == unit) # trial_ind + 1 since trials are 1 based
                     if unit_type[k] > 0 and unit_type[k] < 3: # get multi-unit and single-units
 
                         # look for unit in spike_measures matrix
