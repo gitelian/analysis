@@ -30,7 +30,7 @@ def load_spike_file(path):
     nchan       = waves.shape[2]  # get number of channels used
 
     uniqassigns = np.unique(assigns)  # get unique unit numbers
-    unit_type   = labels[:, 1]        # get unit type 0=noise, 1=multi-unit, 2=single-unit, 3=unsorted
+    unit_type   = labels[:, 1].astype(int)        # get unit type 0=noise, 1=multi-unit, 2=single-unit, 3=unsorted
     ids         = labels[:, 0].astype(int)
     nunit       = len(ids)
 
