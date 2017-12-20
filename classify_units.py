@@ -184,6 +184,7 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
         print('\n')
         for k, unit_id in enumerate(ids):
 
+            unit_id = int(unit_id)
             if unit_type[k] > 0 and unit_type[k] < 3: # don't include noise and unsorted clusters
 
                 # If the unit measure is not in the measure mat file OR overwrite is True
@@ -354,8 +355,8 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
     #'FID1295'
-#    update_spikes_measures_mat(fid_list=['FID1345'], data_dir_path='/media/greg/data/neuro/')
-    update_spikes_measures_mat(fid_list=[sys.argv[1]], data_dir_path='/media/greg/data/neuro/')
+    update_spikes_measures_mat(fid_list=['FID1345'], data_dir_path='/media/greg/data/neuro/')
+#    update_spikes_measures_mat(fid_list=[sys.argv[1]], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/')
 
 
