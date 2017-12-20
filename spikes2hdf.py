@@ -31,7 +31,7 @@ def load_spike_file(path):
 
     uniqassigns = np.unique(assigns)  # get unique unit numbers
     unit_type   = labels[:, 1]        # get unit type 0=noise, 1=multi-unit, 2=single-unit, 3=unsorted
-    ids         = labels[:, 0]
+    ids         = labels[:, 0].astype(int)
     nunit       = len(ids)
 
     return labels, assigns, trials, spike_times, waves, nsamp, nchan, ids, nunit, unit_type, trial_times
