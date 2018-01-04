@@ -340,9 +340,9 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
     uc_bool = np.where(spike_msr_mat[good_unit_inds, 7] == 3)[0]
 
     fig = plt.subplots()
-    plt.scatter(dur_ratio_array[rs_bool,0],dur_ratio_array[rs_bool,1],color='g',label='RS')
-    plt.scatter(dur_ratio_array[pv_bool,0],dur_ratio_array[pv_bool,1],color='r',label='PV')
-    plt.scatter(dur_ratio_array[uc_bool,0],dur_ratio_array[uc_bool,1],color='k',label='UC')
+    plt.scatter(dur_ratio_array[rs_bool,0],dur_ratio_array[rs_bool,1],color='g',label='RS', size=1)
+    plt.scatter(dur_ratio_array[pv_bool,0],dur_ratio_array[pv_bool,1],color='r',label='PV', size=1)
+    plt.scatter(dur_ratio_array[uc_bool,0],dur_ratio_array[uc_bool,1],color='k',label='UC', size=1)
     plt.xlabel('duration (ms)')
     plt.ylabel('ratio')
     plt.legend(loc='upper right')
