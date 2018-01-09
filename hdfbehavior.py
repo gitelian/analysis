@@ -306,7 +306,7 @@ class BehaviorAnalyzer(object):
                     self.trial_class['run_boolean'][count] = False
                     #self.neo_obj.segments[count].annotations['run_boolean'] = False
             elif set_all_to_true == 1:
-                self.neo_obj.segments[count].annotations['run_boolean'] = True
+                self.trial_class['run_boolean'][count] = True
 
 
     def get_num_good_trials(self, kind='run_boolean'):
