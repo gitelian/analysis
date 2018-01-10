@@ -68,6 +68,9 @@ class BehaviorAnalyzer(object):
         # create array with all the stimulus IDs
         self.__get_all_stim_ids()
 
+        # classify behavior using licks and go/no-go angle position
+        self.__classify_behavior()
+
         # trim whisker tracking data and align it to shortest trial
         self.__trim_wt()
 
@@ -168,6 +171,51 @@ class BehaviorAnalyzer(object):
             stim_ids_all.append(int(self.f[seg].attrs['trial_type']))
 
         self.stim_ids_all = stim_ids_all
+
+    def __classify_behavior(self):
+        behavior_ids = list()
+        for k, seg in enumerate(self.f):
+            trial_type = int(self.f[seg].attrs['trial_type'])
+            stim_start = self.f[seg].attrs['stim_times'][0]
+            stim_stop  = self.f[seg].attrs['stim_times'][1]
+            lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+            lick_times_relative = lick_times - stim_start
+
+            licks_after  = lick_times_relative > (stim_start + 1)
+            licks_before = lick_times_relative < (stim_stop + 1)
+
+            if len(licks_after) == 0 or len(licks_before) == 0:
+                # no licks in the response window
+                lick = False
+            elif len(np.where(np.logical_and(licks_after, licks_before) == True)[0]) > 0:
+                # licks in the response window
+                lick = True
+            else:
+                lick = False
+
+            if trial_type < 7:
+                go = True
+# this isn't used in the experiment
+#            elif trial_type == 7:
+#                go = None
+            elif trial_type > 7:
+                go = False
+
+            # label the type of behavior using logic
+            if go and lick:
+                # hit
+                behavior_ids.append(1)
+            elif go and not lick:
+                # miss
+                behavior_ids.append(3)
+            elif not go and lick:
+                # false alarm
+                behavior_ids.append(2)
+            elif not go and not lick:
+                # correct reject
+                behavior_ids.append(4)
+
+        self.behavior_ids = behavior_ids
 
     def __trim_wt(self):
         """
