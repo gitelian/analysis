@@ -115,6 +115,9 @@ class NeuroAnalyzer(object):
         # trim whisker tracking data and align it to shortest trial
         self.__trim_wt()
 
+        # trim run data and align it to shortest trial
+        self.__trim_run()
+
         # trim LFP data and align it to shortest trial
         self.__trim_lfp()
 
@@ -415,6 +418,60 @@ class NeuroAnalyzer(object):
             print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
                     '\nuse runspeed to classify trials')
             self.wt_boolean = wt_boolean
+
+    def __trim_run(self):
+        """
+        Trim LFP arrays to the length of the shortest trial.
+        Time zero of the LFP time corresponds to stimulus onset.
+        """
+        print('\n-----__trim_run-----')
+
+        run_path = '/segment-0000/analog-signals/run_speed/'
+        # get the sampling rate
+        sr = float(self.f[run_path].attrs['sampling_rate'])
+
+
+        print('trimming run data to be all the same length in time')
+        # make time vector for run data
+        num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*sr ) # total time (s) * samples/sec
+        run_indices = np.arange(num_samples) - int( self.min_tbefore_stim * sr )
+        run_t       = run_indices / sr
+
+        for i, seg in enumerate(self.f):
+            run_path = seg + '/analog-signals/run_speed/'
+
+            # find number of samples in the trial
+            num_samp = len(self.f[run_path])
+
+            # get stimulus onset
+            stim_start = self.f[seg].attrs['stim_times'][0]
+
+            # slide indices window over
+            # get the frame that corresponds to the stimulus time
+            # and add it to run_indices.
+            good_inds = run_indices + int( stim_start*sr )
+
+            if i == 0:
+                min_trial_length = len(good_inds)
+                run_data = np.zeros((min_trial_length, len(f)))
+            elif min_trial_length > len(good_inds):
+                warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
+                        LINE 356 __trim_run')
+
+            if num_samp > len(good_inds):
+                # hdf5 didn't like the good_inds slicing. so I had to use a
+                # temp numpy array that supports this simple slicing
+                data_temp = self.f[run_path][:]
+                run_data[:, i] = data_temp[good_inds]
+            else:
+                warnings.warn('\n**** length of run data is smaller than the length of the good indices ****\n'\
+                        + '**** this data must have already been trimmed ****')
+                run_data[:, i] = self.f[run_path][:]
+
+
+        self.run_t          = run_t
+        self._run_min_samp  = num_samples
+        self.run_data       = run_data
 
     def __trim_lfp(self):
         """
