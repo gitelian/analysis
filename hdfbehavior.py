@@ -74,6 +74,9 @@ class BehaviorAnalyzer(object):
         # trim whisker tracking data and align it to shortest trial
         self.__trim_wt()
 
+        # trim running data and align it to shortest trial
+        self.__trim_run()
+
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
         self.classify_whisking_trials(threshold='median')
@@ -314,6 +317,60 @@ class BehaviorAnalyzer(object):
                     '\nuse runspeed to classify trials')
             self.wt_boolean = wt_boolean
 
+    def __trim_run(self):
+        """
+        Trim LFP arrays to the length of the shortest trial.
+        Time zero of the LFP time corresponds to stimulus onset.
+        """
+        print('\n-----__trim_run-----')
+
+        run_path = '/segment-0000/analog-signals/run_speed/'
+        # get the sampling rate
+        sr = float(self.f[run_path].attrs['sampling_rate'])
+
+
+        print('trimming run data to be all the same length in time')
+        # make time vector for run data
+        num_samples = int( (self.min_tafter_stim + self.min_tbefore_stim)*sr ) # total time (s) * samples/sec
+        run_indices = np.arange(num_samples) - int( self.min_tbefore_stim * sr )
+        run_t       = run_indices / sr
+
+        for i, seg in enumerate(self.f):
+            run_path = seg + '/analog-signals/run_speed/'
+
+            # find number of samples in the trial
+            num_samp = len(self.f[run_path])
+
+            # get stimulus onset
+            stim_start = self.f[seg].attrs['stim_times'][0]
+
+            # slide indices window over
+            # get the frame that corresponds to the stimulus time
+            # and add it to run_indices.
+            good_inds = run_indices + int( stim_start*sr )
+
+            if i == 0:
+                min_trial_length = len(good_inds)
+                run_data = np.zeros((min_trial_length, len(f)))
+            elif min_trial_length > len(good_inds):
+                warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
+                        LINE 356 __trim_run')
+
+            if num_samp > len(good_inds):
+                # hdf5 didn't like the good_inds slicing. so I had to use a
+                # temp numpy array that supports this simple slicing
+                data_temp = self.f[run_path][:]
+                run_data[:, i] = data_temp[good_inds]
+            else:
+                warnings.warn('\n**** length of run data is smaller than the length of the good indices ****\n'\
+                        + '**** this data must have already been trimmed ****')
+                run_data[:, i] = self.f[run_path][:]
+
+
+        self.run_t          = run_t
+        self._run_min_samp  = num_samples
+        self.run_data       = run_data
+
     def reclassify_run_trials(self, time_before_stimulus= -1,\
             mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
         """
@@ -525,6 +582,7 @@ class BehaviorAnalyzer(object):
             num_trials = self.num_all_trials
 
         licks = list()
+        bids  = list() # behavior IDs
 
         # preallocation loop
         for k, trials_ran in enumerate(num_trials):
@@ -533,6 +591,7 @@ class BehaviorAnalyzer(object):
 
                 if self.jb_behavior:
                     licks.append([list() for x in range(trials_ran)])
+                    bids.append([list() for x in range(trials_ran)])
 
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
@@ -552,15 +611,18 @@ class BehaviorAnalyzer(object):
                                 lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
                                 licks[stim_ind][good_trial_ind] = lick_times
 
+                                bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
+
                             # k should be the segment/trial index
                             wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
                         good_trial_ind += 1
 
         if self.wt_boolean:
-            self.wt        = wt
+            self.wt = wt
 
         if self.jb_behavior:
             self.licks = licks
+            self.bids  = bids
 
 ###############################################################################
 ##### Whisker tracking functions #####
