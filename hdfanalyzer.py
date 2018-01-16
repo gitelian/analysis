@@ -733,6 +733,7 @@ class NeuroAnalyzer(object):
         evoked_counts   = list()
         binned_spikes   = list()
         psth            = list()
+        run             = list()
 
         # make whisker tracking list wt
         if self.wt_boolean:
@@ -776,6 +777,7 @@ class NeuroAnalyzer(object):
                 evoked_counts.append(np.zeros((trials_ran, self.num_units)))
                 binned_spikes.append(np.zeros((bins.shape[0]-1, trials_ran, self.num_units)))
                 psth.append(np.zeros((bins.shape[0]-1,trials_ran, self.num_units))) # samples x trials x units
+                run.append(np.zeros((self.run_t.shape[0], trials_ran)))
 
                 if self.wt_boolean:
                     wt.append(np.zeros((self.wtt.shape[0], 6, trials_ran)))
@@ -789,6 +791,9 @@ class NeuroAnalyzer(object):
                 # if running or whisking trial add data to arrays
                 if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == running or \
                         all_trials == True):
+
+                    # add run data to list
+                    run[stim_ind][:, good_trial_ind] = self.run_data[:, k]
 
                     # organize whisker tracking data by trial type
                     if self.wt_boolean:
@@ -839,6 +844,7 @@ class NeuroAnalyzer(object):
         self.evk_count     = evoked_counts
         self.binned_spikes = binned_spikes
         self.psth          = psth
+        self.run           = run
 
         if self.wt_boolean:
             self.wt        = wt
