@@ -218,7 +218,8 @@ class BehaviorAnalyzer(object):
                 # correct reject
                 behavior_ids.append(4)
 
-        self.behavior_ids = behavior_ids
+        self.behavior_ids    = behavior_ids
+        self.behavior_labels = {'hit':1, 'miss':2, 'false_alarm':3, 'correct_reject':4}
 
     def __trim_wt(self):
         """
@@ -583,15 +584,19 @@ class BehaviorAnalyzer(object):
 
         licks = list()
         bids  = list() # behavior IDs
+        run   = list()
 
         # preallocation loop
         for k, trials_ran in enumerate(num_trials):
-                if self.wt_boolean:
-                    wt.append(np.zeros((self.wtt.shape[0], 6, trials_ran)))
 
-                if self.jb_behavior:
-                    licks.append([list() for x in range(trials_ran)])
-                    bids.append([list() for x in range(trials_ran)])
+            run.append(np.zeros((self.run_t.shape[0], trials_ran)))
+
+            if self.wt_boolean:
+                wt.append(np.zeros((self.wtt.shape[0], 6, trials_ran)))
+
+            if self.jb_behavior:
+                licks.append([list() for x in range(trials_ran)])
+                bids.append([list() for x in range(trials_ran)])
 
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
@@ -603,6 +608,8 @@ class BehaviorAnalyzer(object):
                 if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == running or \
                         all_trials == True):
 
+                    # add run data to list
+                    run[stim_ind][:, good_trial_ind] = self.run_data[:, k]
                     # organize whisker tracking data by trial type
                     if self.wt_boolean:
                         for wt_ind in range(self.wt_data.shape[1]):
@@ -616,6 +623,8 @@ class BehaviorAnalyzer(object):
                             # k should be the segment/trial index
                             wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
                         good_trial_ind += 1
+
+        self.run = run
 
         if self.wt_boolean:
             self.wt = wt
