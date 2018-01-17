@@ -727,7 +727,7 @@ class BehaviorAnalyzer(object):
         axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
         #axis.set_yscale('log')
 
-    def plot_spectrogram(self, f, t, Sxx_mat_temp, axis=None, color='k', error='sem', vmin=None, vmax=None):
+    def plot_spectrogram(self, f, t, Sxx_mat_temp, axis=None, color='k', error='sem', vmin=None, vmax=None, log=False):
 
         if axis == None:
             axis = plt.gca()
@@ -736,9 +736,10 @@ class BehaviorAnalyzer(object):
 
         if vmin == None:
             axis.pcolormesh(t, f, mean_Sxx)
-        else:
-#            axis.pcolormesh(t, f, mean_Sxx, vmin=vmin, vmax=vmax)
+        elif vmin != None and log == True:
             axis.pcolormesh(t, f, mean_Sxx, norm=colors.LogNorm(vmin=vmin, vmax=vmax))
+        elif vmin!= None and log == False
+            axis.pcolormesh(t, f, mean_Sxx, vmin=vmin, vmax=vmax)
         #axis.set_yscale('log')
         axis.set_ylabel('Frequency (Hz)')
         axis.set_xlabel('Time (s)')
@@ -865,11 +866,11 @@ fig.show()
 pos = 2
 fig, ax = plt.subplots(2,1)
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0], vmin=0.1, vmax=20)
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0], vmin=0.1, vmax=20, log=True)
 ax[0].set_ylim(0, 30)
 
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[9-pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1], vmin=0.1, vmax=20)
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1], vmin=0.1, vmax=20, log=True)
 ax[1].set_ylim(0, 30)
 fig.show()
 
