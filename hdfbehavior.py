@@ -7,6 +7,7 @@ import scipy as sp
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 import matplotlib.animation as animation
 import matplotlib.cm as cm
 import matplotlib as mpl
@@ -176,6 +177,8 @@ class BehaviorAnalyzer(object):
         self.stim_ids_all = stim_ids_all
 
     def __classify_behavior(self):
+        print('\n-----classify_behavior----')
+        print('\n-----THIS WILL BE WRONG WITH OPTOGENETIC:----')
         behavior_ids = list()
         for k, seg in enumerate(self.f):
             trial_type = int(self.f[seg].attrs['trial_type'])
@@ -196,13 +199,16 @@ class BehaviorAnalyzer(object):
             else:
                 lick = False
 
-            if trial_type < 7:
+            if trial_type < 5:
                 go = True
 # this isn't used in the experiment
-#            elif trial_type == 7:
-#                go = None
-            elif trial_type > 7:
+            elif trial_type == 5:
+                go = None
+            elif trial_type > 5 and trial_type < 9:
                 go = False
+            elif trial_type == 9:
+                # control position
+                go = None
 
             # label the type of behavior using logic
             if go and lick:
@@ -219,7 +225,7 @@ class BehaviorAnalyzer(object):
                 behavior_ids.append(4)
 
         self.behavior_ids    = behavior_ids
-        self.behavior_labels = {'hit':1, 'miss':2, 'false_alarm':3, 'correct_reject':4}
+        self.behavior_labels = {'hit':1, 'miss':3, 'false_alarm':2, 'correct_reject':4}
 
     def __trim_wt(self):
         """
@@ -555,7 +561,7 @@ class BehaviorAnalyzer(object):
         Recomputes whisker tracking data and adds it to self.wt
         """
 
-        print('\n-----computing rates----')
+        print('\n-----wt_organize----')
 
         # make whisker tracking list wt
         if self.wt_boolean:
@@ -610,19 +616,22 @@ class BehaviorAnalyzer(object):
 
                     # add run data to list
                     run[stim_ind][:, good_trial_ind] = self.run_data[:, k]
+
+                    # add behavioral classification
+                    if self.jb_behavior:
+                        lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+                        licks[stim_ind][good_trial_ind] = lick_times
+
+                        bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
+
                     # organize whisker tracking data by trial type
                     if self.wt_boolean:
                         for wt_ind in range(self.wt_data.shape[1]):
 
-                            if self.jb_behavior:
-                                lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
-                                licks[stim_ind][good_trial_ind] = lick_times
-
-                                bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
-
                             # k should be the segment/trial index
                             wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
-                        good_trial_ind += 1
+
+                    good_trial_ind += 1
 
         self.run = run
 
@@ -631,7 +640,7 @@ class BehaviorAnalyzer(object):
 
         if self.jb_behavior:
             self.licks = licks
-            self.bids  = bids
+            self.bids  = [np.asarray(x) for x in bids]
 
 ###############################################################################
 ##### Whisker tracking functions #####
@@ -728,7 +737,8 @@ class BehaviorAnalyzer(object):
         if vmin == None:
             axis.pcolormesh(t, f, mean_Sxx)
         else:
-            axis.pcolormesh(t, f, mean_Sxx, vmin=vmin, vmax=vmax)
+#            axis.pcolormesh(t, f, mean_Sxx, vmin=vmin, vmax=vmax)
+            axis.pcolormesh(t, f, mean_Sxx, norm=colors.LogNorm(vmin=vmin, vmax=vmax))
         #axis.set_yscale('log')
         axis.set_ylabel('Frequency (Hz)')
         axis.set_xlabel('Time (s)')
@@ -737,6 +747,7 @@ class BehaviorAnalyzer(object):
 ########## MAIN CODE ##########
 
 if __name__ == "__main__":
+    # JB Behavior stimulus ID 9 is CATCH TRIAL
     sns.set_style("whitegrid", {'axes.grid' : False})
 
     if os.path.isdir('/media/greg/data/behavior/hdfbehavior/'):
@@ -764,7 +775,9 @@ if __name__ == "__main__":
     stim_ids = np.unique(whisk.stim_ids_all)
     if 0 in stim_ids:
         whisk.stim_ids = whisk.stim_ids[:-1]
-        whisk.wt = whisk.wt[1::]
+        whisk.wt       = whisk.wt[:-1]
+        whisk.bids     = whisk.bids[:-1]
+        whisk.run      = whisk.run[:-1]
 
 
 ##### SCRATCH SPACE #####
@@ -776,16 +789,62 @@ if __name__ == "__main__":
 ##### plot whisking variable vs time for all trials #####
 
 fig, ax = plt.subplots(2, 1)
-dtype = 2 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
-pos = 1
+dtype = 0 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
+pos = 4
+
+# GO trial
 ax[0].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, :], linewidth=0.5)
 ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, :], axis=1), 'k')
 ax[0].set_ylim(90, 160)
 
+# NOGO trial
 ax[1].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, :], linewidth=0.5)
 ax[1].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, :], axis=1), 'k')
 ax[1].set_ylim(90, 160)
 fig.show()
+
+##### plot whisking variable vs time for running and hit/miss trials #####
+##### plot whisking variable vs time for running and hit/miss trials #####
+
+dtype = 1 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
+pos = 1
+
+fig, ax = plt.subplots(4, 1, figsize=(7, 12))
+fig.subplots_adjust(hspace=0.4)
+fig.suptitle('Position {}'.format(pos))
+# GO trial
+# given an angle/position get indices for hit trials
+good_inds = np.where(whisk.bids[pos] == 1)[0]
+if len(good_inds) > 0:
+    ax[0].plot(whisk.wtt, whisk.wt[pos][:, dtype, good_inds], linewidth=0.5)
+    ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos][:, dtype, good_inds], axis=1), 'k')
+    ax[0].set_ylim(90, 160)
+ax[0].set_title('GO + "lick"')
+
+# GO + miss
+good_inds = np.where(whisk.bids[pos] == 3)[0]
+if len(good_inds) > 0:
+    ax[1].plot(whisk.wtt, whisk.wt[pos][:, dtype, good_inds], linewidth=0.5)
+    ax[1].plot(whisk.wtt, np.mean(whisk.wt[pos][:, dtype, good_inds], axis=1), 'k')
+    ax[1].set_ylim(90, 160)
+ax[1].set_title('GO + "miss"')
+
+
+# NOGO + false alarm
+good_inds = np.where(whisk.bids[9-pos] == 2)[0]
+if len(good_inds) > 0:
+    ax[2].plot(whisk.wtt, whisk.wt[9-pos][:, dtype, good_inds], linewidth=0.5)
+    ax[2].plot(whisk.wtt, np.mean(whisk.wt[9-pos][:, dtype, good_inds], axis=1), 'k')
+    ax[2].set_ylim(90, 160)
+ax[2].set_title('NOGO + "false alarm"')
+
+# NOGO + correct rejection
+good_inds = np.where(whisk.bids[9-pos] == 4)[0]
+if len(good_inds) > 0:
+    ax[3].plot(whisk.wtt, whisk.wt[9-pos][:, dtype, good_inds], linewidth=0.5)
+    ax[3].plot(whisk.wtt, np.mean(whisk.wt[9-pos][:, dtype, good_inds], axis=1), 'k')
+    ax[3].set_ylim(90, 160)
+ax[3].set_title('NOGO + "correct rejection"')
 
 ##### make power spectral density plots of whisking #####
 ##### make power spectral density plots of whisking #####
@@ -806,11 +865,11 @@ fig.show()
 pos = 2
 fig, ax = plt.subplots(2,1)
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0], vmin=0, vmax=3)
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0], vmin=0.1, vmax=20)
 ax[0].set_ylim(0, 30)
 
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[9-pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1], vmin=0, vmax=3)
+whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1], vmin=0.1, vmax=20)
 ax[1].set_ylim(0, 30)
 fig.show()
 
