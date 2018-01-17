@@ -187,8 +187,10 @@ class BehaviorAnalyzer(object):
             lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
             lick_times_relative = lick_times - stim_start
 
-            licks_after  = lick_times_relative > (stim_start + 1)
-            licks_before = lick_times_relative < (stim_stop + 1)
+#            licks_after  = lick_times_relative > (stim_start + 1)
+#            licks_before = lick_times_relative < (stim_stop + 1)
+            licks_after  = lick_times_relative > 0
+            licks_before = lick_times_relative < 1
 
             if len(licks_after) == 0 or len(licks_before) == 0:
                 # no licks in the response window
@@ -201,17 +203,19 @@ class BehaviorAnalyzer(object):
 
             if trial_type < 5:
                 go = True
-# this isn't used in the experiment
-            elif trial_type == 5:
-                go = None
-            elif trial_type > 5 and trial_type < 9:
+#            # this isn't used in the experiment
+#            elif trial_type == 5:
+#                go = None
+            elif trial_type >= 5 and trial_type < 9:
                 go = False
             elif trial_type == 9:
                 # control position
                 go = None
 
             # label the type of behavior using logic
-            if go and lick:
+            if go == None:
+                behavior_ids.append(5)
+            elif go and lick:
                 # hit
                 behavior_ids.append(1)
             elif go and not lick:
@@ -620,7 +624,8 @@ class BehaviorAnalyzer(object):
                     # add behavioral classification
                     if self.jb_behavior:
                         lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
-                        licks[stim_ind][good_trial_ind] = lick_times
+                        stim_start = self.f[seg].attrs['stim_times'][0]
+                        licks[stim_ind][good_trial_ind] = lick_times - stim_start
 
                         bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
 
@@ -786,6 +791,7 @@ if __name__ == "__main__":
         whisk.wt       = whisk.wt[1:]
         whisk.bids     = whisk.bids[1:]
         whisk.run      = whisk.run[1:]
+        whisk.licks    = whisk.licks[1:]
 
 
 ##### SCRATCH SPACE #####
@@ -1113,6 +1119,104 @@ ax[2][2].set_ylim(0, 30)
 fig.colorbar(im, ax=ax[2][2])
 ax[2][2].set_title('position 3 vs 4')
 ax[2][2].set_ylabel('frequency (Hz)')
+
+
+##### make difference mean spectrogram plots of whisking for NOGO positions #####
+##### make difference mean spectrogram plots of whisking for NOGO positions #####
+
+vmin, vmax = -2.5, 2.5
+fig, ax = plt.subplots(3,3)
+
+# position 1 vs 2
+good_nogo01_inds = np.where(whisk.bids[9-1-1] == 4)[0]
+good_nogo04_inds = np.where(whisk.bids[9-2-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[9-1-1][:, 0, good_nogo01_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-2-1][:, 0, good_nogo04_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[0][0].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[0][0].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[0][0])
+ax[0][0].set_title('position 1 vs 2')
+ax[0][0].set_ylabel('frequency (Hz)')
+
+# position 1 vs 3
+good_nogo01_inds = np.where(whisk.bids[9-1-1] == 4)[0]
+good_nogo04_inds = np.where(whisk.bids[9-3-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[9-1-1][:, 0, good_nogo01_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-3-1][:, 0, good_nogo04_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_nogo_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[0][1].pcolormesh(t-1, f, diff_nogo_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[0][1].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[0][1])
+ax[0][1].set_title('position 1 vs 3')
+ax[0][1].set_ylabel('frequency (Hz)')
+
+# position 1 vs 4
+good_nogo01_inds = np.where(whisk.bids[9-1-1] == 4)[0]
+good_nogo04_inds = np.where(whisk.bids[9-4-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[9-1-1][:, 0, good_nogo01_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-4-1][:, 0, good_nogo04_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_nogo_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[0][2].pcolormesh(t-1, f, diff_nogo_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[0][2].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[0][2])
+ax[0][2].set_title('position 1 vs 4')
+ax[0][2].set_ylabel('frequency (Hz)')
+
+# position 2 vs 3
+good_nogo01_inds = np.where(whisk.bids[9-2-1] == 4)[0]
+good_nogo04_inds = np.where(whisk.bids[9-3-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[9-2-1][:, 0, good_nogo01_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-3-1][:, 0, good_nogo04_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_nogo_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[1][1].pcolormesh(t-1, f, diff_nogo_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[1][1].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[1][1])
+ax[1][1].set_title('position 2 vs 3')
+ax[1][1].set_ylabel('frequency (Hz)')
+
+# position 2 vs 4
+good_nogo01_inds = np.where(whisk.bids[9-2-1] == 4)[0]
+good_nogo04_inds = np.where(whisk.bids[9-4-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[9-2-1][:, 0, good_nogo01_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-4-1][:, 0, good_nogo04_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_nogo_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[1][2].pcolormesh(t-1, f, diff_nogo_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[1][2].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[1][2])
+ax[1][2].set_title('position 2 vs 4')
+ax[1][2].set_ylabel('frequency (Hz)')
+
+# position 3 vs 4
+good_nogo01_inds = np.where(whisk.bids[9-3-1] == 4)[0]
+good_nogo04_inds = np.where(whisk.bids[9-4-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[9-3-1][:, 0, good_nogo01_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-4-1][:, 0, good_nogo04_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_nogo_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[2][2].pcolormesh(t-1, f, diff_nogo_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[2][2].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[2][2])
+ax[2][2].set_title('position 3 vs 4')
+ax[2][2].set_ylabel('frequency (Hz)')
+
 
 
 
