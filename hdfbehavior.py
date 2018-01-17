@@ -735,20 +735,27 @@ class BehaviorAnalyzer(object):
         mean_Sxx = np.mean(Sxx_mat_temp, axis=2)
 
         if vmin == None:
-            axis.pcolormesh(t, f, mean_Sxx)
+            im = axis.pcolormesh(t, f, mean_Sxx)
         elif vmin != None and log == True:
-            axis.pcolormesh(t, f, mean_Sxx, norm=colors.LogNorm(vmin=vmin, vmax=vmax))
-        elif vmin!= None and log == False
-            axis.pcolormesh(t, f, mean_Sxx, vmin=vmin, vmax=vmax)
+            im = axis.pcolormesh(t, f, mean_Sxx, norm=colors.LogNorm(vmin=vmin, vmax=vmax))
+        elif vmin!= None and log == False:
+            im = axis.pcolormesh(t, f, mean_Sxx, vmin=vmin, vmax=vmax)
         #axis.set_yscale('log')
         axis.set_ylabel('Frequency (Hz)')
         axis.set_xlabel('Time (s)')
+
+        return im
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 
 if __name__ == "__main__":
     # JB Behavior stimulus ID 9 is CATCH TRIAL
+    #
+    # when defining a position (usually variable 'pos') use the experiment ID
+    # for example position 1 is the first "GO" position, the code will subtract
+    # one to deal with zero based indexing
+
     sns.set_style("whitegrid", {'axes.grid' : False})
 
     if os.path.isdir('/media/greg/data/behavior/hdfbehavior/'):
@@ -775,10 +782,10 @@ if __name__ == "__main__":
     # remove entries for trial type "0"
     stim_ids = np.unique(whisk.stim_ids_all)
     if 0 in stim_ids:
-        whisk.stim_ids = whisk.stim_ids[:-1]
-        whisk.wt       = whisk.wt[:-1]
-        whisk.bids     = whisk.bids[:-1]
-        whisk.run      = whisk.run[:-1]
+        whisk.stim_ids = whisk.stim_ids[1:]
+        whisk.wt       = whisk.wt[1:]
+        whisk.bids     = whisk.bids[1:]
+        whisk.run      = whisk.run[1:]
 
 
 ##### SCRATCH SPACE #####
@@ -804,6 +811,7 @@ ax[1].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, :], axis=1), 'k')
 ax[1].set_ylim(90, 160)
 fig.show()
 
+
 ##### plot whisking variable vs time for running and hit/miss trials #####
 ##### plot whisking variable vs time for running and hit/miss trials #####
 
@@ -815,64 +823,236 @@ fig.subplots_adjust(hspace=0.4)
 fig.suptitle('Position {}'.format(pos))
 # GO trial
 # given an angle/position get indices for hit trials
-good_inds = np.where(whisk.bids[pos] == 1)[0]
+good_inds = np.where(whisk.bids[pos-1] == 1)[0]
 if len(good_inds) > 0:
-    ax[0].plot(whisk.wtt, whisk.wt[pos][:, dtype, good_inds], linewidth=0.5)
-    ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos][:, dtype, good_inds], axis=1), 'k')
+    ax[0].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, good_inds], linewidth=0.5)
+    ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, good_inds], axis=1), 'k')
     ax[0].set_ylim(90, 160)
 ax[0].set_title('GO + "lick"')
 
 # GO + miss
-good_inds = np.where(whisk.bids[pos] == 3)[0]
+good_inds = np.where(whisk.bids[pos-1] == 3)[0]
 if len(good_inds) > 0:
-    ax[1].plot(whisk.wtt, whisk.wt[pos][:, dtype, good_inds], linewidth=0.5)
-    ax[1].plot(whisk.wtt, np.mean(whisk.wt[pos][:, dtype, good_inds], axis=1), 'k')
+    ax[1].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, good_inds], linewidth=0.5)
+    ax[1].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, good_inds], axis=1), 'k')
     ax[1].set_ylim(90, 160)
 ax[1].set_title('GO + "miss"')
 
-
 # NOGO + false alarm
-good_inds = np.where(whisk.bids[9-pos] == 2)[0]
+good_inds = np.where(whisk.bids[9-pos-1] == 2)[0]
 if len(good_inds) > 0:
-    ax[2].plot(whisk.wtt, whisk.wt[9-pos][:, dtype, good_inds], linewidth=0.5)
-    ax[2].plot(whisk.wtt, np.mean(whisk.wt[9-pos][:, dtype, good_inds], axis=1), 'k')
+    ax[2].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, good_inds], linewidth=0.5)
+    ax[2].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, good_inds], axis=1), 'k')
     ax[2].set_ylim(90, 160)
 ax[2].set_title('NOGO + "false alarm"')
 
 # NOGO + correct rejection
-good_inds = np.where(whisk.bids[9-pos] == 4)[0]
+good_inds = np.where(whisk.bids[9-pos-1] == 4)[0]
 if len(good_inds) > 0:
-    ax[3].plot(whisk.wtt, whisk.wt[9-pos][:, dtype, good_inds], linewidth=0.5)
-    ax[3].plot(whisk.wtt, np.mean(whisk.wt[9-pos][:, dtype, good_inds], axis=1), 'k')
+    ax[3].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, good_inds], linewidth=0.5)
+    ax[3].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, good_inds], axis=1), 'k')
     ax[3].set_ylim(90, 160)
 ax[3].set_title('NOGO + "correct rejection"')
 
-##### make power spectral density plots of whisking #####
-##### make power spectral density plots of whisking #####
-pos=4
-fig, ax = plt.subplots(1,1)
-f, frq_mat_temp = whisk.get_psd(whisk.wt[pos-1][:, 0, :], 500)
-whisk.plot_freq(f, frq_mat_temp, axis=ax, color='black')
 
-f, frq_mat_temp = whisk.get_psd(whisk.wt[9-pos-1][:, 0, :], 500)
-whisk.plot_freq(f, frq_mat_temp, axis=ax, color='red')
-ax.set_xlim(0,30)
-ax.set_ylim(1e-1, 1e3)
-ax.set_yscale('log')
+##### make power spectral density plots of whisking #####
+##### make power spectral density plots of whisking #####
+pos=1
+fig, ax = plt.subplots(4,1)
+
+for pos in range(1,5):
+    t_inds = np.logical_and(whisk.wtt > -0.5, whisk.wtt < 0.5)
+    f, frq_mat_temp = whisk.get_psd(whisk.wt[pos-1][t_inds, 0, :], 500)
+    whisk.plot_freq(f, frq_mat_temp, axis=ax[pos-1], color='black')
+
+    f, frq_mat_temp = whisk.get_psd(whisk.wt[9-pos-1][t_inds, 0, :], 500)
+    whisk.plot_freq(f, frq_mat_temp, axis=ax[pos-1], color='red')
+    ax[pos-1].set_xlim(0,30)
+    ax[pos-1].set_ylim(1e-1, 1e3)
+    ax[pos-1].set_yscale('log')
+    ax[pos-1].set_title('position {}'.format(pos))
 fig.show()
 
+
 ##### make spectrogram plots of whisking #####
 ##### make spectrogram plots of whisking #####
-pos = 2
+pos = 4
 fig, ax = plt.subplots(2,1)
+fig.suptitle('position {}'.format(pos))
+
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0], vmin=0.1, vmax=20, log=True)
+im = whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[0], vmin=0.1, vmax=100, log=True)
+fig.colorbar(im, ax=ax[0])
 ax[0].set_ylim(0, 30)
 
 f, t, Sxx_mat_temp = whisk.get_spectrogram(whisk.wt[9-pos-1][:, 0, :], 500)
-whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1], vmin=0.1, vmax=20, log=True)
+im = whisk.plot_spectrogram(f, t, Sxx_mat_temp, axis=ax[1], vmin=0.1, vmax=100, log=True)
+fig.colorbar(im, ax=ax[1])
 ax[1].set_ylim(0, 30)
 fig.show()
+
+
+##### make difference mean spectrogram plots of whisking #####
+##### make difference mean spectrogram plots of whisking #####
+
+vmin, vmax = -2.5, 2.5
+fig, ax = plt.subplots(4,1)
+
+# position 1
+# get indices for samples between -0.5s and 0.5s
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[1-1][:, 0, :], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-1-1][:, 0, :], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[0].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[0].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[0])
+ax[0].set_title('position 1')
+ax[0].set_ylabel('frequency (Hz)')
+
+# position 2
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[2-1][:, 0, :], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-2-1][:, 0, :], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[1].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[1].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[1])
+ax[1].set_title('position 2')
+
+# position 3
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[3-1][:, 0, :], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-3-1][:, 0, :], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[2].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[2].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[2])
+ax[2].set_title('position 3')
+
+# position 4
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[4-1][:, 0, :], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-4-1][:, 0, :], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[3].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[3].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[3])
+ax[3].set_title('position 4')
+ax[3].set_xlabel('time (s)')
+
+
+##### make difference mean spectrogram plots of whisking #####
+##### make difference mean spectrogram plots of whisking #####
+
+vmin, vmax = -2.5, 2.5
+fig, ax = plt.subplots(4,1)
+
+# position 1
+good_go_inds = np.where(whisk.bids[1-1] == 1)[0]
+good_nogo_inds = np.where(whisk.bids[9-1-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[1-1][:, 0, good_go_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-1-1][:, 0, good_nogo_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[0].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[0].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[0])
+ax[0].set_title('position 1')
+ax[0].set_ylabel('frequency (Hz)')
+
+# position 2
+good_go_inds = np.where(whisk.bids[2-1] == 1)[0]
+good_nogo_inds = np.where(whisk.bids[9-2-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[2-1][:, 0, good_go_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-2-1][:, 0, good_nogo_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[1].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[1].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[1])
+ax[1].set_title('position 2')
+ax[1].set_ylabel('frequency (Hz)')
+
+# position 3
+good_go_inds = np.where(whisk.bids[3-1] == 1)[0]
+good_nogo_inds = np.where(whisk.bids[9-3-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[3-1][:, 0, good_go_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-3-1][:, 0, good_nogo_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[2].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[2].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[2])
+ax[2].set_title('position 3')
+ax[2].set_ylabel('frequency (Hz)')
+
+# position 4
+good_go_inds = np.where(whisk.bids[4-1] == 1)[0]
+good_nogo_inds = np.where(whisk.bids[9-4-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[4-1][:, 0, good_go_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-4-1][:, 0, good_nogo_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[3].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[3].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[3])
+ax[3].set_title('position 4')
+ax[3].set_ylabel('frequency (Hz)')
+
+
+
+##### make difference mean spectrogram plots of whisking for GO positions #####
+##### make difference mean spectrogram plots of whisking for GO positions #####
+
+vmin, vmax = -2.5, 2.5
+fig, ax = plt.subplots(4,1)
+
+# position 1
+good_go_inds = np.where(whisk.bids[1-1] == 1)[0]
+good_nogo_inds = np.where(whisk.bids[9-1-1] == 4)[0]
+f, t, Sxx_mat_go   = whisk.get_spectrogram(whisk.wt[1-1][:, 0, good_go_inds], 500)
+f, t, Sxx_mat_nogo = whisk.get_spectrogram(whisk.wt[9-1-1][:, 0, good_nogo_inds], 500)
+mean_Sxx_go = np.mean(Sxx_mat_go, axis=2)
+mean_Sxx_nogo = np.mean(Sxx_mat_nogo, axis=2)
+diff_go_nogo = mean_Sxx_go - mean_Sxx_nogo
+
+im = ax[0].pcolormesh(t-1, f, diff_go_nogo, cmap='coolwarm', vmin=-2.5, vmax=2.5)#, norm=colors.LogNorm(vmin=0.1, vmax=vmax))
+ax[0].set_ylim(0, 30)
+fig.colorbar(im, ax=ax[0])
+ax[0].set_title('position 1')
+ax[0].set_ylabel('frequency (Hz)')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
