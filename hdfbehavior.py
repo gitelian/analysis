@@ -380,7 +380,7 @@ class BehaviorAnalyzer(object):
 
         self.run_t          = run_t
         self._run_min_samp  = num_samples
-        self.run_data       = run_data
+        self.run_data       = run_data / (2*np.pi*6)
 
     def reclassify_run_trials(self, time_before_stimulus= -1,\
             mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
@@ -687,6 +687,41 @@ class BehaviorAnalyzer(object):
 
         return timestamps
 
+    def eta_wt(self, event_times, cond=0, kind='angle', window=[-0.050, 0.050]):
+#            cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
+        """
+        Create an event triggered trace of a specified whisking parameter
+        Input: event times as a vector
+        TODO: event times as a matrix (i.e. a vector per specific trial)
+        Returns: mean trace, sem of traces, and the trace matrix (trials x window length)
+        """
+        self.wt_type_dict = {'angle':0, 'set-point':1, 'amplitude':2, 'phase':3, 'velocity':4, 'whisking':5}
+
+        num_inds_pre  = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[0])))[0])
+        num_inds_post = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[1])))[0])
+        dt = self.wtt[1] - self.wtt[0]
+        trace_time = np.arange(-num_inds_pre, num_inds_post+1)*dt
+
+        # matrix size: trials x number of indices taken from interested trace
+        trace_mat = np.zeros((1, num_inds_pre + num_inds_post + 1))
+        kind_ind = self.wt_type_dict[kind]
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(self.num_good_trials[cond]):
+            for e_time in event_times:
+                trace_ind  = np.argmin(np.abs(self.wtt - e_time)) # find wt index closest to event time
+                trace_inds = np.arange(trace_ind - num_inds_pre, trace_ind + num_inds_post + 1)
+                trace_temp = self.wt[cond][trace_inds, kind_ind, trial_ind].reshape(1, trace_mat.shape[1])
+                trace_mat = np.concatenate((trace_mat, trace_temp))
+
+        trace_mat = trace_mat[1::, :]
+        out1 = np.mean(trace_mat, axis=0)
+        out2 = sp.stats.sem(trace_mat, axis=0)
+        out3 = trace_mat
+        out4 = trace_time
+
+        return out1, out2, out3, out4
+
     def get_psd(self, input_array, sr):
         """
         compute PSD of input array sampled at sampling rate sr
@@ -858,6 +893,131 @@ if len(good_inds) > 0:
     ax[3].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, good_inds], linewidth=0.5)
     ax[3].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, good_inds], axis=1), 'k')
     ax[3].set_ylim(90, 160)
+ax[3].set_title('NOGO + "correct rejection"')
+
+
+##### plot whisking variable vs time for running and hit/miss trials aligned to first lick #####
+##### plot whisking variable vs time for running and hit/miss trials aligned to first lick #####
+
+dtype = 1 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
+pos = 1
+
+fig, ax = plt.subplots(4, 1, figsize=(7, 12))
+fig.subplots_adjust(hspace=0.4)
+fig.suptitle('Position {}'.format(pos))
+# GO trial
+# given an angle/position get indices for hit trials
+good_inds = np.where(whisk.bids[pos-1] == 1)[0]
+if len(good_inds) > 0:
+    ax[0].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, good_inds], linewidth=0.5)
+    ax[0].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, good_inds], axis=1), 'k')
+    ax[0].set_ylim(90, 160)
+ax[0].set_title('GO + "lick"')
+
+# GO + miss
+good_inds = np.where(whisk.bids[pos-1] == 3)[0]
+if len(good_inds) > 0:
+    ax[1].plot(whisk.wtt, whisk.wt[pos-1][:, dtype, good_inds], linewidth=0.5)
+    ax[1].plot(whisk.wtt, np.mean(whisk.wt[pos-1][:, dtype, good_inds], axis=1), 'k')
+    ax[1].set_ylim(90, 160)
+ax[1].set_title('GO + "miss"')
+
+# NOGO + false alarm
+good_inds = np.where(whisk.bids[9-pos-1] == 2)[0]
+if len(good_inds) > 0:
+    ax[2].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, good_inds], linewidth=0.5)
+    ax[2].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, good_inds], axis=1), 'k')
+    ax[2].set_ylim(90, 160)
+ax[2].set_title('NOGO + "false alarm"')
+
+# NOGO + correct rejection
+good_inds = np.where(whisk.bids[9-pos-1] == 4)[0]
+if len(good_inds) > 0:
+    ax[3].plot(whisk.wtt, whisk.wt[9-pos-1][:, dtype, good_inds], linewidth=0.5)
+    ax[3].plot(whisk.wtt, np.mean(whisk.wt[9-pos-1][:, dtype, good_inds], axis=1), 'k')
+    ax[3].set_ylim(90, 160)
+ax[3].set_title('NOGO + "correct rejection"')
+
+
+##### plot whisking variable + running (mean +/- sem ) vs time for running and hit/miss trials #####
+##### plot whisking variable + running (mean +/- sem ) vs time for running and hit/miss trials #####
+
+dtype = 1 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
+pos = 1
+
+fig, ax = plt.subplots(4, 1, figsize=(7, 12))
+fig.subplots_adjust(hspace=0.4)
+fig.suptitle('Position {}'.format(pos))
+# GO trial
+# given an angle/position get indices for hit trials
+good_inds = np.where(whisk.bids[pos-1] == 1)[0]
+if len(good_inds) > 0:
+    mean_wt = np.mean(whisk.wt[pos-1][:, dtype, good_inds], axis=1)
+    sem_wt  = sp.stats.sem(whisk.wt[pos-1][:, dtype, good_inds], axis=1)
+    ax[0].plot(whisk.wtt, mean_wt, color='k')
+    ax[0].fill_between(whisk.wtt, mean_wt - sem_wt, mean_wt + sem_wt, facecolor='k', alpha=0.3)
+
+    ax2 = ax[0].twinx()
+    mean_run = np.mean(whisk.run[pos-1][:, good_inds], axis=1)
+    sem_run  = sp.stats.sem(whisk.run[pos-1][:, good_inds], axis=1)
+    ax2.plot(whisk.run_t, mean_run, color='r')
+    ax2.fill_between(whisk.run_t, mean_run - sem_run, mean_run + sem_run, facecolor='r', alpha=0.3)
+
+    ax[0].set_ylim(90, 160)
+ax[0].set_title('GO + "lick"')
+
+# GO + miss
+good_inds = np.where(whisk.bids[pos-1] == 3)[0]
+if len(good_inds) > 0:
+    mean_wt = np.mean(whisk.wt[pos-1][:, dtype, good_inds], axis=1)
+    sem_wt  = sp.stats.sem(whisk.wt[pos-1][:, dtype, good_inds], axis=1)
+    ax[1].plot(whisk.wtt, mean_wt, color='k')
+    ax[1].fill_between(whisk.wtt, mean_wt - sem_wt, mean_wt + sem_wt, facecolor='k', alpha=0.3)
+
+    ax2 = ax[1].twinx()
+    mean_run = np.mean(whisk.run[pos-1][:, good_inds], axis=1)
+    sem_run  = sp.stats.sem(whisk.run[pos-1][:, good_inds], axis=1)
+    ax2.plot(whisk.run_t, mean_run, color='r')
+    ax2.fill_between(whisk.run_t, mean_run - sem_run, mean_run + sem_run, facecolor='r', alpha=0.3)
+
+    ax[1].set_ylim(90, 160)
+
+ax[1].set_title('GO + "miss"')
+
+# NOGO + false alarm
+good_inds = np.where(whisk.bids[9-pos-1] == 2)[0]
+if len(good_inds) > 0:
+    mean_wt = np.mean(whisk.wt[9-pos-1][:, dtype, good_inds], axis=1)
+    sem_wt  = sp.stats.sem(whisk.wt[9-pos-1][:, dtype, good_inds], axis=1)
+    ax[2].plot(whisk.wtt, mean_wt, color='k')
+    ax[2].fill_between(whisk.wtt, mean_wt - sem_wt, mean_wt + sem_wt, facecolor='k', alpha=0.3)
+
+    ax2 = ax[2].twinx()
+    mean_run = np.mean(whisk.run[9-pos-1][:, good_inds], axis=1)
+    sem_run  = sp.stats.sem(whisk.run[9-pos-1][:, good_inds], axis=1)
+    ax2.plot(whisk.run_t, mean_run, color='r')
+    ax2.fill_between(whisk.run_t, mean_run - sem_run, mean_run + sem_run, facecolor='r', alpha=0.3)
+
+    ax[2].set_ylim(90, 160)
+
+ax[2].set_title('NOGO + "false alarm"')
+
+# NOGO + correct rejection
+good_inds = np.where(whisk.bids[9-pos-1] == 4)[0]
+if len(good_inds) > 0:
+    mean_wt = np.mean(whisk.wt[9-pos-1][:, dtype, good_inds], axis=1)
+    sem_wt  = sp.stats.sem(whisk.wt[9-pos-1][:, dtype, good_inds], axis=1)
+    ax[3].plot(whisk.wtt, mean_wt, color='k')
+    ax[3].fill_between(whisk.wtt, mean_wt - sem_wt, mean_wt + sem_wt, facecolor='k', alpha=0.3)
+
+    ax2 = ax[3].twinx()
+    mean_run = np.mean(whisk.run[9-pos-1][:, good_inds], axis=1)
+    sem_run  = sp.stats.sem(whisk.run[9-pos-1][:, good_inds], axis=1)
+    ax2.plot(whisk.run_t, mean_run, color='r')
+    ax2.fill_between(whisk.run_t, mean_run - sem_run, mean_run + sem_run, facecolor='r', alpha=0.3)
+
+    ax[3].set_ylim(90, 160)
+
 ax[3].set_title('NOGO + "correct rejection"')
 
 
