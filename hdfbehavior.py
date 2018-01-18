@@ -687,17 +687,19 @@ class BehaviorAnalyzer(object):
 
         return timestamps
 
-    def eta_wt(self, event_times, cond=0, kind='angle', window=[-0.050, 0.050]):
+    def eta_wt(self, event_times, wt, cond=0, kind='angle', window=[-0.050, 0.050], etimes_per_trial=True):
 #            cond=0, unit_ind=0, window=[-0.050, 0.050], dt=0.001, analysis_window=[0.5, 1.5]):
         """
         Create an event triggered trace of a specified whisking parameter
         Input: event times as a vector
         TODO: event times as a matrix (i.e. a vector per specific trial)
         Returns: mean trace, sem of traces, and the trace matrix (trials x window length)
+        etimes_per_trial: if each entry corresponds to a trial rather than looking
+        up all the times in the vector for each trial
         """
         self.wt_type_dict = {'angle':0, 'set-point':1, 'amplitude':2, 'phase':3, 'velocity':4, 'whisking':5}
 
-        num_inds_pre  = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[0])))[0])
+        num_inds_pre  = len(np.where(np.logical_and(self.wtt >= window[0], self.wtt < 0))[0])
         num_inds_post = len(np.where(np.logical_and(self.wtt >= 0, self.wtt < np.abs(window[1])))[0])
         dt = self.wtt[1] - self.wtt[0]
         trace_time = np.arange(-num_inds_pre, num_inds_post+1)*dt
@@ -707,12 +709,21 @@ class BehaviorAnalyzer(object):
         kind_ind = self.wt_type_dict[kind]
 
         # iterate through all trials and count spikes
-        for trial_ind in range(self.num_good_trials[cond]):
-            for e_time in event_times:
-                trace_ind  = np.argmin(np.abs(self.wtt - e_time)) # find wt index closest to event time
-                trace_inds = np.arange(trace_ind - num_inds_pre, trace_ind + num_inds_post + 1)
-                trace_temp = self.wt[cond][trace_inds, kind_ind, trial_ind].reshape(1, trace_mat.shape[1])
-                trace_mat = np.concatenate((trace_mat, trace_temp))
+        for trial_ind in range(wt.shape[1]):
+            if etimes_per_trial == False:
+                for e_time in event_times:
+                    if np.isnan(e_time) == False:
+                        trace_ind  = np.argmin(np.abs(self.wtt - e_time)) # find wt index closest to event time
+                        trace_inds = np.arange(trace_ind - num_inds_pre, trace_ind + num_inds_post + 1)
+                        trace_temp = wt[trace_inds, trial_ind].reshape(1, trace_mat.shape[1])
+                        trace_mat = np.concatenate((trace_mat, trace_temp))
+            elif etimes_per_trial == True:
+                e_time = event_times[trial_ind]
+                if np.isnan(e_time) ==  False:
+                    trace_ind  = np.argmin(np.abs(self.wtt - e_time)) # find wt index closest to event time
+                    trace_inds = np.arange(trace_ind - num_inds_pre, trace_ind + num_inds_post + 1)
+                    trace_temp = wt[trace_inds, trial_ind].reshape(1, trace_mat.shape[1])
+                    trace_mat = np.concatenate((trace_mat, trace_temp))
 
         trace_mat = trace_mat[1::, :]
         out1 = np.mean(trace_mat, axis=0)
@@ -899,8 +910,31 @@ ax[3].set_title('NOGO + "correct rejection"')
 ##### plot whisking variable vs time for running and hit/miss trials aligned to first lick #####
 ##### plot whisking variable vs time for running and hit/miss trials aligned to first lick #####
 
-dtype = 1 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
-pos = 1
+dtype = 0 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
+pos = 4
+
+#### scratch ####
+def get_first_lick_times(self, pos=pos, window=[0, 1]):
+    first_licks = list()
+    lick_lists = self.licks[pos]
+    for licks in lick_lists:
+        lick_inds = np.logical_and(licks >= window[0], licks <= window[1])
+
+        if sum(lick_inds) > 0:
+            first_licks.append(licks[lick_inds][0])
+        else:
+            first_licks.append(np.nan)
+
+    return np.asarray(first_licks)
+
+event_times = get_first_lick_times(whisk,pos=pos, window=[0, 1])
+good_inds = np.where(whisk.bids[pos-1] == 1)[0]
+event_times = event_times[good_inds]
+mean_trace, sem_trace, mat_trace, t_trace = whisk.eta_wt(event_times, whisk.wt[pos-1][:, dtype, good_inds], cond=pos, kind='set-point', window=[-2, 1], etimes_per_trial=True)
+plt.plot(t_trace, mean_trace)#, color='k')
+plt.fill_between(t_trace, mean_trace - sem_trace, mean_trace + sem_trace, alpha=0.3)#, facecolor='k', alpha=0.3)
+#### scratch ####
+
 
 fig, ax = plt.subplots(4, 1, figsize=(7, 12))
 fig.subplots_adjust(hspace=0.4)
