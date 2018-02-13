@@ -1591,7 +1591,24 @@ ax.hist(vec_dist, bins=np.arange(0, 1, dt), normed=True, cumulative=True, histty
 
 
 
+# example whisker traces
 
+trial=7
+fig, ax = plt.subplots(2, 1)
+ax[0].plot(neuro.wtt, neuro.wt[8][:, 0, trial], 'k')
+ax[0].plot(neuro.wtt, neuro.wt[8+9][:, 0, trial], 'r')
+ax[0].plot(neuro.wtt, neuro.wt[8+9+9][:, 0, trial], 'b')
+ax[0].set_xlim(0, 1.5)
+ax[0].set_ylabel('angle (deg)')
+ax[0].set_title('angle')
+
+ax[1].plot(neuro.wtt, neuro.wt[8][:, 1, trial], 'k')
+ax[1].plot(neuro.wtt, neuro.wt[8+9][:, 1, trial], 'r')
+ax[1].plot(neuro.wtt, neuro.wt[8+9+9][:, 1, trial], 'b')
+ax[1].set_xlim(0, 1.5)
+ax[1].set_ylabel('angle (deg)')
+ax[1].set_xlabel('time (s)')
+ax[1].set_title('set-point')
 
 
 
