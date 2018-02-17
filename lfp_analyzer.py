@@ -112,12 +112,12 @@ neuro.get_lfps()
 lfps = neuro.lfps
 shank = 0
 contact = 24
-pos = 1
+pos = 5
 stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
 
 # get data
 lfp_nolight = lfps[shank][pos][stim_inds,     contact, :]
-lfp_s1light = lfps[shank][8][stim_inds,   contact, :]
+lfp_s1light = lfps[shank][pos+9][stim_inds,   contact, :]
 lfp_m1light = lfps[shank][pos+9+9][stim_inds, contact, :]
 
 # format data to MATLAB friendly form
@@ -164,12 +164,12 @@ fids = ['1336', '1338', '1339', '1340', '1343', '1345']
 
 neuro.get_lfps()
 lfps = neuro.lfps
-shank = 0
-contact = 24
-pos = 1
 stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
 
+all_S_nolight = np.zeros((32, 8))
+all_S_s1light = np.zeros((32, 8))
 power_diff = np.zeros((32, 8))
+
 
 for contact_i in range(32): # for linear probe
 #for shank_i in range(16): # for poly2 probe
@@ -177,8 +177,8 @@ for contact_i in range(32): # for linear probe
     for pos_k in range(8):
 
         # get data
-        lfp_nolight = lfps[shank][pos][stim_inds,     contact, :]
-        lfp_s1light = lfps[shank][pos+9][stim_inds,   contact, :]
+        lfp_nolight = lfps[shank][pos_k][stim_inds,     contact_i, :]
+        lfp_s1light = lfps[shank][pos_k+9][stim_inds,   contact_i, :]
 
         # format data to MATLAB friendly form
         lfp_nolight = matlab.double(lfp_nolight.tolist())
@@ -206,6 +206,32 @@ for contact_i in range(32): # for linear probe
 
         # save values in power_diff array
         power_diff[contact_i, pos_k] = diff_temp
+        all_S_nolight[contact_i, pos_k] = S_nolight[f_ind]
+        all_S_s1light[contact_i, pos_k] = S_s1light[f_ind]
+
+# plot power_diff array as a heat map
+min_temp = np.min(power_diff)
+max_temp = np.max(power_diff)
+max_val_diff  = np.max(np.abs(np.asarray([min_temp, max_temp])))
+
+num_chan = neuro.chan_per_shank[shank]
+edist = 25.0 # microns
+chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
+
+fig, ax = plt.subplots(1, 3)
+ax[0].imshow(all_S_nolight, vmin=0, interpolation='none',\
+        origin='lower', aspect='auto',\
+        extent=(0, 8, chan_depth[-1], chan_depth[0]))
+ax[0].colorbar()
+ax[1].imshow(all_S_s1light, vmin=0, interpolation='none',\
+        origin='lower', aspect='auto',\
+        extent=(0, 8, chan_depth[-1], chan_depth[0]))
+ax[1].colorbar()
+ax[2].imshow(power_diff, vmin=-max_val_diff, vmax=max_val_diff, interpolation='none',\
+        origin='lower', cmap='coolwarm',  aspect='auto',\
+        extent=(0, 8, chan_depth[-1], chan_depth[0]))
+ax[2].colorbar()
+plt.show()
 
 
 ##### compute coherence between S1 and M1 using SCIPY #####
