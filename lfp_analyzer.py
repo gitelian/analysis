@@ -112,12 +112,12 @@ neuro.get_lfps()
 lfps = neuro.lfps
 shank = 0
 contact = 24
-pos = 6 # 2-5
+pos = 1
 stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
 
 # get data
 lfp_nolight = lfps[shank][pos][stim_inds,     contact, :]
-lfp_s1light = lfps[shank][pos+9][stim_inds,   contact, :]
+lfp_s1light = lfps[shank][8][stim_inds,   contact, :]
 lfp_m1light = lfps[shank][pos+9+9][stim_inds, contact, :]
 
 # format data to MATLAB friendly form
@@ -151,6 +151,61 @@ title('contact: {}, pos: {}'.format(contact, pos))
 plt.figure()
 plt.semilogy(f, S_nolight, 'k', f, S_m1light, 'b', linewidth=1)
 plt.xlim(0, 125)
+
+
+##### plot power at specified frequency for all positions and contacts #####
+##### plot power at specified frequency for all positions and contacts #####
+
+### make a heat map where the difference between light and nolight power is plotted
+### each row is a contact and each column is a position
+
+# 1302 (no wt), 1326 (no hdf file), 1328, 1330 (linear probe, great experiments)
+fids = ['1336', '1338', '1339', '1340', '1343', '1345']
+
+neuro.get_lfps()
+lfps = neuro.lfps
+shank = 0
+contact = 24
+pos = 1
+stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
+
+power_diff = np.zeros((32, 8))
+
+for contact_i in range(32): # for linear probe
+#for shank_i in range(16): # for poly2 probe
+    print('working on contact {}'.format(contact_i))
+    for pos_k in range(8):
+
+        # get data
+        lfp_nolight = lfps[shank][pos][stim_inds,     contact, :]
+        lfp_s1light = lfps[shank][pos+9][stim_inds,   contact, :]
+
+        # format data to MATLAB friendly form
+        lfp_nolight = matlab.double(lfp_nolight.tolist())
+        lfp_s1light = matlab.double(lfp_s1light.tolist())
+
+        # calculate PSD
+        S_nolight, f_nolight, Serr_nolight = eng.lfp_psd(lfp_nolight, nargout=3)
+        S_s1light, f_s1light, Serr_s1light = eng.lfp_psd(lfp_s1light, nargout=3)
+
+        # get data back into numpy friendly form
+        S_nolight = np.squeeze(np.array(S_nolight))
+        S_s1light = np.squeeze(np.array(S_s1light))
+
+        f = np.squeeze(np.array(f_nolight))
+
+        Serr_nolight = np.squeeze(np.array(Serr_nolight))
+        Serr_s1light = np.squeeze(np.array(Serr_s1light))
+
+        # find index closest to 35Hz
+        # TODO average the values between a specified frequency range
+        f_ind = np.argmin(np.abs(f - 35.0))
+
+        # compute difference in power at f_ind
+        diff_temp = S_s1light[f_ind] - S_nolight[f_ind]
+
+        # save values in power_diff array
+        power_diff[contact_i, pos_k] = diff_temp
 
 
 ##### compute coherence between S1 and M1 using SCIPY #####
