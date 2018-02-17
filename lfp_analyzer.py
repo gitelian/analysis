@@ -165,6 +165,7 @@ fids = ['1336', '1338', '1339', '1340', '1343', '1345']
 neuro.get_lfps()
 lfps = neuro.lfps
 stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
+shank = 0
 
 all_S_nolight = np.zeros((32, 8))
 all_S_s1light = np.zeros((32, 8))
@@ -172,7 +173,7 @@ power_diff = np.zeros((32, 8))
 
 
 for contact_i in range(32): # for linear probe
-#for shank_i in range(16): # for poly2 probe
+#for contact_i in range(16): # for poly2 probe
     print('working on contact {}'.format(contact_i))
     for pos_k in range(8):
 
@@ -204,7 +205,7 @@ for contact_i in range(32): # for linear probe
         # compute difference in power at f_ind
         diff_temp = S_s1light[f_ind] - S_nolight[f_ind]
 
-        # save values in power_diff array
+        # save values
         power_diff[contact_i, pos_k] = diff_temp
         all_S_nolight[contact_i, pos_k] = S_nolight[f_ind]
         all_S_s1light[contact_i, pos_k] = S_s1light[f_ind]
@@ -214,25 +215,34 @@ min_temp = np.min(power_diff)
 max_temp = np.max(power_diff)
 max_val_diff  = np.max(np.abs(np.asarray([min_temp, max_temp])))
 
+max_abs = np.max(np.asarray([all_S_nolight, all_S_s1light]))
+
 num_chan = neuro.chan_per_shank[shank]
 edist = 25.0 # microns
 chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
 
 fig, ax = plt.subplots(1, 3)
-ax[0].imshow(all_S_nolight, vmin=0, interpolation='none',\
+im = ax[0].imshow(all_S_nolight, vmin=0, vmax=max_abs, interpolation='none',\
         origin='lower', aspect='auto',\
         extent=(0, 8, chan_depth[-1], chan_depth[0]))
-ax[0].colorbar()
-ax[1].imshow(all_S_s1light, vmin=0, interpolation='none',\
+cb = plt.colorbar(im, ax=ax[0])
+im = ax[1].imshow(all_S_s1light, vmin=0, vmax=max_abs, interpolation='none',\
         origin='lower', aspect='auto',\
         extent=(0, 8, chan_depth[-1], chan_depth[0]))
-ax[1].colorbar()
-ax[2].imshow(power_diff, vmin=-max_val_diff, vmax=max_val_diff, interpolation='none',\
+cb = plt.colorbar(im, ax=ax[1])
+im = ax[2].imshow(power_diff, vmin=-max_val_diff, vmax=max_val_diff, interpolation='none',\
         origin='lower', cmap='coolwarm',  aspect='auto',\
         extent=(0, 8, chan_depth[-1], chan_depth[0]))
-ax[2].colorbar()
-plt.show()
+cb = plt.colorbar(im, ax=ax[2])
 
+ax[0].set_title('no light')
+ax[1].set_title('s1 light')
+ax[2].set_title('difference')
+ax[0].set_ylabel('depth (um)')
+ax[0].set_xlabel('position')
+ax[1].set_xlabel('position')
+ax[2].set_xlabel('position')
+fig.suptitle(fid)
 
 ##### compute coherence between S1 and M1 using SCIPY #####
 ##### compute coherence between S1 and M1 using SCIPY #####
