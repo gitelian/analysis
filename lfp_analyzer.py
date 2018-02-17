@@ -6,6 +6,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 import icsd
 import quantities as pq
 
+# import and start MATLAB
+import matlab.engine
+eng = matlab.engine.start_matlab()
+
 def iCSD(lfp_data):
     #patch quantities with the SI unit Siemens if it does not exist
     for symbol, prefix, definition, u_symbol in zip(
@@ -64,9 +68,9 @@ get_ipython().magic(u"run neoanalyzer.py {}".format(sys.argv[1]))
 
 neuro.get_lfps()
 lfps = neuro.lfps
-shank = 1
-contact = 10
-pos = 3
+shank = 0
+contact = 12
+pos = 8
 
 stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
 lfp_nolight = lfps[shank][pos][stim_inds,     contact, :]
@@ -97,6 +101,180 @@ s1_nolight = np.mean(lfps[1][4][:, 4, :], axis=1)
 s1_m1light = np.mean(lfps[1][4+9+9][:, 4, :], axis=1)
 plt.figure()
 plt.plot(neuro.lfp_t, s1_nolight, 'k', neuro.lfp_t, s1_m1light, 'b')
+
+##### compute PSD using Chronux #####
+##### compute PSD using Chronux #####
+
+# 1302 (no wt), 1326 (no hdf file), 1328, 1330 (linear probe, great experiments)
+fids = ['1336', '1338', '1339', '1340', '1343', '1345']
+
+neuro.get_lfps()
+lfps = neuro.lfps
+shank = 0
+contact = 24
+pos = 6 # 2-5
+stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
+
+# get data
+lfp_nolight = lfps[shank][pos][stim_inds,     contact, :]
+lfp_s1light = lfps[shank][pos+9][stim_inds,   contact, :]
+lfp_m1light = lfps[shank][pos+9+9][stim_inds, contact, :]
+
+# format data to MATLAB friendly form
+lfp_nolight = matlab.double(lfp_nolight.tolist())
+lfp_s1light = matlab.double(lfp_s1light.tolist())
+lfp_m1light = matlab.double(lfp_m1light.tolist())
+
+# calculate PSD
+S_nolight, f_nolight, Serr_nolight = eng.lfp_psd(lfp_nolight, nargout=3)
+S_s1light, f_s1light, Serr_s1light = eng.lfp_psd(lfp_s1light, nargout=3)
+S_m1light, f_m1light, Serr_m1light = eng.lfp_psd(lfp_m1light, nargout=3)
+
+# get data back into numpy friendly form
+S_nolight = np.squeeze(np.array(S_nolight))
+S_s1light = np.squeeze(np.array(S_s1light))
+S_m1light = np.squeeze(np.array(S_m1light))
+
+f    = np.squeeze(np.array(f_nolight))
+
+Serr_nolight = np.squeeze(np.array(Serr_nolight))
+Serr_s1light = np.squeeze(np.array(Serr_s1light))
+Serr_m1light = np.squeeze(np.array(Serr_m1light))
+
+plt.figure()
+plt.semilogy(f, S_nolight, 'k', f, S_s1light, 'r', linewidth=1)
+plt.fill_between(f, Serr_nolight[0, :], Serr_nolight[1, :], facecolor='k', alpha=0.3)
+plt.fill_between(f, Serr_s1light[0, :], Serr_s1light[1, :], facecolor='r', alpha=0.3)
+plt.xlim(0, 125)
+title('contact: {}, pos: {}'.format(contact, pos))
+
+plt.figure()
+plt.semilogy(f, S_nolight, 'k', f, S_m1light, 'b', linewidth=1)
+plt.xlim(0, 125)
+
+
+##### compute coherence between S1 and M1 using SCIPY #####
+##### compute coherence between S1 and M1 using SCIPY #####
+
+neuro.get_lfps()
+lfps = neuro.lfps
+m1contact = 11
+s1contact = 8
+pos = 7
+stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
+t = neuro.lfp_t[stim_inds]
+
+# get LFPs
+s1_contact = lfps[0][pos][stim_inds, s1contact, :]
+m1_contact = lfps[1][pos][stim_inds, m1contact, :]
+
+num_trials = s1_contact.shape[1]
+
+for k in range(num_trials):
+    if k == 0:
+        f, Cxy_temp = sp.signal.coherence(s1_contact[:, k], m1_contact[:, k], fs=1500)
+        num_samples = Cxy_temp.shape[0]
+        Cxy_mean = np.zeros((num_samples, num_trials))
+        Cxy_mean[:, k] = Cxy_temp
+    else:
+        f, Cxy_temp = sp.signal.coherence(s1_contact[:, k], m1_contact[:, k], fs=1500)
+        Cxy_mean[:, k] = Cxy_temp
+figure()
+plot(f, Cxy_mean.mean(axis=1))
+title('pos {}'.format(pos))
+plt.xlim(0, 150)
+plt.ylim(0, 0.5)
+
+
+# create arrays and save them as mat files in order to measure coherence in
+# matlab
+
+# position 3
+s1_pos3 = lfps[0][3][stim_inds, s1contact, :]
+m1_pos3 = lfps[1][3][stim_inds, m1contact, :]
+
+# position 5
+s1_pos5 = lfps[0][5][stim_inds, s1contact, :]
+m1_pos5 = lfps[1][5][stim_inds, m1contact, :]
+
+# position 7
+s1_pos7 = lfps[0][7][stim_inds, s1contact, :]
+m1_pos7 = lfps[1][7][stim_inds, m1contact, :]
+
+# position 8
+s1_pos8 = lfps[0][8][stim_inds, s1contact, :]
+m1_pos8 = lfps[1][8][stim_inds, m1contact, :]
+
+# save variables
+
+sp.io.savemat('/home/greg/Desktop/' + fid + '_lfps.mat', {'s1_pos3':s1_pos3,\
+        'm1_pos3':m1_pos3,
+        's1_pos5':s1_pos5,
+        'm1_pos5':m1_pos5,
+        's1_pos7':s1_pos7,
+        'm1_pos7':m1_pos7,
+        's1_pos8':s1_pos8,
+        'm1_pos8':m1_pos8})
+
+#### MATLAB scratch code #####
+#### MATLAB scratch code #####
+
+# MATLAB engine expects doubles. You can only get double by converting a numpy
+# array to a list and then converting to double
+x_np = np.arange(10)
+y_np = x_np**2
+x = matlab.double(x_np.tolist())
+y = matlab.double(y_np.tolist())
+eng.plot(x,y)
+
+
+##### compute coherence between S1 and M1 using MATLAB and Chronux #####
+##### compute coherence between S1 and M1 using MATLAB and Chronux #####
+
+neuro.get_lfps()
+lfps = neuro.lfps
+m1contact = 12
+s1contact = 10
+pos = 8+9
+stim_inds = np.logical_and(neuro.lfp_t > 0.6, neuro.lfp_t < 1.4)
+t = neuro.lfp_t[stim_inds]
+
+# get LFPs
+s1_contact = lfps[0][pos][stim_inds, s1contact, :]
+m1_contact = lfps[1][pos][stim_inds, m1contact, :]
+
+num_trials = s1_contact.shape[1]
+
+# convert to doubles
+x = matlab.double(s1_contact.tolist())
+y = matlab.double(m1_contact.tolist())
+
+# calculate coherence
+Cxy, f, Cerr = eng.lfp_coherence(x, y, nargout=3)
+
+# convert back to numpy array
+Cxy  = np.squeeze(np.array(Cxy))
+f    = np.squeeze(np.array(f))
+Cerr = np.squeeze(np.array(Cerr))
+
+# plot coherence plot
+plt.plot(f, Cxy, linewidth=1)
+plt.xlim(0, 125)
+plt.plot(f, Cerr[0, :], 'r', f, Cerr[1, :],'r', linewidth=0.5)
+
+# plot coherence plot
+plt.plot(f, Cxy, linewidth=1)
+
+
+
+
+
+
+
+
+
+
+
 
 
 ##### LFP + Whisker tracking #####
@@ -179,7 +357,7 @@ ax.set_xlim(-0.1, 1.0)
 
 
 ##### calculate all positions
-shank = 1
+shank = 0
 num_chan = neuro.chan_per_shank[shank]
 edist = 25.0 # microns
 chan_depth = np.arange(np.asarray(neuro.shank_depths[shank]) - num_chan * edist, np.asarray(neuro.shank_depths[shank]), edist)
