@@ -1804,7 +1804,7 @@ class NeuroAnalyzer(object):
 
         sta_array = sta_array[1::, :]
 
-        return sta_array
+        return sta_array, window
 
     def butterworth_filter(self, data, lowcut, highcut, fs, order=4):
         #ndpass(lowcut, highcut, fs, order=5):
