@@ -483,6 +483,14 @@ for pos in range(9):
 
 
 
+##### spike triggered LFPs #####
+##### spike triggered LFPs #####
+sta_array, window = neuro.sta_lfp(unit_ind=2, contact=14)
+plt.figure()
+mean_sta = sta_array.mean(axis=0)
+sem_sta  = sp.stats.sem(sta_array, axis=0)
+plt.plot(window, mean_sta, 'k')
+plt.fill_between(window, mean_sta - sem_sta, mean_sta + sem_sta, facecolor='k', alpha=0.3)
 
 
 
