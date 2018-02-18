@@ -12,6 +12,7 @@ import matplotlib.cm as cm
 import matplotlib as mpl
 import scipy.signal
 import h5py
+from scipy.signal import butter, lfilter
 #import 3rd party code found on github
 import icsd
 import ranksurprise
@@ -113,7 +114,9 @@ class NeuroAnalyzer(object):
         self.__get_all_stim_ids()
 
         # trim whisker tracking data and align it to shortest trial
-        self.__trim_wt()
+        # defaults to False unless it finds whisker tracking data
+        self.wt_boolean = False
+#        self.__trim_wt()
 
         # trim run data and align it to shortest trial
         self.__trim_run()
@@ -123,7 +126,7 @@ class NeuroAnalyzer(object):
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
-        self.classify_whisking_trials(threshold='median')
+#        self.classify_whisking_trials(threshold='median')
 
         # return a list with the number of good trials for each stimulus condition
         self.get_num_good_trials()
@@ -1759,6 +1762,61 @@ class NeuroAnalyzer(object):
 
         self.mod_index = mod_mat
         self.mod_pval  = mod_pval
+
+    def sta_lfp(self, unit_ind=0, shank=0, contact=0, cond=0, analysis_window=[0.6, 1.4], bin_window=[-0.25, 0.25]):
+        """
+        Create a spike triggered array of LFPs
+        Returns: array (total spikes for specified unit x values) where each
+        entry is the whisker tracking value (e.g. angle, phase, set-point) when
+        the specified unit spiked.
+
+        The second array is all the whisker tracking values that occurred
+        during the analysis window for all analyzed trials
+        """
+        sr = 1500
+        window = np.arange(bin_window[0]*sr, bin_window[1]*sr) # 1/1500 is the sampling rate of the LFP traces
+        window_size = window.shape[0]
+        num_trials = self.num_good_trials[cond]
+        sta_array = np.zeros((1, window_size))
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(num_trials):
+            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+            windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
+                    all_spike_times < analysis_window[1])
+            windowed_spike_times = all_spike_times[windowed_spike_indices] # spike times to align LFPs to
+#            windowed_spike_times = np.random.rand(windowed_spike_times.shape[0]) + 0.6
+
+            # iterate through all spike times and grabe LFP signal of
+            # window_size
+            for k, stime in enumerate(windowed_spike_times):
+                lfp_index = np.argmin(np.abs(stime - self.lfp_t))
+                lfp_inds  = window - lfp_index
+                lfp_inds = lfp_inds.astype(int)
+                lfp_temp = self.lfps[shank][cond][lfp_inds, contact, cond] # get individual LFP trace
+                sta_lfp  = lfp_temp.reshape(1, lfp_temp.shape[0])
+                # I may need to filter it at the specified frequency here
+                #TODO filter LFP trace with a Butterworth filter (see online example)
+                y = self.butterworth_filter(sta_lfp, 10, 55, 1500.0)
+
+                # add all whisker tracking values in analysis window to matrix
+                sta_array = np.concatenate((sta_array, y), axis=0)
+
+        sta_array = sta_array[1::, :]
+
+        return sta_array
+
+    def butterworth_filter(self, data, lowcut, highcut, fs, order=4):
+        #ndpass(lowcut, highcut, fs, order=5):
+        nyq  = 0.5 * fs
+        low  = lowcut / nyq
+        high = highcut / nyq
+        b, a = butter(order, [low, high], btype='band')
+        y    = lfilter(b, a, data)
+
+        return y
+
+
 
 ###############################################################################
 ##### Plotting Functions #####
