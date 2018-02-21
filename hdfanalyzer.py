@@ -198,7 +198,7 @@ class NeuroAnalyzer(object):
                     #depth.append(ff.attrs['depth'][0])
                     depth.append(ff.attrs['depth'])
 
-        self.depths = np.asarray(depth)
+        self.depths = np.ravel(np.asarray(depth))
 
     def __get_shank_ids(self):
         """
@@ -886,28 +886,21 @@ class NeuroAnalyzer(object):
             samples x trials x units
         """
 
-        # pre-allocate correlation matrix
-        corr_mat = np.zeros((self.num_units, self.num_units, self.num_good_trials[cond]))
-
         # get indices to sort array by region and then by depth
         # lexsort sorts by last entry to first
         sort_inds= np.lexsort((np.squeeze(np.asarray(self.depths)), self.shank_ids))
 
-        for trial_ind in range(self.num_good_trials[cond]):
-            # get spike time array for trial_ind
-            temp_array = spike_array[cond][:, trial_ind, :]
+        # reshape array so it is units x time samples
+        temp_array = spike_array[cond][:, :, sort_inds].T
+        mp = temp_array.reshape(temp_array.shape[0], temp_array.shape[1]*temp_array.shape[2])
 
-            # sort spikes by region and depth
-            temp_array = temp_array[:, sort_inds]
+        # compute correlation matrix
+        R = np.corrcoef(mp)
 
-            # compute correlation matrix
-            R = np.corrcoef(temp_array.T)
+        # fill diagonal with zeros
+        np.fill_diagonal(R, 0)
 
-            # add correlation matrix to corr_mat
-            corr_mat[:, :, trial_ind] = R
-
-        return corr_mat.mean(axis=2)
-
+        return R
 
     def get_mean_tc(self, kind='abs_rate'):
         """
