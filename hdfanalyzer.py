@@ -122,7 +122,7 @@ class NeuroAnalyzer(object):
         self.__trim_run()
 
         # trim LFP data and align it to shortest trial
-        self.__trim_lfp()
+#        self.__trim_lfp()
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
@@ -851,6 +851,31 @@ class NeuroAnalyzer(object):
 
         if self.wt_boolean:
             self.wt        = wt
+
+    def rebin_spikes(self, bin_size=0.005, analysis_window=[0.5, 1.5]):
+        '''bin spike times with specified bin size and analysis window'''
+
+        rebinned_spikes = list()
+        num_trials = self.num_good_trials
+        bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
+        t = bins[0:-1]
+
+        # pre-allocate arrays
+        for k, trials_ran in enumerate(num_trials):
+            rebinned_spikes.append(np.zeros((bins.shape[0]-1, trials_ran, self.num_units)))
+
+        # iterate through all trials and count spikes
+        for cond in range(self.stim_ids.shape[0]):
+            for trial_ind in range(num_trials[cond]):
+                for unit_ind in range(self.num_units):
+                    all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+                    windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
+                            all_spike_times < analysis_window[1])
+                    windowed_spike_times = all_spike_times[windowed_spike_indices] # spike times to align LFPs to
+                    counts = np.histogram(windowed_spike_times, bins=bins)[0]
+                    rebinned_spikes[cond][:, trial_ind, unit_ind] = counts
+
+        return rebinned_spikes, t
 
     def get_mean_tc(self, kind='abs_rate'):
         """
