@@ -198,7 +198,7 @@ class NeuroAnalyzer(object):
                     #depth.append(ff.attrs['depth'][0])
                     depth.append(ff.attrs['depth'])
 
-        self.depths = depth
+        self.depths = np.asarray(depth)
 
     def __get_shank_ids(self):
         """
@@ -225,7 +225,7 @@ class NeuroAnalyzer(object):
                     if depth_temp0 < depth_temp1:
                         depth_temp0 = depth_temp1
             depth.append(depth_temp0)
-        return depth
+        return np.asarray(depth)
 
     def __get_waveinfo(self):
         """gets waveform duration, ratio, and mean waveform for each unit"""
@@ -857,7 +857,7 @@ class NeuroAnalyzer(object):
 
         rebinned_spikes = list()
         num_trials = self.num_good_trials
-        bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
+        bins = np.arange(analysis_window[0], analysis_window[1], bin_size)
         t = bins[0:-1]
 
         # pre-allocate arrays
@@ -876,6 +876,38 @@ class NeuroAnalyzer(object):
                     rebinned_spikes[cond][:, trial_ind, unit_ind] = counts
 
         return rebinned_spikes, t
+
+    def spike_time_corr(self, spike_array, cond=0, analysis_window=[0.5, 1.5]):
+        """
+        compute spike time correlation for all units in a specified condition
+
+        spike_array: the output of rebin_spikes, should be a list of length
+            number of conditions. And each entry should be an array of size
+            samples x trials x units
+        """
+
+        # pre-allocate correlation matrix
+        corr_mat = np.zeros((self.num_units, self.num_units, self.num_good_trials[cond]))
+
+        # get indices to sort array by region and then by depth
+        # lexsort sorts by last entry to first
+        sort_inds= np.lexsort((np.squeeze(np.asarray(self.depths)), self.shank_ids))
+
+        for trial_ind in range(self.num_good_trials[cond]):
+            # get spike time array for trial_ind
+            temp_array = spike_array[cond][:, trial_ind, :]
+
+            # sort spikes by region and depth
+            temp_array = temp_array[:, sort_inds]
+
+            # compute correlation matrix
+            R = np.corrcoef(temp_array.T)
+
+            # add correlation matrix to corr_mat
+            corr_mat[:, :, trial_ind] = R
+
+        return corr_mat.mean(axis=2)
+
 
     def get_mean_tc(self, kind='abs_rate'):
         """
@@ -1274,11 +1306,6 @@ class NeuroAnalyzer(object):
                     1 - ((np.linalg.norm(temp_tc1/np.max(temp_tc1))- 1)/\
                         (np.sqrt(temp_tc1.shape[0]) - 1))
             boot_samps1[n] = sel_temp1
-
-
-
-
-
 
     def get_omi(self, pos=-1):
         """
