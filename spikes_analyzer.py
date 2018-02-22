@@ -1299,6 +1299,35 @@ ax[1].set_ylim(0.35, 1.05)
 ax[1].set_title('S1 RS units')
 
 
+##### spike time correlation analysis #####
+##### spike time correlation analysis #####
+
+rebinned_spikes, t = neuro.rebin_spikes(bin_size=0.020, analysis_window=[0.5, 1.5])
+
+pos = 4
+R_nolight, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos)
+R_s1light, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos+9+9)
+
+vmin, vmax  = -0.1, 0.1
+fig, ax = plt.subplots(1, 2)
+ax[0].imshow(R_nolight, vmin=vmin, vmax=vmax, cmap='coolwarm')
+im = ax[1].imshow(R_s1light, vmin=vmin, vmax=vmax, cmap='coolwarm')
+#im = ax[2].imshow(R_s1light - R_nolight, vmin=vmin, vmax=vmax, cmap='coolwarm')
+fig.colorbar(im, ax=ax[1])
+
+# m1/s1 border
+border = np.where(np.diff(neuro.shank_ids)==1)
+ax[0].hlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
+ax[0].vlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
+ax[1].hlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
+ax[1].vlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
+
+# grab s1-m1 correlation values
+R_nocontact, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=8)
+R_contact, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos)
+a = R_nocontact[0:border[0], border[0]:neuro.num_units]
+b = R_contact[0:border[0], border[0]:neuro.num_units]
+
 ##### plot change from no manipulation of FR vs strength tuning curves #####
 ##### plot change from no manipulation of FR vs strength tuning curves #####
 
