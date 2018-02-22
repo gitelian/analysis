@@ -877,11 +877,11 @@ class NeuroAnalyzer(object):
 
         return rebinned_spikes, t
 
-    def spike_time_corr(self, spike_array, cond=0, analysis_window=[0.5, 1.5]):
+    def spike_time_corr(self, rebinned_spikes, cond=0):
         """
         compute spike time correlation for all units in a specified condition
 
-        spike_array: the output of rebin_spikes, should be a list of length
+        rebinned_spikes: the output of rebin_spikes, should be a list of length
             number of conditions. And each entry should be an array of size
             samples x trials x units
         """
@@ -891,7 +891,7 @@ class NeuroAnalyzer(object):
         sort_inds= np.lexsort((np.squeeze(np.asarray(self.depths)), self.shank_ids))
 
         # reshape array so it is units x time samples
-        temp_array = spike_array[cond][:, :, sort_inds].T
+        temp_array = rebinned_spikes[cond][:, :, sort_inds].T
         mp = temp_array.reshape(temp_array.shape[0], temp_array.shape[1]*temp_array.shape[2])
 
         # compute correlation matrix
@@ -900,7 +900,7 @@ class NeuroAnalyzer(object):
         # fill diagonal with zeros
         np.fill_diagonal(R, 0)
 
-        return R
+        return R, sort_inds
 
     def get_mean_tc(self, kind='abs_rate'):
         """
