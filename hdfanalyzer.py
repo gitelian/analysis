@@ -122,7 +122,7 @@ class NeuroAnalyzer(object):
         self.__trim_run()
 
         # trim LFP data and align it to shortest trial
-#        self.__trim_lfp()
+        self.__trim_lfp()
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
