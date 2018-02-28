@@ -497,9 +497,10 @@ if __name__ == "__main__":
     #
     # good experiments
     #fids = ['1295', '1302', '1318', '1328', '1329', '1330']
-    mouse      = 'GT0007'
-    experiment = 'FID1014'
-    fid        = experiment + '_' + mouse
+    mouse      = 'GT009'
+    experiment = 'FID1630'
+    #fid        = experiment + '_' + mouse # old way
+    fid        = experiment
     hdf_name   = mouse + '_' + experiment
     data_dir   = '/media/greg/data/behavior/'
     hdf_fname  = '/media/greg/data/behavior/hdfbehavior/' + hdf_name + '.hdf5'
