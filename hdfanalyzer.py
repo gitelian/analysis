@@ -122,7 +122,7 @@ class NeuroAnalyzer(object):
         self.__trim_run()
 
         # trim LFP data and align it to shortest trial
-        self.__trim_lfp()
+#        self.__trim_lfp()
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
@@ -474,7 +474,7 @@ class NeuroAnalyzer(object):
 
         self.run_t          = run_t
         self._run_min_samp  = num_samples
-        self.run_data       = run_data
+        self.run_data       = run_data * (12*np.pi/360.0)
 
     def __trim_lfp(self):
         """
@@ -901,6 +901,39 @@ class NeuroAnalyzer(object):
         np.fill_diagonal(R, 0)
 
         return R, sort_inds
+
+    def spike_vs_runspeed(self, cond=0, binsize=0.010, analysis_window=[0, 1.5]):
+        # use all trials
+        self.rates(all_trials=True)
+        bins = np.arange(analysis_window[0], analysis_window[1], binsize)
+        t = bins[0:-1]
+        num_trials = self.num_all_trials[cond]
+
+        # preallocate arrays
+        rebinned_spikes = np.zeros((bins.shape[0]-1, self.num_units, num_trials))
+        binned_runspeed = np.zeros((bins.shape[0]-1, num_trials))
+
+        # iterate through all trials and all units
+        for trial_ind in range(num_trials):
+
+            # count spikes and add counts to rebinned_spikes array
+            for unit_ind in range(self.num_units):
+                all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+                windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
+                        all_spike_times < analysis_window[1])
+                windowed_spike_times = all_spike_times[windowed_spike_indices] # spike times to align run speed to
+                counts = np.histogram(windowed_spike_times, bins=bins)[0]
+                rebinned_spikes[:, unit_ind, trial_ind] = counts
+
+            # bin runspeed
+            run_speed = self.run[cond][:, trial_ind]
+            for k in range(len(bins) -1):
+                start_ind  = np.argmin(np.abs(self.run_t - bins[k]))
+                stop_ind   = np.argmin(np.abs(self.run_t - bins[k+1]))
+                mean_speed = np.mean(run_speed[start_ind:stop_ind])
+                binned_runspeed[k, trial_ind] = mean_speed
+
+        return rebinned_spikes, binned_runspeed, t
 
     def get_mean_tc(self, kind='abs_rate'):
         """
