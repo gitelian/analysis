@@ -1549,6 +1549,62 @@ class NeuroAnalyzer(object):
 
         return meanr_sorted, semr_sorted
 
+    def get_sparseness(self, kind='lifetime', cond=None):
+        """
+        compute one of two sparsity measures
+
+        if kind is "lifetime" each a matrix with k rows and n columns will
+        be returned. Where k is the number of units and n is the number of
+        manipulations used (e.g. no light + light conditions).
+
+        if kind is "population" nothing will be returned yet
+
+        """
+        control_pos = self.control_pos
+        num_cond    = self.stim_ids.shape[0]
+        num_manip   = num_cond/control_pos
+        num_units   = self.num_units
+        n           = control_pos - 1
+
+        S_life_mean = np.zeros((num_units, num_manip))
+        S_life_all= np.zeros((num_units, num_manip))
+
+        # compute lifetime sparseness
+        if kind == 'lifetime' and cond == None:
+            for unit in range(num_units):
+                meanr_abs = np.array([np.mean(k[:, unit]) for k in self.abs_rate])
+                for manip in range(num_manip):
+
+                    # method one: use mean response values
+                    start_ind = manip*control_pos
+                    stop_ind  = (manip + 1)*control_pos - 1
+
+                    L1 = (np.sum(meanr_abs[start_ind:stop_ind])/n)**2
+                    L2 = np.sum(meanr_abs[start_ind:stop_ind]**2)/n
+                    S  = (1 - (L1/L2)) / (1 - (1/n))
+
+                    S_life_mean[unit, manip] = S
+
+                    # method two: use single trial responses
+                    r_all = list()
+                    for k in np.arange(start_ind, stop_ind):
+                        unit_response = self.abs_rate[k][:, unit]
+                        r_all.extend(unit_response)
+                    r_all = np.asarray(r_all)
+
+                    n  = r_all.shape[0]
+                    L1 = (np.sum(r_all)/n)**2
+                    L2 = np.sum(r_all**2)/n
+                    S  = (1 - (L1/L2)) / (1 - (1/n))
+
+                    S_life_all[unit, manip] = S
+
+#        # compute population sparseness
+#        if kind == 'population' and cond != None:
+#            for unit in range(num_units):
+#                #TODO specify whether to use M1 or S1 or all units!!!
+
+        return S_life_mean, S_life_all
 
 
 ###############################################################################

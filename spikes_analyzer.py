@@ -182,6 +182,115 @@ with PdfPages(fid + '_unit_summaries.pdf') as pdf:
         fig.clear()
         plt.close()
 
+##### spike time correlation analysis #####
+##### spike time correlation analysis #####
+
+rebinned_spikes, t = neuro.rebin_spikes(bin_size=0.020, analysis_window=[0.5, 1.5])
+
+pos = 8
+R_nolight, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos)
+R_light, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos+9)
+
+vmin, vmax  = -0.2, 0.2
+fig, ax = plt.subplots(1, 2)
+ax[0].imshow(R_nolight, vmin=vmin, vmax=vmax, cmap='coolwarm')
+im = ax[1].imshow(R_light, vmin=vmin, vmax=vmax, cmap='coolwarm')
+#im = ax[2].imshow(R_light - R_nolight, vmin=vmin, vmax=vmax, cmap='coolwarm')
+fig.colorbar(im, ax=ax[1])
+
+# m1/s1 border
+border = np.where(np.diff(neuro.shank_ids)==1)[0]
+ax[0].hlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
+ax[0].vlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
+ax[1].hlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
+ax[1].vlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
+
+ax[0].set_title('no light')
+ax[1].set_title('s1 light')
+fig.suptitle(fid + ' position {}'.format(str(pos)))
+
+## histogram of all correlations values for either M1-M1 or S1-S1
+# grab M1-M1 correlation values
+tri_inds  = np.triu_indices(border, k=1)
+
+m1m1_corr  = R_nolight[0:int(border), 0:int(border)]
+m1m1_nolight = np.nan_to_num(m1m1_corr[tri_inds[0], tri_inds[1]], 0)
+
+m1m1_corr = R_light[0:int(border), 0:int(border)]
+m1m1_light= np.nan_to_num(m1m1_corr[tri_inds[0], tri_inds[1]], 0)
+
+bins = np.arange(-1, 1, 0.01)
+fig, ax = plt.subplots(1, 1)
+ax.hist(m1m1_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax.hist(m1m1_light, bins=bins, edgecolor='None', alpha=0.5, color='r')
+sp.stats.wilcoxon(m1m1_nolight, m1m1_light)
+
+# grab S1-S1 correlation values
+tri_inds  = np.triu_indices(neuro.num_units - border - 1, k=1)
+
+s1s1_corr  = R_nolight[int(border):neuro.num_units-1, int(border):neuro.num_units-1]
+s1s1_nolight = np.nan_to_num(s1s1_corr[tri_inds[0], tri_inds[1]], 0)
+
+s1s1_corr  = R_light[0:int(border), 0:int(border)]
+s1s1_light = np.nan_to_num(s1s1_corr[tri_inds[0], tri_inds[1]], 0)
+
+bins = np.arange(-1, 1, 0.01)
+fig, ax = plt.subplots(1, 1)
+ax.hist(s1s1_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
+ax.hist(s1s1_light, bins=bins, edgecolor='None', alpha=0.5, color='r')
+
+sp.stats.wilcoxon(s1s1_nolight, s1s1_light)
+
+##
+# grab s1-m1 correlation values
+R_nocontact, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=8)
+R_contact, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos)
+a = R_nocontact[0:border[0], border[0]:neuro.num_units]
+b = R_contact[0:border[0], border[0]:neuro.num_units]
+
+
+##### firing rate vs run speed no contact position #####
+##### firing rate vs run speed no contact position #####
+
+
+# there was either no or a very weak correlation
+
+
+npand   = np.logical_and
+m1_inds = npand(npand(neuro.shank_ids == 0, neuro.driven_units ==True), neuro.cell_type=='RS')
+s1_inds = npand(npand(neuro.shank_ids == 1, neuro.driven_units ==True), neuro.cell_type=='RS')
+
+S_mean, S_all = neuro.get_sparseness(kind='lifetime')
+
+
+
+# plot paired scatter plot for M1
+# TODO write function to make a paired scatter plot when given two 1-d vectors
+# of equivalent length
+plt.figure()
+S_m1_nolight = S_all[m1_inds, 0]
+S_m1_s1light = S_all[m1_inds, 1]
+num_points = S_m1_nolight.shape[0]
+for k in range(num_points):
+    plt.scatter(0, S_m1_nolight[k], color='k')
+    plt.scatter(1, S_m1_s1light[k], color='b')
+    plt.plot([0, 1], [S_m1_nolight[k], S_m1_s1light[k]], 'k')
+
+plt.figure()
+S_s1_nolight = S_all[s1_inds, 0]
+S_s1_m1light = S_all[s1_inds, 2]
+# plot paired scatter plot for S1
+num_points = S_s1_nolight.shape[0]
+for k in range(num_points):
+    plt.scatter(0, S_s1_nolight[k], color='k')
+    plt.scatter(1, S_s1_m1light[k], color='b')
+    plt.plot([0, 1], [S_s1_nolight[k], S_s1_m1light[k]], 'k')
+
+plt.figure()
+hist(S_m1_nolight, bins=np.arange(0, 1, 0.1), alpha=0.5)
+hist(S_s1_nolight, bins=np.arange(0, 1, 0.1), alpha=0.5)
+
+
 ##### population analysis #####
 ##### population analysis #####
 
@@ -1299,74 +1408,10 @@ ax[1].set_ylim(0.35, 1.05)
 ax[1].set_title('S1 RS units')
 
 
-##### spike time correlation analysis #####
-##### spike time correlation analysis #####
-
-rebinned_spikes, t = neuro.rebin_spikes(bin_size=0.020, analysis_window=[0.5, 1.5])
-
-pos = 8
-R_nolight, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos)
-R_light, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos+9)
-
-vmin, vmax  = -0.2, 0.2
-fig, ax = plt.subplots(1, 2)
-ax[0].imshow(R_nolight, vmin=vmin, vmax=vmax, cmap='coolwarm')
-im = ax[1].imshow(R_light, vmin=vmin, vmax=vmax, cmap='coolwarm')
-#im = ax[2].imshow(R_light - R_nolight, vmin=vmin, vmax=vmax, cmap='coolwarm')
-fig.colorbar(im, ax=ax[1])
-
-# m1/s1 border
-border = np.where(np.diff(neuro.shank_ids)==1)[0]
-ax[0].hlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
-ax[0].vlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
-ax[1].hlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
-ax[1].vlines(border, 0, neuro.num_units-1, linewidth=0.5, color='k')
-
-ax[0].set_title('no light')
-ax[1].set_title('s1 light')
-fig.suptitle(fid + ' position {}'.format(str(pos)))
-
-## histogram of all correlations values for either M1-M1 or S1-S1
-# grab M1-M1 correlation values
-tri_inds  = np.triu_indices(border, k=1)
-
-m1m1_corr  = R_nolight[0:int(border), 0:int(border)]
-m1m1_nolight = np.nan_to_num(m1m1_corr[tri_inds[0], tri_inds[1]], 0)
-
-m1m1_corr = R_light[0:int(border), 0:int(border)]
-m1m1_light= np.nan_to_num(m1m1_corr[tri_inds[0], tri_inds[1]], 0)
-
-bins = np.arange(-1, 1, 0.01)
-fig, ax = plt.subplots(1, 1)
-ax.hist(m1m1_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax.hist(m1m1_light, bins=bins, edgecolor='None', alpha=0.5, color='r')
-sp.stats.wilcoxon(m1m1_nolight, m1m1_light)
-
-# grab S1-S1 correlation values
-tri_inds  = np.triu_indices(neuro.num_units - border - 1, k=1)
-
-s1s1_corr  = R_nolight[int(border):neuro.num_units-1, int(border):neuro.num_units-1]
-s1s1_nolight = np.nan_to_num(s1s1_corr[tri_inds[0], tri_inds[1]], 0)
-
-s1s1_corr  = R_light[0:int(border), 0:int(border)]
-s1s1_light = np.nan_to_num(s1s1_corr[tri_inds[0], tri_inds[1]], 0)
-
-bins = np.arange(-1, 1, 0.01)
-fig, ax = plt.subplots(1, 1)
-ax.hist(s1s1_nolight, bins=bins, edgecolor='None', alpha=0.5, color='k')
-ax.hist(s1s1_light, bins=bins, edgecolor='None', alpha=0.5, color='r')
-
-sp.stats.wilcoxon(s1s1_nolight, s1s1_light)
 
 
 
 
-##
-# grab s1-m1 correlation values
-R_nocontact, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=8)
-R_contact, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos)
-a = R_nocontact[0:border[0], border[0]:neuro.num_units]
-b = R_contact[0:border[0], border[0]:neuro.num_units]
 
 ##### plot change from no manipulation of FR vs strength tuning curves #####
 ##### plot change from no manipulation of FR vs strength tuning curves #####
