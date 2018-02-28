@@ -815,11 +815,11 @@ if __name__ == "__main__":
         data_dir = '/jenny/add/your/path/here/'
 
     # each experiment needs an entry in the CSV file!
-    mouse      = 'GT0007'
-    experiment = 'FID1014'
+    mouse      = 'GT009'
+    experiment = 'FID1630'
 
     hdf_name   = mouse + '_' + experiment
-    fid        = hdf_name
+    fid        = experiment
     hdf_fname  = data_dir + hdf_name + '.hdf5'
 
     f = h5py.File(hdf_fname,'r+')
