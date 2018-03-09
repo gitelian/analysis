@@ -890,12 +890,35 @@ class NeuroAnalyzer(object):
         # lexsort sorts by last entry to first
         sort_inds= np.lexsort((np.squeeze(np.asarray(self.depths)), self.shank_ids))
 
-        # reshape array so it is units x time samples
+        # reshape array so it is units x time-samples
         temp_array = rebinned_spikes[cond][:, :, sort_inds].T
         mp = temp_array.reshape(temp_array.shape[0], temp_array.shape[1]*temp_array.shape[2])
 
         # compute correlation matrix
         R = np.corrcoef(mp)
+
+        # fill diagonal with zeros
+        np.fill_diagonal(R, 0)
+
+        return R, sort_inds
+
+    def noise_corr(self, cond=0):
+        """
+        compute noise correlation for all units for a specified condition
+        """
+        # get indices to sort array by region and then by depth
+        # lexsort sorts by last entry to first
+        sort_inds= np.lexsort((np.squeeze(np.asarray(self.depths)), self.shank_ids))
+
+        # get absolute spike counts for the specified condition
+        sc = self.abs_count[cond].T
+
+        # reorder array so it is by region and then by depth
+        sc = sc[sort_inds, :]
+
+        # compute correlation coefficient (each row is a variable, each column
+        # is an observation)
+        R = np.corrcoef(sc)
 
         # fill diagonal with zeros
         np.fill_diagonal(R, 0)
