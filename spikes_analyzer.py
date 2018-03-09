@@ -290,6 +290,37 @@ plt.figure()
 hist(S_m1_nolight, bins=np.arange(0, 1, 0.1), alpha=0.5)
 hist(S_s1_nolight, bins=np.arange(0, 1, 0.1), alpha=0.5)
 
+##### Sparsity analysis #####
+##### Sparsity analysis #####
+
+## M1
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+plt.figure()
+S_m1_nolight = S_all[m1_inds, 0]
+S_m1_s1light = S_all[m1_inds, 1]
+num_points = S_m1_nolight.shape[0]
+for k in range(num_points):
+    plt.scatter(0, S_m1_nolight[k], color='k')
+    plt.scatter(1, S_m1_s1light[k], color='b')
+    plt.plot([0, 1], [S_m1_nolight[k], S_m1_s1light[k]], 'k')
+
+## S1
+plt.figure()
+S_s1_nolight = S_all[s1_inds, 0]
+S_s1_m1light = S_all[s1_inds, 2]
+# plot paired scatter plot for S1
+num_points = S_s1_nolight.shape[0]
+for k in range(num_points):
+    plt.scatter(0, S_s1_nolight[k], color='k')
+    plt.scatter(1, S_s1_m1light[k], color='b')
+    plt.plot([0, 1], [S_s1_nolight[k], S_s1_m1light[k]], 'k')
+
+## S1 vs M1 no light
+plt.figure()
+hist(S_m1_nolight, bins=np.arange(0, 1, 0.1), alpha=0.5)
+hist(S_s1_nolight, bins=np.arange(0, 1, 0.1), alpha=0.5)
+
 
 ##### population analysis #####
 ##### population analysis #####
@@ -367,6 +398,7 @@ max_fr      = np.empty((1, ))
 burst_rate  = np.empty((1, 27, 2))
 adapt_ratio = np.empty((1, 27, 2))
 meanr       = np.empty((1, 9, 3))
+S_all       = np.empty((1, 3))
 
 for neuro in experiments:
     # calculate measures that weren't calculated at init
@@ -382,6 +414,7 @@ for neuro in experiments:
     preference  = np.append(preference, neuro.preference, axis=0)
     best_pos    = np.append(best_pos, neuro.best_contact)
     meanr       = np.append(meanr, neuro.get_rates_vs_strength(normed=True)[0], axis=0)
+    S_all       = np.append(S_all, neuro.get_sparseness(kind='lifetime')[1], axis=0)
 
     # compute mean tuning curve
     abs_tc = np.append(abs_tc, neuro.get_mean_tc(kind='abs_rate'), axis=0)
@@ -439,6 +472,7 @@ evk_tc      = evk_tc[1:, :]
 max_fr      = max_fr[1:,]
 burst_rate  = burst_rate[1:, :]
 adapt_ratio = adapt_ratio[1:, :]
+S_all       = S_all[1:, :]
 
 ##### select units #####
 npand   = np.logical_and
