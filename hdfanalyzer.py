@@ -116,7 +116,7 @@ class NeuroAnalyzer(object):
         # trim whisker tracking data and align it to shortest trial
         # defaults to False unless it finds whisker tracking data
         self.wt_boolean = False
-#        self.__trim_wt()
+        self.__trim_wt()
 
         # trim run data and align it to shortest trial
         self.__trim_run()
@@ -767,8 +767,8 @@ class NeuroAnalyzer(object):
         bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
 #        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
 #        kernel = self.__make_kernel(kind='square', resolution=0.100)
-        kernel = self.__make_kernel(kind='square', resolution=0.025)
-#        kernel = self.__make_kernel(kind='alpha', resolution=0.050)
+#        kernel = self.__make_kernel(kind='square', resolution=0.025)
+        kernel = self.__make_kernel(kind='alpha', resolution=0.025)
         self._bins = bins
         self.bins_t = bins[0:-1]
 
@@ -848,6 +848,7 @@ class NeuroAnalyzer(object):
         self.binned_spikes = binned_spikes
         self.psth          = psth
         self.run           = run
+        self.psth_t        = bins
 
         if self.wt_boolean:
             self.wt        = wt
@@ -1170,6 +1171,104 @@ class NeuroAnalyzer(object):
             y = y[good_inds,]
 
         # else do nothing and return all the data
+
+        return X, y, unit_inds
+
+    def spike_wt_design_matrix(self, bin_size=0.002, cond=8, \
+            trode=None, cell_type=None, analysis_window=[-1.0, 2.0]):
+        """
+        creates design matrix for classification and regressions
+
+        TODO: edit the description
+        produces a design matrix where each row is data from a single trial and
+        each column is a single unit.
+
+        Parameters
+        _________
+        cond_inds: optional, default (None)
+            Specify which trial types to extract data from
+        trode: optional, default (None)
+            Specify which electrode to extract data from
+            TODO: allow user to specify more than one electrode
+        cell_type: optional, default (None)
+            Specify which cell types ('RS' or 'FS') to extract data from
+        trim_trials: boolean, default (True)
+            Specify whether to extract an equal number of trials from each
+            condition using the condition with the least amount of trials.
+
+        Returns
+        -------
+        X: 2-d array
+            The design matrix containing all of the spike rates (per bin) for all trials
+            and units
+        y: 1-d array
+            The stimulus array where each element corresponds to a row in the
+            desing matrix. This is necessary in order to specify which rates
+            come from where.
+        unit_inds: 1-d array
+            The indices of the units selected.
+        """
+
+        print('\n-----make design matrix----')
+        num_trials     = self.num_good_trials[cond]
+        bins           = np.arange(analysis_window[0], analysis_window[1], bin_size)
+        num_bins       = len(bins) - 1 # the last bin doesn't correspond to anything
+
+        # Find indices for units to be included. user can selected a specific
+        # electrode/region, cell type (e.g. 'RS', 'FS') or a combinations of
+        # both ('RS' cells from 'S1')
+
+        if trode is not None and cell_type is not None:
+            unit_inds = np.where(
+                    np.logical_and(\
+                    neuro.shank_ids == trode, neuro.cell_type == cell_type))[0]
+            print('Collecting data from {} units and electrode {}'.format(cell_type, trode))
+        elif trode is not None:
+            unit_inds = np.where(self.shank_ids == trode)[0]
+            print('Collecting data from all units and electrode {}'.format(trode))
+
+        elif cell_type is not None:
+            print('Collecting data from all electrodes and {} units'.format(cell_type))
+            unit_inds = np.where(self.cell_type == cell_type)[0]
+
+        else:
+            print('Collecting data from all units and all electrodes')
+            unit_inds = np.where(self.shank_ids >= 0)[0]
+
+        num_units = len(unit_inds)
+
+        # Preallocate the design matrix and stimulus ID array
+        # num_bins*num_trials x num_units
+        X = np.zeros((num_bins*num_trials, num_units))
+        y = np.ones((num_bins*num_trials, ))
+
+        # Create design matrix: go through all trials and add specified data to
+        # the design and stimulus arrays
+        kernel = self.__make_kernel(kind='alpha', resolution=0.025)
+#        kernel = make_kernel(kind='alpha', resolution=0.025)
+        rebinned_spikes, t = self.rebin_spikes(bin_size=bin_size, analysis_window=analysis_window)
+        wtt_start = np.argmin(np.abs(self.wtt - analysis_window[0]))
+        wtt_stop  = np.argmin(np.abs(self.wtt - analysis_window[1]))
+
+        if wtt_stop == num_bins:
+            print('number of bins equal to number of whisker tracking indices')
+        else:
+            print('number of bins DOES NOT EQUAL number of whisker tracking indices')
+
+        for k in range(num_trials):
+            # for each trial get spike data and match it to whisker data
+
+            # spikes
+            spike_counts = rebinned_spikes[cond][:, k, unit_inds]
+
+            psth = np.zeros((num_bins, num_units))
+            for unit in range(num_units):
+                psth[:, unit] = np.convolve(spike_counts[:, unit], kernel)[:-kernel.shape[0]+1]
+
+            X[num_bins*k:num_bins*(k+1), :] = psth
+
+            # whisker tracking
+            y[num_bins*k:num_bins*(k+1), ]  = self.wt[cond][wtt_start:wtt_stop, 0, k]
 
         return X, y, unit_inds
 
