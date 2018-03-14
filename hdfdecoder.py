@@ -1169,9 +1169,8 @@ ax[1].set_xlabel('Percent Correct Classified')
 ##### use logistic regression decoder
 
 
-
-
-
+##### try to predict whisker angle from neural data #####
+##### try to predict whisker angle from neural data #####
 
 
 
