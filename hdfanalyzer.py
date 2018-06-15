@@ -376,7 +376,7 @@ class NeuroAnalyzer(object):
                             min_trial_length = len(good_inds)
                             # pre-allocate array for all whisker tracking data
                             # this way the original file/data is left untouched
-                            wt_data = np.zeros((min_trial_length, 6, len(f)))
+                            wt_data = np.zeros((min_trial_length, 7, len(f)))
                         elif min_trial_length > len(good_inds):
                             warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
                                     LINE 208 __trim_wt')
@@ -396,6 +396,8 @@ class NeuroAnalyzer(object):
                                 wt_data[:, 4, i] = self.f[anlg_path][good_inds]
                             elif anlg_name == 'whisking':
                                 wt_data[:, 5, i] = self.f[anlg_path][good_inds]
+                            elif anlg_name == 'curvature':
+                                wt_data[:, 6, i] = self.f[anlg_path][good_inds]
 
                         else:
                             warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
@@ -412,6 +414,8 @@ class NeuroAnalyzer(object):
                                 wt_data[:, 4, i] = self.f[anlg_path][:]
                             elif anlg_name == 'whisking':
                                 wt_data[:, 5, i] = self.f[anlg_path][:]
+                            elif anlg_name == 'curvature':
+                                wt_data[:, 6, i] = self.f[anlg_path][:]
 
             self.wtt          = wtt
             self.wt_boolean   = wt_boolean # indicates whether whisker tracking data is present
@@ -665,8 +669,7 @@ class NeuroAnalyzer(object):
                 thresh = int(raw_input("Enter a threshold value: "))
 
             plt.close(f)
-            del wsk_dist
-
+            del wsk_dist 
             wtt = self.wtt
             # trimming whisking data sets negative values to baseline period
             wsk_base_ind = wtt < 0
@@ -783,7 +786,7 @@ class NeuroAnalyzer(object):
                 run.append(np.zeros((self.run_t.shape[0], trials_ran)))
 
                 if self.wt_boolean:
-                    wt.append(np.zeros((self.wtt.shape[0], 6, trials_ran)))
+                    wt.append(np.zeros((self.wtt.shape[0], 7, trials_ran)))
 
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
@@ -1174,7 +1177,7 @@ class NeuroAnalyzer(object):
 
         return X, y, unit_inds
 
-    def spike_wt_design_matrix(self, bin_size=0.002, cond=8, \
+    def spike_wt_design_matrix(self, bin_size=0.002, kernel_size=0.025, cond=8, wt_type=0, \
             trode=None, cell_type=None, analysis_window=[-1.0, 2.0]):
         """
         creates design matrix for classification and regressions
@@ -1244,7 +1247,7 @@ class NeuroAnalyzer(object):
 
         # Create design matrix: go through all trials and add specified data to
         # the design and stimulus arrays
-        kernel = self.__make_kernel(kind='alpha', resolution=0.025)
+        kernel = self.__make_kernel(kind='alpha', resolution=kernel_size)
 #        kernel = make_kernel(kind='alpha', resolution=0.025)
         rebinned_spikes, t = self.rebin_spikes(bin_size=bin_size, analysis_window=analysis_window)
         wtt_start = np.argmin(np.abs(self.wtt - analysis_window[0]))
@@ -1268,7 +1271,7 @@ class NeuroAnalyzer(object):
             X[num_bins*k:num_bins*(k+1), :] = psth
 
             # whisker tracking
-            y[num_bins*k:num_bins*(k+1), ]  = self.wt[cond][wtt_start:wtt_stop, 0, k]
+            y[num_bins*k:num_bins*(k+1), ]  = self.wt[cond][wtt_start:wtt_stop, wt_type, k]
 
         return X, y, unit_inds
 
