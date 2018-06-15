@@ -480,6 +480,14 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
                 sig5.attrs["sampling_rate"] = 500
                 sig5.attrs["trial"]         = trial_ind
 
+                # check for curvature
+                if wt[trial_ind].shape[1] == 6:
+                    sig6 = f.create_dataset("/" + key + "/analog-signals/" + "whisking", data=wt[trial_ind][:,6])
+                    sig6.attrs["name"]          = 'curvature'
+                    sig6.attrs["units"]         = 'deg/m'
+                    sig6.attrs["sampling_rate"] = 500
+                    sig6.attrs["trial"]         = trial_ind
+
     ## Load in spike measure mat file ##
     spike_measure_path = data_dir + 'spike_measures.mat'
     if os.path.exists(spike_measure_path):
