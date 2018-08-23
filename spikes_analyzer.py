@@ -189,7 +189,7 @@ rebinned_spikes, t = neuro.rebin_spikes(bin_size=0.020, analysis_window=[0.5, 1.
 
 pos = 8
 R_nolight, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos)
-R_light, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos+9+9)
+R_light, sorted_inds = neuro.spike_time_corr(rebinned_spikes, cond=pos+9)
 
 vmin, vmax  = -0.2, 0.2
 fig, ax = plt.subplots(1, 2)
