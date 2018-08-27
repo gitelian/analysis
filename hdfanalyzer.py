@@ -34,10 +34,8 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 
 class NeuroAnalyzer(object):
     """
-    Analyzes data contained in a neo object
+    Analyzes data contained in a custom hdf5 object
 
-    REMEMBER: any changes to the passed in neo object also occur to the original
-    object. They point to the same place in memory. No copy is made.
     """
 
     def __init__(self, f, fid):
@@ -84,6 +82,15 @@ class NeuroAnalyzer(object):
         # is dynamic time set
         self.dynamic_time = f.attrs['dynamic_time']
 
+        # are there spikes
+        self.spikes_bool = f.attrs['spikes_bool']
+
+        # are there LFPs
+        self.lfp_bool = f.attrs['lfp_bool']
+
+        # is there whisker tracking
+        self.wt_bool = f.attrs['wt_bool']
+
         # get depths for all units
         self.__get_depths()
 
@@ -128,17 +135,21 @@ class NeuroAnalyzer(object):
         # create array with all the stimulus IDs
         self.__get_all_stim_ids()
 
+        # classify behavior using licks and go/no-go angle position
+        if self.jb_behavior:
+            self.__classify_behavior()
+
         # trim run data and align it to shortest trial
         self.__trim_run()
 
         # trim whisker tracking data and align it to shortest trial
         # defaults to False unless it finds whisker tracking data
-        self.wt_boolean = False
-        #self.__trim_wt()
+        self.__trim_wt()
 
 
         # trim LFP data and align it to shortest trial
-#        self.__trim_lfp()
+        if self.lfp_bool:
+            self.__trim_lfp()
 
         # classify a trial as good if whisking occurs during a specified period.
         # a new annotation ('wsk_boolean') is added to self.trial_class
@@ -150,20 +161,21 @@ class NeuroAnalyzer(object):
         # calculate rates, psths, whisking array, etc.
         self.rates()
 
-        # create region dictionary
-        self.region_dict = {0:'M1', 1:'S1'}
+        if spikes_bool:
+            # create region dictionary
+            self.region_dict = {0:'M1', 1:'S1'}
 
-        # get selectivity for all units
-        self.get_selectivity()
+            # get selectivity for all units
+            self.get_selectivity()
 
-        # get preferred position for all units
-        self.get_preferred_position()
+            # get preferred position for all units
+            self.get_preferred_position()
 
-        # get best contact for each unit
-        self.get_best_contact()
+            # get best contact for each unit
+            self.get_best_contact()
 
-        # kruskal wallis and dunn's test to ID sensory driven units
-        self.get_sensory_drive()
+            # kruskal wallis and dunn's test to ID sensory driven units
+            self.get_sensory_drive()
 
         # reclassify running trials
 #        #self.reclassify_run_trials(self, time_before_stimulus= -1,\
@@ -345,6 +357,60 @@ class NeuroAnalyzer(object):
 
         self.stim_ids_all = stim_ids_all
 
+    def __classify_behavior(self):
+        print('\n-----classify_behavior----')
+        print('\n-----THIS WILL BE WRONG WITH OPTOGENETICS:----')
+        behavior_ids = list()
+        for k, seg in enumerate(self.f):
+            trial_type = int(self.f[seg].attrs['trial_type'])
+            stim_start = self.f[seg].attrs['stim_times'][0]
+            stim_stop  = self.f[seg].attrs['stim_times'][1]
+            lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+            lick_times_relative = lick_times - stim_start
+
+            licks_after  = lick_times_relative > 0
+            licks_before = lick_times_relative < 1
+
+            if len(licks_after) == 0 or len(licks_before) == 0:
+                # no licks in the response window
+                lick = False
+            elif len(np.where(np.logical_and(licks_after, licks_before) == True)[0]) > 0:
+                # licks in the response window
+                lick = True
+            else:
+                lick = False
+
+            if trial_type < 5:
+                go = True
+#            # this isn't used in the experiment
+#            elif trial_type == 5:
+#                go = None
+            elif trial_type >= 5 and trial_type < 9:
+                go = False
+            elif trial_type == 9:
+                # control position
+                go = None
+
+            # label the type of behavior using logic
+            if go == None:
+                behavior_ids.append(5)
+            elif go and lick:
+                # hit
+                behavior_ids.append(1)
+            elif go and not lick:
+                # miss
+                behavior_ids.append(3)
+            elif not go and lick:
+                # false alarm
+                behavior_ids.append(2)
+            elif not go and not lick:
+                # correct reject
+                behavior_ids.append(4)
+
+        self.behavior_ids    = behavior_ids
+        #self.behavior_labels = {'hit':1, 'miss':3, 'false_alarm':2, 'correct_reject':4}
+        self.behavior_labels = {1:'hit', 3:'miss', 2:'false_alarm', 4:'correct_reject'}
+
     def __trim_wt(self):
         """
         Trim whisker tracking arrays to the length of the shortest trial.
@@ -353,13 +419,7 @@ class NeuroAnalyzer(object):
         print('\n-----__trim_wt-----')
 
         fps        = 500.0
-        wt_boolean = False
-        for anlg in self.f['/segment-0000/analog-signals/']:
-            anlg_path = '/segment-0000/analog-signals/' + anlg
-            if self.f[anlg_path].attrs['name'] == 'angle':
-                wt_boolean = True
-
-        if wt_boolean:
+        if self.wt_bool:
 
             print('whisker tracking data found! trimming data to be all the same length in time')
 
@@ -457,13 +517,13 @@ class NeuroAnalyzer(object):
 #                            # find number of samples after stim stop
 
             self.wtt          = wtt
-            self.wt_boolean   = wt_boolean # indicates whether whisker tracking data is present
+            self.wt_bool   = wt_bool # indicates whether whisker tracking data is present
             self._wt_min_samp = num_samples
             self.wt_data      = wt_data
         else:
-            print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_boolean to False'\
+            print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_bool to False'\
                     '\nuse runspeed to classify trials')
-            self.wt_boolean = wt_boolean
+            self.wt_bool = wt_bool
 
     def __trim_run(self):
         """
@@ -676,7 +736,7 @@ class NeuroAnalyzer(object):
         A new annotation ('wsk_boolean') is added to each segment
         """
 
-        if self.wt_boolean:
+        if self.wt_bool:
             print('whisker tracking data found! trimming data to be all the same length in time')
             # make "whisking" distribution and compute threshold
             print('\n-----classify_whisking_trials-----')
@@ -779,15 +839,17 @@ class NeuroAnalyzer(object):
         binned_spikes   = list()
         psth            = list()
         run             = list()
+        licks           = list()
+        bids            = list() # behavior IDs
 
         # make whisker tracking list wt
-        if self.wt_boolean:
+        if self.wt_bool:
             wt          = list()
-        if kind == 'wsk_boolean' and not self.wt_boolean:
+        if kind == 'wsk_boolean' and not self.wt_bool:
             warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
                     using run speed to select good trials')
             kind = 'run_boolean'
-        elif kind == 'wsk_boolean' and self.wt_boolean:
+        elif kind == 'wsk_boolean' and self.wt_bool:
             print('using whisking to find good trials')
             self.get_num_good_trials(kind='wsk_boolean')
         elif kind == 'run_boolean':
@@ -814,18 +876,26 @@ class NeuroAnalyzer(object):
         self._bins = bins
         self.bins_t = bins[0:-1]
 
+
         # preallocation loop
         for k, trials_ran in enumerate(num_trials):
-                absolute_rate.append(np.zeros((trials_ran, self.num_units)))
-                evoked_rate.append(np.zeros((trials_ran, self.num_units)))
-                absolute_counts.append(np.zeros((trials_ran, self.num_units)))
-                evoked_counts.append(np.zeros((trials_ran, self.num_units)))
-                binned_spikes.append(np.zeros((bins.shape[0]-1, trials_ran, self.num_units)))
-                psth.append(np.zeros((bins.shape[0]-1,trials_ran, self.num_units))) # samples x trials x units
                 run.append(np.zeros((self.run_t.shape[0], trials_ran)))
 
-                if self.wt_boolean:
+                if self.spikes_bool:
+                    absolute_rate.append(np.zeros((trials_ran, self.num_units)))
+                    evoked_rate.append(np.zeros((trials_ran, self.num_units)))
+                    absolute_counts.append(np.zeros((trials_ran, self.num_units)))
+                    evoked_counts.append(np.zeros((trials_ran, self.num_units)))
+                    binned_spikes.append(np.zeros((bins.shape[0]-1, trials_ran, self.num_units)))
+                    psth.append(np.zeros((bins.shape[0]-1,trials_ran, self.num_units))) # samples x trials x units
+
+                if self.wt_bool:
                     wt.append(np.zeros((self.wtt.shape[0], 7, trials_ran)))
+
+                if self.jb_behavior:
+                    licks.append([list() for x in range(trials_ran)])
+                    bids.append([list() for x in range(trials_ran)])
+
 
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
@@ -841,59 +911,73 @@ class NeuroAnalyzer(object):
                     run[stim_ind][:, good_trial_ind] = self.run_data[:, k]
 
                     # organize whisker tracking data by trial type
-                    if self.wt_boolean:
+                    if self.wt_bool:
                         for wt_ind in range(self.wt_data.shape[1]):
                             # k should be the segment/trial index
                             wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
 
-                    # get baseline and stimulus period times for this trial
-                    stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
-                    stim_stop  = self.f[seg].attrs['stim_times'][1]
-                    base_start = self.f[seg].attrs['stim_times'][0] - (stim_stop - stim_start)
-                    base_stop  = self.f[seg].attrs['stim_times'][0]
+                    if self.jb_behavior:
+                        lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+                        stim_start = self.f[seg].attrs['stim_times'][0]
+                        licks[stim_ind][good_trial_ind] = lick_times - stim_start
 
-                    # iterate through all units and count calculate various
-                    # spike rates (e.g. absolute firing and evoked firing rates
-                    # and counts)
-                    for unit, spike_train in enumerate(self.f[seg + '/spiketrains']):
-                        spk_times = self.f[seg + '/spiketrains/' + spike_train][:]
+                        bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
 
-                        # bin spikes for rasters (time 0 is stimulus start)
-                        spk_times_relative = spk_times - self.f[seg].attrs['stim_times'][0]
-                        counts = np.histogram(spk_times_relative, bins=bins)[0]
-                        binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
+                    if self.spikes_bool:
+                        # get baseline and stimulus period times for this trial
+                        stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
+                        stim_stop  = self.f[seg].attrs['stim_times'][1]
+                        base_start = self.f[seg].attrs['stim_times'][0] - (stim_stop - stim_start)
+                        base_stop  = self.f[seg].attrs['stim_times'][0]
 
-                        # convolve binned spikes to make PSTH
-                        psth[stim_ind][:, good_trial_ind, unit] =\
-                                np.convolve(counts, kernel)[:-kernel.shape[0]+1]
+                        # iterate through all units and count calculate various
+                        # spike rates (e.g. absolute firing and evoked firing rates
+                        # and counts)
+                        for unit, spike_train in enumerate(self.f[seg + '/spiketrains']):
+                            spk_times = self.f[seg + '/spiketrains/' + spike_train][:]
 
-                        # calculate absolute and evoked counts
-                        abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
-                        evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
-                                (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
-                        absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
-                        evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
+                            # bin spikes for rasters (time 0 is stimulus start)
+                            spk_times_relative = spk_times - self.f[seg].attrs['stim_times'][0]
+                            counts = np.histogram(spk_times_relative, bins=bins)[0]
+                            binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
 
-                        # calculate absolute and evoked rate
-                        abs_rate = float(abs_count)/float((stim_stop - stim_start))
-                        evk_rate = float(evk_count)/float((stim_stop - stim_start))
-                        absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
-                        evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
+                            # convolve binned spikes to make PSTH
+                            psth[stim_ind][:, good_trial_ind, unit] =\
+                                    np.convolve(counts, kernel)[:-kernel.shape[0]+1]
+
+                            # calculate absolute and evoked counts
+                            abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
+                            evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
+                                    (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
+                            absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
+                            evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
+
+                            # calculate absolute and evoked rate
+                            abs_rate = float(abs_count)/float((stim_stop - stim_start))
+                            evk_rate = float(evk_count)/float((stim_stop - stim_start))
+                            absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
+                            evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
 
 
                     good_trial_ind += 1
 
-        self.abs_rate      = absolute_rate
-        self.abs_count     = absolute_counts
-        self.evk_rate      = evoked_rate
-        self.evk_count     = evoked_counts
-        self.binned_spikes = binned_spikes
-        self.psth          = psth
         self.run           = run
-        self.psth_t        = bins
 
-        if self.wt_boolean:
+        if self.spikes_bool:
+            self.abs_rate      = absolute_rate
+            self.abs_count     = absolute_counts
+            self.evk_rate      = evoked_rate
+            self.evk_count     = evoked_counts
+            self.binned_spikes = binned_spikes
+            self.psth          = psth
+            self.psth_t        = bins
+
+        if self.wt_bool:
             self.wt        = wt
+
+        if self.jb_behavior:
+            self.licks = licks
+            self.binds = [np.asarray(x) for x in bids]
 
     def rebin_spikes(self, bin_size=0.005, analysis_window=[0.5, 1.5]):
         '''bin spike times with specified bin size and analysis window'''
@@ -1114,6 +1198,35 @@ class NeuroAnalyzer(object):
 
         return f, frq_mat_temp
 
+    def get_spectrogram(self, input_array, sr):
+        num_trials = input_array.shape[1]
+        for trial in range(num_trials):
+            f, t, Sxx = sp.signal.spectrogram(input_array[:, trial], sr, nperseg=256, noverlap=230, nfft=256)
+            if trial == 0:
+                Sxx_mat_temp = np.zeros((Sxx.shape[0], Sxx.shape[1], num_trials))
+            Sxx_mat_temp[:, :, trial] = Sxx
+
+        return f, t, Sxx_mat_temp
+
+    def plot_spectrogram(self, f, t, Sxx_mat_temp, axis=None, color='k', error='sem', vmin=None, vmax=None, log=False):
+
+        if axis == None:
+            axis = plt.gca()
+
+        mean_Sxx = np.mean(Sxx_mat_temp, axis=2)
+
+        if vmin == None:
+            im = axis.pcolormesh(t, f, mean_Sxx)
+        elif vmin != None and log == True:
+            im = axis.pcolormesh(t, f, mean_Sxx, norm=colors.LogNorm(vmin=vmin, vmax=vmax))
+        elif vmin!= None and log == False:
+            im = axis.pcolormesh(t, f, mean_Sxx, vmin=vmin, vmax=vmax)
+        #axis.set_yscale('log')
+        axis.set_ylabel('Frequency (Hz)')
+        axis.set_xlabel('Time (s)')
+
+        return im
+
     def get_design_matrix(self, rate_type='abs_count', cond_inds=None, trode=None, cell_type=None, trim_trials=True):
         """
         creates design matrix for classification and regressions
@@ -1323,13 +1436,13 @@ class NeuroAnalyzer(object):
         These values can be used to identify bursting activity.
         """
 
-        if self.wt_boolean:
+        if self.wt_bool:
             wt          = list()
-        if kind == 'wsk_boolean' and not self.wt_boolean:
+        if kind == 'wsk_boolean' and not self.wt_bool:
             warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
                     using run speed to select good trials')
             kind = 'run_boolean'
-        elif kind == 'wsk_boolean' and self.wt_boolean:
+        elif kind == 'wsk_boolean' and self.wt_bool:
             print('using whisking to find good trials')
             self.get_num_good_trials(kind='wsk_boolean')
         elif kind == 'run_boolean':
