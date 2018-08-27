@@ -94,7 +94,8 @@ def kw_dunn(groups, to_compare=None, alpha=0.05, method='bonf'):
     H /= T
 
     df_omnibus = k - 1
-    p_omnibus = stats.chisqprob(H, df_omnibus)
+    #p_omnibus = stats.chisqprob(H, df_omnibus)
+    p_omnibus = stats.distributions.chi2.sf(H, df_omnibus)
 
     # multiple comparisons
     # -------------------------------------------------------------------------
