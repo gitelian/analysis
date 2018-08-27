@@ -64,11 +64,33 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
             # vector...this appears to screw things up.
             data = [mat[element][:][0].T for element in mat[variable_name][0]]
 
+    elif variable_name == 'dio_cell':
+        data = [mat[element][:].T for element in mat[variable_name][0]]
+
+    elif variable_name == 'hsv_times':
+        data = [mat[element][0].T for element in mat[variable_name][0]]
+
     elif variable_name == 'jb_behavior':
-        data = mat[variable_name][:][0]
+        data = mat[variable_name][0][0]
 
     elif variable_name == 'lick_cell':
-        data = [mat[element][0][:].T for element in mat[variable_name][0]]
+        #data = [mat[element][0][:].T for element in mat[variable_name][0]]
+        data = [mat[element][0].T for element in mat[variable_name][0]]
+
+    elif variable_name == 'stim_ind':
+        temp = mat[variable_name]
+        data = dict()
+        for k in temp.keys():
+            data[k] = int(temp[k][0][0] - 1)
+
+    elif variable_name == 'stimsequence':
+        data = mat[variable_name][0]
+
+    elif variable_name == 'stimulus_times':
+        data = mat[variable_name][:].T
+
+    elif variable_name == 'time_before' or variable_name == 'time_after':
+        data = mat[variable_name][0][0]
 
     elif variable_name == 'lfp':
         data = list()
@@ -83,8 +105,16 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
         for k in range(mat['wt_cell'][0].shape[0]):
             data.append(mat[mat['wt_cell'][0][k]][:].T)
 
+    #TODO read in LED pulses
+    #elif variable_name == '':
+        #data = [mat[element]
+
+    #TODO read in whisker trace object overlap
+
+    #TODO other whisking/HSV parameters
+
     else: # try this and hope it works!
-        data = mat[variable_name][:].T
+        data = [mat[element][:].T for element in mat[variable_name][0]]
 
     return data
 
@@ -227,11 +257,11 @@ def make_gauss_window(length,std,Fs,make_plot=False):
 
     return window
 
-def plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False):
+def plot_running_subset(trtime_list, vel_list, stim_time_mat, conversion=False):
     num_rows = 5
     num_cols = 6
     step = len(vel_list)/30
-    time_vec_plot = trtime_list[0] - stim_time_list[0][0]
+    time_vec_plot = trtime_list[0] - stim_time_mat[0, 0]
 
     if conversion:
         # circumfrence per revolution (with a mouse 6cm away from center) / number of pulses per revolution
@@ -244,9 +274,9 @@ def plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
         bins = range(0, 1000, bin_size)
 
     # make heatmap of all running trials during the stimulus period
-    num_trials = len(stim_time_list)
-    stim_period_inds = np.where((trtime_list[0] >= stim_time_list[0][0])\
-            & (trtime_list[0] <= stim_time_list[0][1]))[0]
+    num_trials = len(stim_time_mat)
+    stim_period_inds = np.where((trtime_list[0] >= stim_time_mat[0, 0])\
+            & (trtime_list[0] <= stim_time_mat[0, 1]))[0]
     for k in range(num_trials):
         if k == 0:
             vel_mat = np.zeros((num_trials, len(stim_period_inds)))
@@ -303,8 +333,14 @@ def plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
     plt.suptitle('birds eye view of runspeeds across experiment')
     plt.show()
 
-def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.250,\
+def classify_run_trials(vel_list, trtime_list, stim_time_mat, t_after_start=0.250,\
         t_after_stop=0.5, t_before_start=1.0, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=False):
+    '''
+    t_after_stop: when to start looking for running (time after the object stops)
+    t_before_start: when to calculate baseline running (from beginning of trial
+        to the time the object stops minus this value)
+    t_after_start: when to stop looking for running
+    '''
     num_trials = len(vel_list)
     mean_vel, sigm_vel = list(), list()
     run_bool_list = [False]*num_trials
@@ -312,12 +348,12 @@ def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.2
     for count, trial in enumerate(range(num_trials)):
 
         # get indices of stimulus period run speed
-        stim_period_inds = (trtime_list[trial] >= (stim_time_list[trial][0] + t_after_start))\
-                & (trtime_list[trial] <= (stim_time_list[trial][0] + t_after_stop))
+        stim_period_inds = (trtime_list[trial] >= (stim_time_mat[trial, 0] + t_after_start))\
+                & (trtime_list[trial] <= (stim_time_mat[trial, 0] + t_after_stop))
 
         # get indices of baseline run speed
-        base_period_inds = (trtime_list[trial] >= (stim_time_list[trial][0] - t_before_start))\
-                & (trtime_list[trial] <= (stim_time_list[trial][0]))
+        base_period_inds = (trtime_list[trial] >= (stim_time_mat[trial, 0] - t_before_start))\
+                & (trtime_list[trial] <= (stim_time_mat[trial, 0]))
 
         vel = vel_list[trial][stim_period_inds]
         vel = np.concatenate((vel_list[trial][stim_period_inds], vel_list[trial][base_period_inds]))
@@ -340,11 +376,11 @@ def classify_run_trials(vel_list, trtime_list, stim_time_list, t_after_start=0.2
 
     return run_bool_list
 
-def get_running_times(trtime_list, stim_time_list):
+def get_running_times(trtime_list, stim_time_mat):
     '''subtracts of stimulus start time from each trial time'''
     run_time_list = list()
     for k, time in enumerate(trtime_list):
-        run_time_list.append(time - stim_time_list[k][0])
+        run_time_list.append(time - stim_time_mat[k, 0])
     return run_time_list
 
 def get_exp_details_info(data_dir_path, fid, key):
@@ -372,22 +408,145 @@ def get_exp_details_info(data_dir_path, fid, key):
     else:
         return exp_info[key]
 
-def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
-        wtrack_files, vel_list, run_bool_list, stim, stim_time_list, run_time_list, jb_behavior, lick_list):
-    print('\n----- make_hdf5_block -----')
+def make_hdf_object(f, **kwargs):
+#def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
+#        wtrack_files, vel_list, run_bool_list, stim, stim_time_mat, run_time_list, jb_behavior, lick_list):
+    '''
+    types of arguments that can be passed: f, data_dir, fid, lfp_files, spikes_files, \
+    wtrack_files, vel_list, run_bool_list, stim, stim_time_mat, run_time_list\
+    jb_behavior, lick_list
+
+    some of these are absolutely necessary but I was too lazy to code it properly
+    '''
+    ## search for files and load them in if they exist
+
+    # get paths to run, whiser tracking, lfp, and spikes files if they
+    # exist.
+    # REMEMBER glob.glob returns a LIST of path strings you must
+    # index into the appropriate one for whatever experiment/electrode
+    # you're trying to add to the HDF5 object
+    run_file     = glob.glob(data_dir + fid + '*/' + fid + '*.run')
+    spikes_files = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*spikes.mat'))
+    lfp_files    = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*LFP.mat'))
+    wtrack_files = sorted(glob.glob(data_dir + fid + '*/' + fid + '*.wtr'))
+
+    ## Load in all variable stored in .run file
+    # load dio_cell
+    dio = load_v73_mat_file(run_file[0], variable_name='dio_cell')
+
+    # load in hsv_times
+    try:
+        hsv_times = load_v73_mat_file(run_file[0], variable_name='hsv_times')
+    except:
+        hsv_times = False
+
+    # get jb_behavior variable
+    jb_behavior = load_v73_mat_file(run_file[0], variable_name='jb_behavior')
+
+    # load in lick times
+    lick_list = load_v73_mat_file(run_file[0], variable_name='lick_cell')
+
+    # load in run encoder
+    run_list = load_v73_mat_file(run_file[0], variable_name='run_cell')
+
+    # load in stim_ind used to index into relevant dio channels
+    stim_ind = load_v73_mat_file(run_file[0], variable_name='stim_ind')
+
+    # load stimsequence
+    stim = load_v73_mat_file(run_file[0], variable_name='stimsequence')
+
+    # get stimulus on/off times and stimulus ID for each trial
+    stim_time_mat = load_v73_mat_file(run_file[0], variable_name='stimulus_times')
+
+    # get time before trial_boolean
+    time_before = load_v73_mat_file(run_file[0], variable_name='time_before')
+
+    # get time before trial_boolean
+    time_after= load_v73_mat_file(run_file[0], variable_name='time_after')
+
+
+
+    ## calculate run-speed and classify as running/not-running
+    vel_list, trtime_list = calculate_runspeed(run_list)
+
+    # Plot runspeed
+    plot_running_subset(trtime_list, vel_list, stim_time_mat, conversion=False)
+
+    # select runspeed classification parameters
+    print('\nDefault runspeed options')
+    print(run_param_dict)
+    valid_input = False
+    while not valid_input:
+        usr_input = raw_input('Select runspeed parameters: fast, medium, slow, or custom\n')
+        if usr_input == 'fast':
+            rparam = run_param_dict['fast']
+            valid_input = True
+        elif usr_input == 'medium':
+            rparam = run_param_dict['medium']
+            valid_input = True
+        elif usr_input == 'slow':
+            rparam = run_param_dict['slow']
+            valid_input = True
+        elif usr_input == 'custom':
+            try:
+                rparam = list()
+                rparam.append(float(raw_input('mean_thresh: ')))
+                rparam.append(float(raw_input('sigma_thresh: ')))
+                rparam.append(float(raw_input('low_thresh: ')))
+                valid_input = True
+            except:
+                warn('\nInvalid response, try again!')
+                valid_input = False
+        else:
+            warn('\nInvalid response, try again!')
+            valid_input = False
+
+    # close plots
+    for aa in range(10):
+        plt.close()
+
+    # Create running trial dictionary
+    if jb_behavior:
+        # check running for Jenny's behavrioal experiment
+        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_mat,\
+                t_after_start=0, t_after_stop=1, t_before_start=1.0,\
+                mean_thresh=rparam[0], sigma_thresh=rparam[1], low_thresh=rparam[2], display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+    else:
+        # this if for original 8 bar position experiment
+        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_mat,\
+                t_after_start=0.50, t_after_stop=1.50, t_before_start=1.0,\
+                mean_thresh=rparam[0], sigma_thresh=rparam[1], low_thresh=rparam[2], display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
+
+    run_time_list = get_running_times(trtime_list, stim_time_mat)
+
+    # get control position
+    control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
+    print('control position: {}'.format(control_pos))
+
+
+    ## Start adding data to the HDF5 file
+    # save data that is relevant to the whole experiment
+    f.attrs["description"] = "This is a hdf5 file for experiment " + fid
+    f.attrs["control_pos"] = control_pos
+    f.attrs["jb_behavior"] = jb_behavior
+    f.attrs["time_before"] = time_before
+    f.attrs["time_after"]  = time_after
+    f.attrs["stim_ind"]    = str(stim_ind)
 
     ## Make hdf5 group objects
+    print('\n----- make_hdf5_block -----')
+
     for trial_ind in np.arange(stim.shape[0]):
 
-        seg_description = 'Trial number: ' + str(trial_ind) + ' Trial type: ' + str(stim[trial_ind][0])
+        seg_description = 'Trial number: ' + str(trial_ind) + ' Trial type: ' + str(stim[trial_ind])
 
         # create new group for each trial/segment
         dset = f.create_group("segment-{0:04d}".format(trial_ind))
         dset.attrs["description"]  = np.string_(seg_description)
         dset.attrs["index"]        = trial_ind                  # trial number as an index
         dset.attrs["run_boolean"]  = run_bool_list[trial_ind]   # running=1, not-running=0
-        dset.attrs["trial_type"]   = stim[trial_ind][0]         # stimulus presented
-        dset.attrs["stim_times"]   = stim_time_list[trial_ind]  # start/stop times of the stimulus object
+        dset.attrs["trial_type"]   = stim[trial_ind]         # stimulus presented
+        dset.attrs["stim_times"]   = stim_time_mat[trial_ind, :]  # start/stop times of the stimulus object
 
         # add bare minimum analog signals
         analog = dset.create_group("analog-signals")
@@ -405,10 +564,16 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
         sig1.attrs["units"] = 's'
         sig1.attrs["sampling_rate"] = 6000
 
+        # add dio for this trial segment
+        sig2 = analog.create_dataset("dio", data=dio[trial_ind])
+        sig2.attrs["name"] = 'digital input/output (dio)'
+        sig2.attrs["units"] = 'binary'
+        sig2.attrs["sampling_rate"] = 30000
+
     if jb_behavior:
         key_iter = f.iterkeys() # iterates through keys (in order)
         for trial_ind in np.arange(stim.shape[0]):
-            licks = f.create_dataset("/" + key_iter.next() + "/analog-signals/lick-timestamps", data=lick_list[trial_ind][:])
+            licks = f.create_dataset("/" + key_iter.next() + "/analog-signals/lick-timestamps", data=lick_list[trial_ind])
             licks.attrs["name"]  = 'lick-timestamps'
             sig1.attrs["units"] = 's'
             sig1.attrs["sampling_rate"] = 30000
@@ -482,11 +647,24 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
 
                 # check for curvature
                 if wt[trial_ind].shape[1] == 6:
-                    sig6 = f.create_dataset("/" + key + "/analog-signals/" + "whisking", data=wt[trial_ind][:,6])
+                    sig6 = f.create_dataset("/" + key + "/analog-signals/" + "curvature", data=wt[trial_ind][:,6])
                     sig6.attrs["name"]          = 'curvature'
                     sig6.attrs["units"]         = 'deg/m'
                     sig6.attrs["sampling_rate"] = 500
                     sig6.attrs["trial"]         = trial_ind
+
+                if hsv_times:
+                    sig7 = f.create_dataset("/" + key + "/analog-signals/" + "cam_times", data=hsv_times[trial_ind])
+                    sig7.attrs["name"]          = 'HSV times (i.e. times trigger pulses where recorded)'
+                    sig7.attrs["unit"]          = 's'
+                    sig7.attrs["sampling_rate"] = 500
+                    sig7.attrs["trial"]         = trial_ind
+
+#                if LED_info:
+                #print("LED_info HAS NOT BEEN ADDED TO THE HDF5 FILE!!!")
+#                    sig8 = f.create_dataset("/" + key + "/analog-signals/" + "whisking", data=LED_info[trial_ind])
+                    ###
+
 
     ## Load in spike measure mat file ##
     spike_measure_path = data_dir + 'spike_measures.mat'
@@ -506,6 +684,7 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
             e_inds          = np.where(spk_msrs[:, 1] == e_num)[0]
             exp_inds        = np.intersect1d(fid_inds, e_inds)
             shank_region    = get_exp_details_info(data_dir, fid_num, '{}_location'.format(e_name))
+            probe_type      = get_exp_details_info(data_dir, fid_num, '{}_probe'.format(e_name))
 
             print('\nloading spikes from: {}\nREGION: {}'.format(spike_fname, shank_region))
             labels, assigns, trials, spiketimes, _, _,\
@@ -556,6 +735,7 @@ def make_hdf_object(f, data_dir, fid, lfp_files, spikes_files, \
                             spiketrain.attrs["shank"]         = e_name
                             spiketrain.attrs["unit_id"]       = unit
                             spiketrain.attrs["region"]        = shank_region
+                            spiketrain.attrs["probe"]         = probe_type
 
 
                         # if unit isn't in spike_measures file add spike times
@@ -588,15 +768,6 @@ if __name__ == "__main__":
     # easily run on laptop and lab computer without changing directory names
     # and to prevent github confusion.
 
-    # Random notes for different experiments
-    #
-    # bad_trials for FID1340. Whisker tracking failed here due to the shadow of
-    # my hand: 101, 102, 103
-    #
-    # good experiments
-    #fids = ['1295', '1302', '1318', '1328', '1329', '1330']
-
-
     # define parameters
     run_param_dict = {\
             'fast':   [250, 150, 135],\
@@ -607,6 +778,7 @@ if __name__ == "__main__":
 
     # Begin create HDF5 file loop
     for arg in sys.argv[1:]:
+#    for arg in ['1729']:
         fid = 'FID' + arg
         print(fid)
         # create multiple independent HDF5 files
@@ -615,88 +787,11 @@ if __name__ == "__main__":
             print('!!! DELETING OLD HDF5 FILE !!!')
             os.remove(hdf_fname)
         f = h5py.File(hdf_fname, 'w')
-        # get paths to run, whiser tracking, lfp, and spikes files if they
-        # exist.
-        # REMEMBER glob.glob returns a LIST of path strings you must
-        # index into the appropriate one for whatever experiment/electrode
-        # you're trying to add to the HDF5 object
-        run_file     = glob.glob(data_dir + fid + '*/' + fid + '*.run')
-        lfp_files    = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*LFP.mat'))
-        spikes_files = sorted(glob.glob(data_dir + fid + '*/' + fid + '_e*/' + fid + '*spikes.mat'))
-        wtrack_files = sorted(glob.glob(data_dir + fid + '*/' + fid + '*.wtr'))
 
-        # get jb_behavior variable
-        jb_behavior = load_v73_mat_file(run_file[0], variable_name='jb_behavior')
-
-        # load in lick times
-        lick_list = load_v73_mat_file(run_file[0], variable_name='lick_cell')
-
-        # Calculate runspeed
-        run_list = load_v73_mat_file(run_file[0], variable_name='run_cell')
-        vel_list, trtime_list = calculate_runspeed(run_list)
-
-        # get stimulus on/off times and stimulus ID for each trial
-        stim_time_list = load_v73_mat_file(run_file[0], variable_name='stimulus_times')
-        stim = load_v73_mat_file(run_file[0], variable_name='stimsequence')
-
-        # Plot runspeed
-        plot_running_subset(trtime_list, vel_list, stim_time_list, conversion=False)
-
-        # select runspeed classification parameters
-        print('\nDefault runspeed options')
-        print(run_param_dict)
-        valid_input = False
-        while not valid_input:
-            usr_input = raw_input('Select runspeed parameters: fast, medium, slow, or custom\n')
-            if usr_input == 'fast':
-                rparam = run_param_dict['fast']
-                valid_input = True
-            elif usr_input == 'medium':
-                rparam = run_param_dict['medium']
-                valid_input = True
-            elif usr_input == 'slow':
-                rparam = run_param_dict['slow']
-                valid_input = True
-            elif usr_input == 'custom':
-                try:
-                    rparam = list()
-                    rparam.append(float(raw_input('mean_thresh: ')))
-                    rparam.append(float(raw_input('sigma_thresh: ')))
-                    rparam.append(float(raw_input('low_thresh: ')))
-                    valid_input = True
-                except:
-                    warn('\nInvalid response, try again!')
-                    valid_input = False
-            else:
-                warn('\nInvalid response, try again!')
-                valid_input = False
-
-        # close plots
-        for aa in range(10):
-            plt.close()
-
-        # Create running trial dictionary
-        run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_list,\
-                t_after_start=0.50, t_after_stop=1.50, t_before_start=1.0,\
-                mean_thresh=rparam[0], sigma_thresh=rparam[1], low_thresh=rparam[2], display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
-
-        run_time_list = get_running_times(trtime_list, stim_time_list)
-
-        # get control position
-        control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
-        print('control position: {}'.format(control_pos))
-
-        # Put data into a hdf5 file and save
-        f.attrs["description"] = "This is a hdf5 file for experiment " + fid
-        f.attrs["control_pos"] = control_pos
-        f.attrs["jb_behavior"] = jb_behavior
-
-        make_hdf_object(f, data_dir, fid, lfp_files, spikes_files,\
-                wtrack_files, vel_list, run_bool_list, stim, stim_time_list, run_time_list, jb_behavior, lick_list)
+        make_hdf_object(f,
+                data_dir=data_dir,
+                fid=fid)
         f.close()
         print('\n ##### Closing file for {} #####'.format(fid))
-
-
-#how to get spike times: block.segments[0].spiketrains[0].tolist()
 
 
