@@ -92,6 +92,15 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
     elif variable_name == 'time_before' or variable_name == 'time_after':
         data = mat[variable_name][0][0]
 
+    elif variable_name == 't_after_stim':
+        data = mat[variable_name][0][0]
+
+    elif variable_name == 'stim_duration':
+        data = mat[variable_name][0][0]
+
+    elif variable_name == 'dynamic_time':
+        data = mat[variable_name][0][0]
+
     elif variable_name == 'lfp':
         data = list()
         for k in range(mat['lfp'][0].shape[0]):
@@ -462,9 +471,16 @@ def make_hdf_object(f, **kwargs):
     time_before = load_v73_mat_file(run_file[0], variable_name='time_before')
 
     # get time before trial_boolean
-    time_after= load_v73_mat_file(run_file[0], variable_name='time_after')
+    time_after = load_v73_mat_file(run_file[0], variable_name='time_after')
 
+    # get stimulus duration
+    stim_duration = load_v73_mat_file(run_file[0], variable_name='stim_duration')
 
+    # get time after stim to begin analysing
+    t_after_stim = load_v73_mat_file(run_file[0], variable_name='t_after_stim')
+
+    # is dynamic time set
+    dynamic_time = load_v73_mat_file(run_file[0], variable_name='dynamic_time')
 
     ## calculate run-speed and classify as running/not-running
     vel_list, trtime_list = calculate_runspeed(run_list)
@@ -526,12 +542,15 @@ def make_hdf_object(f, **kwargs):
 
     ## Start adding data to the HDF5 file
     # save data that is relevant to the whole experiment
-    f.attrs["description"] = "This is a hdf5 file for experiment " + fid
-    f.attrs["control_pos"] = control_pos
-    f.attrs["jb_behavior"] = jb_behavior
-    f.attrs["time_before"] = time_before
-    f.attrs["time_after"]  = time_after
-    f.attrs["stim_ind"]    = str(stim_ind)
+    f.attrs["description"]   = "This is a hdf5 file for experiment " + fid
+    f.attrs["control_pos"]   = control_pos
+    f.attrs["jb_behavior"]   = jb_behavior
+    f.attrs["time_before"]   = time_before
+    f.attrs["time_after"]    = time_after
+    f.attrs["stim_duration"] = stim_duration
+    f.attrs["stim_ind"]      = str(stim_ind)
+    f.attrs["t_after_stim"]  = t_after_stim
+    f.attrs["dynamic_time"]  = dynamic_time
 
     ## Make hdf5 group objects
     print('\n----- make_hdf5_block -----')

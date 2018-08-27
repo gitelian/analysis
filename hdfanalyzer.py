@@ -14,7 +14,7 @@ import scipy.signal
 import h5py
 from scipy.signal import butter, lfilter
 #import 3rd party code found on github
-import icsd
+#import icsd
 import ranksurprise
 import dunn
 # for LDA
@@ -61,6 +61,29 @@ class NeuroAnalyzer(object):
         # add hdf5 object to class instance
         self.f = f
 
+        # get the control position
+        self.control_pos = int(f.attrs['control_pos'])
+
+        # is this a jb_behavior experiment
+        self.jb_behavior = self.f.attrs['jb_behavior']
+
+        # add time before and time after stimulus start/stop respectively
+        # add stimulus period duration (avoid dependence on CSV file
+        self.time_before = self.f.attrs['time_before']
+        self.time_after  = self.f.attrs['time_after']
+        self.stim_duration = self.f.attrs['stim_duration']
+
+        # add stimulus indices (i.e. which dio channels correspond to
+        # what...will be different for experiments prior to FID1729)
+        self.stim_ind = f.attrs['stim_ind']
+
+        # set time after stimulus to start analyzing
+        # time_after_stim + stim_start MUST BE LESS THAN stim_stop time
+        self.t_after_stim = f.attrs['t_after_stim']
+
+        # is dynamic time set
+        self.dynamic_time = f.attrs['dynamic_time']
+
         # get depths for all units
         self.__get_depths()
 
@@ -81,9 +104,6 @@ class NeuroAnalyzer(object):
         # find shank IDs for each unit (e.g. [0, 0, 1, 1, 1])
         self.shank_ids = self.__get_shank_ids()
 
-        # get the control position
-        self.control_pos = int(f.attrs['control_pos'])
-
         # creat lists or array with units duration, ratio, and mean waveform
         self.__get_waveinfo()
 
@@ -99,11 +119,6 @@ class NeuroAnalyzer(object):
         # made dictionary of whisker tracking information
         self.wt_type_dict = {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity', 5:'whisking'}
 
-        # set time after stimulus to start analyzing
-        # time_after_stim + stim_start MUST BE LESS THAN stim_stop time
-        self.t_after_stim = 0.500
-        print('time after stim is set to: ' + str(self.t_after_stim))
-
         # find shortest baseline and trial length
         self.__find_min_times()
 
@@ -113,13 +128,14 @@ class NeuroAnalyzer(object):
         # create array with all the stimulus IDs
         self.__get_all_stim_ids()
 
+        # trim run data and align it to shortest trial
+        self.__trim_run()
+
         # trim whisker tracking data and align it to shortest trial
         # defaults to False unless it finds whisker tracking data
         self.wt_boolean = False
-        self.__trim_wt()
+        #self.__trim_wt()
 
-        # trim run data and align it to shortest trial
-        self.__trim_run()
 
         # trim LFP data and align it to shortest trial
 #        self.__trim_lfp()
@@ -301,12 +317,16 @@ class NeuroAnalyzer(object):
 
         # over writes dynamic baselines and trials. Now all trials will be the
         # same length. This is what the trimming functions did anyway.
-        min_tbefore_stim = self.__get_exp_details_info('latency')
-        min_tafter_stim  = self.__get_exp_details_info('duration') - self.__get_exp_details_info('latency')
 
-        self.min_tbefore_stim = np.asarray(min_tbefore_stim)
-        self.min_tafter_stim  = np.asarray(min_tafter_stim)
-        print('smallest baseline period (time before stimulus): {0}\nsmallest trial length (time after stimulus): {1}'.format(str(min_tbefore_stim), str(min_tafter_stim)))
+        ## this worked last before switching to time_before/time_after
+#        min_tbefore_stim = self.__get_exp_details_info('latency')
+#        min_tafter_stim  = self.__get_exp_details_info('duration') - self.__get_exp_details_info('latency')
+
+        self.min_tbefore_stim = self.time_before
+        self.min_tafter_stim  = self.stim_duration + self.time_after
+        print('smallest baseline period (time before stimulus): {0}\nsmallest \
+                trial length (time after stimulus): {1}'.format(str(self.min_tbefore_stim), \
+                str(self.min_tafter_stim)))
 
     def __get_run_bool(self):
         '''make a boolean array with an entry for each segment/trial'''
@@ -343,12 +363,15 @@ class NeuroAnalyzer(object):
 
             print('whisker tracking data found! trimming data to be all the same length in time')
 
-            wt_start_time = float(self.__get_exp_details_info('hsv_start'))
-            wt_stop_time  = float(self.__get_exp_details_info('hsv_stop'))
-            wt_num_frames = int(self.__get_exp_details_info('hsv_num_frames'))
-            num_samples   = wt_num_frames
-            wtt = np.linspace(wt_start_time, wt_stop_time, wt_num_frames) - self.min_tbefore_stim
-            wt_indices = np.arange(wtt.shape[0]) - int(self.min_tbefore_stim *fps)
+            #TODO: load in the time when HSV camera starts and stops!!!
+            if int(fid[3::]) < 1729:
+                wt_start_time = float(self.__get_exp_details_info('hsv_start'))
+                wt_stop_time  = float(self.__get_exp_details_info('hsv_stop'))
+                wt_num_frames = int(self.__get_exp_details_info('hsv_num_frames'))
+
+                num_samples = wt_num_frames
+                wtt = np.linspace(wt_start_time, wt_stop_time, wt_num_frames) - self.min_tbefore_stim
+                wt_indices = np.arange(wtt.shape[0]) - int(self.min_tbefore_stim *fps)
 
             for i, seg in enumerate(self.f):
                 for k, anlg in enumerate(self.f[seg + '/analog-signals']):
@@ -416,6 +439,22 @@ class NeuroAnalyzer(object):
                                 wt_data[:, 5, i] = self.f[anlg_path][:]
                             elif anlg_name == 'curvature':
                                 wt_data[:, 6, i] = self.f[anlg_path][:]
+
+# TODO collect some example data and finish this!!!
+
+#            elif int(fid[3::]) >= 1729:
+#                for i, seg in enumerate(self.f):
+#                    for k, anlg in enumerate(self.f[seg + '/analog-signals']):
+#                        anlg_path = seg + '/analog-signals/' + anlg
+#
+#                        if self.f[anlg_path].attrs['name'] == 'hsv_times':
+#                            hsv_times_temp = self.f[anlg_path]
+#                            num_samp = len(hsv_times)
+#
+#                            # find number of samples before stim start
+#                            hsv_times_temp - self.f[seg].attrs['stim_times'][0]
+#
+#                            # find number of samples after stim stop
 
             self.wtt          = wtt
             self.wt_boolean   = wt_boolean # indicates whether whisker tracking data is present
@@ -669,7 +708,7 @@ class NeuroAnalyzer(object):
                 thresh = int(raw_input("Enter a threshold value: "))
 
             plt.close(f)
-            del wsk_dist 
+            del wsk_dist
             wtt = self.wtt
             # trimming whisking data sets negative values to baseline period
             wsk_base_ind = wtt < 0
