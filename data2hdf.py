@@ -552,6 +552,21 @@ def make_hdf_object(f, **kwargs):
     f.attrs["t_after_stim"]  = t_after_stim
     f.attrs["dynamic_time"]  = dynamic_time
 
+    if spikes_files:
+        f.attrs["spikes_bool"] = True
+    else:
+        f.attrs["spikes_bool"] = False
+
+    if lfp_files:
+        f.attrs["lfp_bool"] = True
+    else:
+        f.attrs["lfp_bool"] = False
+
+    if wtrack_files:
+        f.attrs["wt_bool"] = True
+    else:
+        f.attrs["wt_bool"] = False
+
     ## Make hdf5 group objects
     print('\n----- make_hdf5_block -----')
 
