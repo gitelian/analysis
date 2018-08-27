@@ -161,7 +161,7 @@ class NeuroAnalyzer(object):
         # calculate rates, psths, whisking array, etc.
         self.rates()
 
-        if spikes_bool:
+        if self.spikes_bool:
             # create region dictionary
             self.region_dict = {0:'M1', 1:'S1'}
 
@@ -365,13 +365,18 @@ class NeuroAnalyzer(object):
             trial_type = int(self.f[seg].attrs['trial_type'])
             stim_start = self.f[seg].attrs['stim_times'][0]
             stim_stop  = self.f[seg].attrs['stim_times'][1]
-            lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
-            lick_times_relative = lick_times - stim_start
+            try:
+                lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+                lick_times_relative = lick_times - stim_start
 
-            licks_after  = lick_times_relative > 0
-            licks_before = lick_times_relative < 1
+                licks_after  = lick_times_relative > 0
+                licks_before = lick_times_relative < 1
+            except:
+                lick_times = None
 
-            if len(licks_after) == 0 or len(licks_before) == 0:
+            if lick_times is None:
+                    lick = False
+            elif len(licks_after) == 0 or len(licks_before) == 0:
                 # no licks in the response window
                 lick = False
             elif len(np.where(np.logical_and(licks_after, licks_before) == True)[0]) > 0:
@@ -523,7 +528,6 @@ class NeuroAnalyzer(object):
         else:
             print('NO WHISKER TRACKING DATA FOUND!\nSetting wt_bool to False'\
                     '\nuse runspeed to classify trials')
-            self.wt_bool = wt_bool
 
     def __trim_run(self):
         """
@@ -917,7 +921,11 @@ class NeuroAnalyzer(object):
                             wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
 
                     if self.jb_behavior:
-                        lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+                        try:
+                            lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+                        except:
+                            lick_times = np.nan
+
                         stim_start = self.f[seg].attrs['stim_times'][0]
                         licks[stim_ind][good_trial_ind] = lick_times - stim_start
 
