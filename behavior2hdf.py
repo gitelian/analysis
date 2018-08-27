@@ -498,7 +498,7 @@ if __name__ == "__main__":
     # good experiments
     #fids = ['1295', '1302', '1318', '1328', '1329', '1330']
     mouse      = 'GT009'
-    experiment = 'FID1630'
+    experiment = 'FID1664'
     #fid        = experiment + '_' + mouse # old way
     fid        = experiment
     hdf_name   = mouse + '_' + experiment

@@ -816,7 +816,7 @@ if __name__ == "__main__":
 
     # each experiment needs an entry in the CSV file!
     mouse      = 'GT009'
-    experiment = 'FID1630'
+    experiment = 'FID1664'
 
     hdf_name   = mouse + '_' + experiment
     fid        = experiment
@@ -849,7 +849,7 @@ if __name__ == "__main__":
 ##### plot whisking variable vs time for all trials #####
 
 fig, ax = plt.subplots(2, 1)
-dtype = 0 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
+dtype = 1 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
 pos = 4
 
 # GO trial
@@ -864,6 +864,28 @@ ax[1].set_ylim(90, 160)
 fig.show()
 
 
+#### for S2 session ####
+########################
+### DELETE THIS ###
+########################
+fig, ax = plt.subplots(2, 1)
+dtype = 2 # 0, angle; 1, set-point; 2, amplitude; 3, phase; 4, velocity; 5, "whisk".
+pos = 4
+
+offset = 0
+# GO trial
+ax[0].plot(whisk.wtt, whisk.wt[0+offset][:, dtype, :], linewidth=0.5)
+ax[0].plot(whisk.wtt, np.mean(whisk.wt[0+offset][:, dtype, :], axis=1), 'k')
+ax[0].set_ylim(90, 160)
+
+# NOGO trial
+ax[1].plot(whisk.wtt, whisk.wt[1+offset][:, dtype, :], linewidth=0.5)
+ax[1].plot(whisk.wtt, np.mean(whisk.wt[1+offset][:, dtype, :], axis=1), 'k')
+ax[1].set_ylim(90, 160)
+fig.show()
+
+ax[0].hlines(155, -1, 1, 'b')
+ax[1].hlines(155, -1, 1, 'b')
 ##### plot whisking variable vs time for running and hit/miss trials #####
 ##### plot whisking variable vs time for running and hit/miss trials #####
 
@@ -1065,14 +1087,50 @@ for pos in range(1,5):
     f, frq_mat_temp = whisk.get_psd(whisk.wt[pos-1][t_inds, 0, :], 500)
     whisk.plot_freq(f, frq_mat_temp, axis=ax[pos-1], color='black')
 
-    f, frq_mat_temp = whisk.get_psd(whisk.wt[9-pos-1][t_inds, 0, :], 500)
-    whisk.plot_freq(f, frq_mat_temp, axis=ax[pos-1], color='red')
-    ax[pos-1].set_xlim(0,30)
+#    f, frq_mat_temp = whisk.get_psd(whisk.wt[9-pos-1][t_inds, 0, :], 500)
+#    whisk.plot_freq(f, frq_mat_temp, axis=ax[pos-1], color='red')
+    ax[pos-1].set_xlim(0, 30)
     ax[pos-1].set_ylim(1e-1, 1e3)
     ax[pos-1].set_yscale('log')
     ax[pos-1].set_title('position {}'.format(pos))
 fig.show()
 
+########################
+### DELETE THIS
+########################
+pos=1
+fig, ax = plt.subplots(2,1)
+
+# GO
+t_inds = np.logical_and(whisk.wtt > -0.5, whisk.wtt < 0.5)
+f, frq_mat_temp = whisk.get_psd(whisk.wt[0][t_inds, 0, :], 500)
+whisk.plot_freq(f, frq_mat_temp, axis=ax[0], color='black')
+
+# NOGO
+t_inds = np.logical_and(whisk.wtt > -0.5, whisk.wtt < 0.5)
+f, frq_mat_temp = whisk.get_psd(whisk.wt[1][t_inds, 0, :], 500)
+whisk.plot_freq(f, frq_mat_temp, axis=ax[1], color='black')
+
+# GO vM1 light
+t_inds = np.logical_and(whisk.wtt > -0.5, whisk.wtt < 0.5)
+f, frq_mat_temp = whisk.get_psd(whisk.wt[3][t_inds, 0, :], 500)
+whisk.plot_freq(f, frq_mat_temp, axis=ax[0], color='blue')
+
+# NOGO vM1 light
+t_inds = np.logical_and(whisk.wtt > -0.5, whisk.wtt < 0.5)
+f, frq_mat_temp = whisk.get_psd(whisk.wt[4][t_inds, 0, :], 500)
+whisk.plot_freq(f, frq_mat_temp, axis=ax[1], color='blue')
+
+
+
+#    f, frq_mat_temp = whisk.get_psd(whisk.wt[9-pos-1][t_inds, 0, :], 500)
+#    whisk.plot_freq(f, frq_mat_temp, axis=ax[pos-1], color='red')
+for a in range(2):
+    ax[a].set_xlim(0, 30)
+    ax[a].set_ylim(1e-1, 1e3)
+    ax[a].set_yscale('log')
+    ax[a].set_title('position {}'.format(pos))
+fig.show()
 
 ##### make spectrogram plots of whisking #####
 ##### make spectrogram plots of whisking #####
