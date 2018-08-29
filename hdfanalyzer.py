@@ -161,7 +161,7 @@ class NeuroAnalyzer(object):
 
         # calculate rates, psths, whisking array, etc.
         self.rates()
-        if self.spikes_bool:
+        if self.spikes_bool and not self.jb_behavior:
             self.rates(psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', engaged=True, all_trials=False)
         elif self.jb_behavior:
             self.rates(psth_t_start= -1.500, psth_t_stop=2.000, kind='jb_engaged', engaged=True, all_trials=False)
