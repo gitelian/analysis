@@ -26,6 +26,7 @@ from sklearn import manifold
 # for python circular statistics
 import pycircstat as pycirc
 
+from IPython.core.debugger import Tracer
 
 # change default figure type to PDF
 mpl.rcParams['savefig.format'] = 'pdf'
@@ -160,6 +161,10 @@ class NeuroAnalyzer(object):
 
         # calculate rates, psths, whisking array, etc.
         self.rates()
+        if self.spikes_bool:
+            self.rates(psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', engaged=True, all_trials=False)
+        elif self.jb_behavior:
+            self.rates(psth_t_start= -1.500, psth_t_stop=2.000, kind='jb_engaged', engaged=True, all_trials=False)
 
         if self.spikes_bool:
             # create region dictionary
@@ -438,10 +443,13 @@ class NeuroAnalyzer(object):
 
         jb_engaged = list()
         for k, seg in enumerate(self.f):
-            if k < stop_lick_trial:
-                jb_engaged.append(True)
+            if stop_lick_trial is not None:
+                if k < stop_lick_trial:
+                    jb_engaged.append(True)
+                else:
+                    jb_engaged.append(False)
             else:
-                jb_engaged.append(False)
+                jb_engaged.append(True)
 
         self.trial_class['jb_engaged'] = jb_engaged
 
@@ -898,7 +906,7 @@ class NeuroAnalyzer(object):
             print('using running to find good trials')
             self.get_num_good_trials(kind='run_boolean')
 
-        if engaged== True:
+        if engaged == True:
             num_trials = self.num_good_trials
 
         elif engaged == False:
@@ -966,9 +974,10 @@ class NeuroAnalyzer(object):
                         stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
                         try:
                             lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
-                            lick_times_relative = lick_times - stim_start
+                            lick_times= lick_times - stim_start
                         except:
                             lick_times = np.nan
+
                         licks[stim_ind][good_trial_ind] = lick_times
 
                         lick_bool[stim_ind][good_trial_ind] = self.licks_all[k]
