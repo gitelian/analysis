@@ -525,7 +525,7 @@ def make_hdf_object(f, **kwargs):
     if jb_behavior:
         # check running for Jenny's behavrioal experiment
         run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_mat,\
-                t_after_start=0, t_after_stop=1, t_before_start=1.0,\
+                t_after_start=-1, t_after_stop=0, t_before_start=1.5,\
                 mean_thresh=rparam[0], sigma_thresh=rparam[1], low_thresh=rparam[2], display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
     else:
         # this if for original 8 bar position experiment
