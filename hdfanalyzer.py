@@ -51,7 +51,7 @@ class NeuroAnalyzer(object):
         self.data_dir = data_dir
 
         # initialize trial_class dict (this will haveing running and whisking
-        # boolean arrays
+        # and jb_behavior boolean arrays
         self.trial_class = dict()
 
         self.fid = fid
@@ -348,7 +348,6 @@ class NeuroAnalyzer(object):
 
         self.trial_class['run_boolean'] = run_boolean
 
-
     def __get_all_stim_ids(self):
         '''make a list with every segment/trials stimulus ID'''
         stim_ids_all = list()
@@ -361,10 +360,12 @@ class NeuroAnalyzer(object):
         print('\n-----classify_behavior----')
         print('\n-----THIS WILL BE WRONG WITH OPTOGENETICS:----')
         behavior_ids = list()
+        licks_all    = list()
         for k, seg in enumerate(self.f):
             trial_type = int(self.f[seg].attrs['trial_type'])
             stim_start = self.f[seg].attrs['stim_times'][0]
             stim_stop  = self.f[seg].attrs['stim_times'][1]
+
             try:
                 lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
                 lick_times_relative = lick_times - stim_start
@@ -375,16 +376,17 @@ class NeuroAnalyzer(object):
                 lick_times = None
 
             if lick_times is None:
-                    lick = False
-            elif len(licks_after) == 0 or len(licks_before) == 0:
-                # no licks in the response window
                 lick = False
-            elif len(np.where(np.logical_and(licks_after, licks_before) == True)[0]) > 0:
+                licks_all.append(0)
+            elif np.sum(np.logical_and(licks_after, licks_before)) > 0:
                 # licks in the response window
                 lick = True
+                licks_all.append(1)
             else:
                 lick = False
+                licks_all.append(0)
 
+            #TODO double check this! it currently deals with optogenetics...figure that out.
             if trial_type < 5:
                 go = True
 #            # this isn't used in the experiment
@@ -412,7 +414,40 @@ class NeuroAnalyzer(object):
                 # correct reject
                 behavior_ids.append(4)
 
-        self.behavior_ids    = behavior_ids
+        # find when transition from licking to not licking happens (offset by one since
+        # diff shortens array by 1)
+        low = np.where(np.diff(licks_all) == -1)[0][0:-1] + 1
+
+        if low[0] == 1:
+            low = low[1::]
+
+        # find when transition from not licking to licking happens, skip the first lick
+        high = np.where(np.diff(licks_all) == 1)[0][1::]
+
+        # get duration between licking trials
+        down_time = high - low
+
+        # find when mouse stopped licking
+        stop_ind = np.where(down_time > 30)[0]
+
+        # get trial number when mouse stopped licking
+        if stop_ind.shape[0] != 0:
+            stop_lick_trial = low[stop_ind[0]]
+        else:
+            stop_lick_trial = None
+
+        jb_engaged = list()
+        for k, seg in enumerate(self.f):
+            if k < stop_lick_trial:
+                jb_engaged.append(True)
+            else:
+                jb_engaged.append(False)
+
+        self.trial_class['jb_engaged'] = jb_engaged
+
+
+        self.behavior_ids = behavior_ids
+        self.licks_all    = licks_all
         #self.behavior_labels = {'hit':1, 'miss':3, 'false_alarm':2, 'correct_reject':4}
         self.behavior_labels = {1:'hit', 3:'miss', 2:'false_alarm', 4:'correct_reject'}
 
@@ -687,14 +722,10 @@ class NeuroAnalyzer(object):
             if set_all_to_true == 0:
                 if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
                     self.trial_class['run_boolean'][count] = True
-                    #self.neo_obj.segments[count].annotations['run_boolean'] = True
                 else:
                     self.trial_class['run_boolean'][count] = False
-                    #self.neo_obj.segments[count].annotations['run_boolean'] = False
             elif set_all_to_true == 1:
                 self.trial_class['run_boolean'][count] = True
-                #self.neo_obj.segments[count].annotations['run_boolean'] = True
-
 
     def get_num_good_trials(self, kind='run_boolean'):
         """
@@ -794,7 +825,7 @@ class NeuroAnalyzer(object):
                 else:
                     wsk_boolean.append(False)
 
-            self.trial_class['wsk_boolean']   = wsk_boolean
+            self.trial_class['wsk_boolean'] = wsk_boolean
         else:
             print('NO WHISKER TRACKING DATA FOUND!\nuse runspeed to classify trials')
 
@@ -819,7 +850,7 @@ class NeuroAnalyzer(object):
         self.classify_whisking_trials(threshold='user')
         self.rates()
 
-    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', running=True, all_trials=False):
+    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', engaged=True, all_trials=False):
         """
         rates computes the absolute and evoked firing rate and counts for the
         specified stimulus period. The time to start analyzing after the stimulus
@@ -830,7 +861,7 @@ class NeuroAnalyzer(object):
         MAKE SURE THAT THE EXPERIMENT WAS DESIGNED TO HAVE A LONG ENOUGH BASELINE
         THAT IT IS AT LEAST AS LONG AS THE STIMULUS PERIOD TO BE ANALYZED
 
-        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
+        kind can be set to either 'wsk_boolean' or 'run_boolean' (default) or 'jb_engaged'
 
         Recomputes whisker tracking data and adds it to self.wt
         """
@@ -845,30 +876,37 @@ class NeuroAnalyzer(object):
         run             = list()
         licks           = list()
         bids            = list() # behavior IDs
+        lick_bool       = list()
 
         # make whisker tracking list wt
         if self.wt_bool:
             wt          = list()
+
         if kind == 'wsk_boolean' and not self.wt_bool:
             warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
                     using run speed to select good trials')
             kind = 'run_boolean'
+
         elif kind == 'wsk_boolean' and self.wt_bool:
             print('using whisking to find good trials')
             self.get_num_good_trials(kind='wsk_boolean')
+
+        elif self.jb_behavior and kind == 'jb_engaged':
+            self.get_num_good_trials(kind='jb_engaged')
+
         elif kind == 'run_boolean':
             print('using running to find good trials')
             self.get_num_good_trials(kind='run_boolean')
 
-        if running == True:
+        if engaged== True:
             num_trials = self.num_good_trials
-        elif running == False:
+
+        elif engaged == False:
             print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
             num_trials = self.num_slow_trials
 
         if all_trials == True:
-            print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
-            print('USING ALL RUNNING TRIALS')
+            reclassify_run_trials(self, set_all_to_true=True)
             num_trials = self.num_all_trials
 
         # make bins for rasters and PSTHs
@@ -898,6 +936,7 @@ class NeuroAnalyzer(object):
 
                 if self.jb_behavior:
                     licks.append([list() for x in range(trials_ran)])
+                    lick_bool.append(np.zeros((trials_ran,)))
                     bids.append([list() for x in range(trials_ran)])
 
 
@@ -907,8 +946,10 @@ class NeuroAnalyzer(object):
             # iterate through all segments in HDF5 file
             for k, seg in enumerate(self.f):
 
-                # if running or whisking trial add data to arrays
-                if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == running or \
+                # if running or whisking or jb_engaged trial add data to arrays
+                # TODO stop adding trial data if the mouse has stopped
+                # licking/performing in the task
+                if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == engaged or \
                         all_trials == True):
 
                     # add run data to list
@@ -921,14 +962,16 @@ class NeuroAnalyzer(object):
                             wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
 
                     if self.jb_behavior:
+                        # get lick times
+                        stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
                         try:
                             lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+                            lick_times_relative = lick_times - stim_start
                         except:
                             lick_times = np.nan
+                        licks[stim_ind][good_trial_ind] = lick_times
 
-                        stim_start = self.f[seg].attrs['stim_times'][0]
-                        licks[stim_ind][good_trial_ind] = lick_times - stim_start
-
+                        lick_bool[stim_ind][good_trial_ind] = self.licks_all[k]
                         bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
 
                     if self.spikes_bool:
@@ -985,6 +1028,7 @@ class NeuroAnalyzer(object):
 
         if self.jb_behavior:
             self.licks = licks
+            self.lick_bool = lick_bool
             self.binds = [np.asarray(x) for x in bids]
 
     def rebin_spikes(self, bin_size=0.005, analysis_window=[0.5, 1.5]):
@@ -1165,15 +1209,15 @@ class NeuroAnalyzer(object):
 
             self.cell_type = new_labels
 
-    def get_lfps(self, kind='run_boolean', running=True):
+    def get_lfps(self, kind='run_boolean', engaged=True):
         lfps = [list() for x in range(len(self.shank_names))]
         # preallocation loop
         for shank in range(len(self.shank_names)):
 
-            if running:
+            if engaged:
                 for k, trials_ran in enumerate(self.num_good_trials):
                     lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_ran )))
-            elif not running:
+            elif not engaged:
                 for k, trials_not_ran in enumerate(self.num_slow_trials):
                     lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_not_ran )))
 
@@ -1182,8 +1226,8 @@ class NeuroAnalyzer(object):
                 good_trial_ind = 0
 
                 for k, seg in enumerate(self.f):
-                    #if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == running:
-                    if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == running):
+                    #if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == engaged:
+                    if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == engaged):
                         lfps[shank][stim_ind][:, :, good_trial_ind] = self.lfp_data[shank][:, :, k]
                         good_trial_ind += 1
         self.lfps = lfps
@@ -2234,6 +2278,55 @@ class NeuroAnalyzer(object):
         y    = lfilter(b, a, data)
 
         return y
+
+
+
+################################################################################
+###### JB_Behavior angle experiment specific functions #####
+################################################################################
+
+    def get_psychometric_curve(self):
+        """
+        compute psychometric curve for entire behavioral experiment
+        """
+        num_cond = len(self.stim_ids)
+        prob_lick = np.zeros((num_cond, ))
+        for manip in range(num_cond/self.control_pos):
+            for cond in range(num_cond - 1):
+                prob_lick[cond] = float(np.sum(self.lick_bool[cond + manip]))\
+                        / self.lick_bool[cond + manip].shape[0]
+        return prob_lick
+
+    def get_lick_rate(self):
+        """
+        compute lick rate for each condition
+        """
+        num_cond = len(self.stim_ids)
+        lick_rate = [list() for x in range(num_cond)]
+        for cond in range(num_cond):
+            for licks in self.licks[cond]:
+
+                lick_rate_temp = np.sum(np.logical_and(licks > 0, licks < 1))
+                if lick_rate_temp == 0:
+                    lick_rate[cond].append(0)
+                elif  lick_rate_temp > 0:
+                    lick_rate[cond].append(lick_rate_temp)
+
+        return lick_rate
+
+    def plot_lick_raster(self, axis=None):
+
+        fig, ax = plt.subplots(1, self.control_pos, figsize=(12, 6), sharex=True, sharey=True)
+        for cond in range(len(self.stim_ids)):
+            trial = 0
+            for licks in self.licks[cond]:
+                if np.sum(licks):
+                    ax[cond].vlines(licks, trial, trial+1, color='k', linewidth=1.0)
+                    trial += 1
+
+#figure()
+#for k in range(4):
+#    plt.plot(sp.signal.medfilt(lick_rate[k], 9))
 
 
 
