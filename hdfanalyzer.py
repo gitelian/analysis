@@ -2329,13 +2329,30 @@ class NeuroAnalyzer(object):
         for cond in range(len(self.stim_ids)):
             trial = 0
             for licks in self.licks[cond]:
-                if np.sum(licks):
+                if not np.isnan(np.sum(licks)):
                     ax[cond].vlines(licks, trial, trial+1, color='k', linewidth=1.0)
                     trial += 1
 
-#figure()
-#for k in range(4):
-#    plt.plot(sp.signal.medfilt(lick_rate[k], 9))
+    def get_time2lick(self):
+        """
+        compute time (mean +/- sem) to first lick for all angles
+        """
+        num_cond = len(self.stim_ids)
+        time2lick_mean = np.zeros((num_cond, ))
+        time2lick_sem = np.zeros((num_cond, ))
+
+        for cond in range(num_cond):
+            lick_temp = list()
+            for licks in self.licks[cond]:
+                if not np.isnan(np.sum(licks)):
+                    lick_inds = np.where(licks > 0)[0]
+                    if lick_inds.shape[0] > 0:
+                        lick_temp.append(licks[lick_ind])
+
+            time2lick_mean[cond] = np.mean(lick_temp)
+            time2lick_sem[cond]  = sp.stats.sem(lick_temp)
+
+        return time2lick_mean time2lick_sem
 
 
 
