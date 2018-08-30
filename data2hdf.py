@@ -680,7 +680,7 @@ def make_hdf_object(f, **kwargs):
                 sig5.attrs["trial"]         = trial_ind
 
                 # check for curvature
-                if wt[trial_ind].shape[1] == 6:
+                if wt[trial_ind].shape[1] == 7:
                     sig6 = f.create_dataset("/" + key + "/analog-signals/" + "curvature", data=wt[trial_ind][:,6])
                     sig6.attrs["name"]          = 'curvature'
                     sig6.attrs["units"]         = 'deg/m'
