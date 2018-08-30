@@ -113,9 +113,9 @@ class NeuroAnalyzer(object):
         self.__trim_run()
 
         # classify behavior using licks and go/no-go angle position
-        if self.jb_behavior:
+        if self.jb_behavior and not self.spikes_bool:
             self.__classify_behavior()
-            self.rates(psth_t_start= -1.500, psth_t_stop=2.000, kind='jb_engaged', engaged=True, all_trials=False)
+            self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='jb_engaged', engaged=True, all_trials=False)
 
         # trim whisker tracking data and align it to shortest trial
         # defaults to False unless it finds whisker tracking data
@@ -160,6 +160,9 @@ class NeuroAnalyzer(object):
 
             if not self.jb_behavior:
                 self.rates(psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', engaged=True, all_trials=False)
+            if self.jb_behavior:
+                self.__classify_behavior()
+                self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='jb_engaged', engaged=True, all_trials=False)
 
             # reclassify units using their mean OMI (assuming ChR2 is in PV
             # cells). This is dependent on everything above!
@@ -529,7 +532,7 @@ class NeuroAnalyzer(object):
                                 wt_data[:, 6, i] = self.f[anlg_path][good_inds]
 
                         else:
-                            if i == 0:
+                            if i == 0 and k == 0:
                                 warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
                                         + '**** this data must have already been trimmed ****')
                             if  anlg_name == 'angle':
@@ -916,11 +919,11 @@ class NeuroAnalyzer(object):
             num_trials = self.num_all_trials
 
         # make bins for rasters and PSTHs
-        bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
-#        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
-#        kernel = self.__make_kernel(kind='square', resolution=0.100)
+#        bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
+        bins = np.arange(psth_t_start, psth_t_stop, 0.001)
+        kernel = self.__make_kernel(kind='square', resolution=0.100)
 #        kernel = self.__make_kernel(kind='square', resolution=0.025)
-        kernel = self.__make_kernel(kind='alpha', resolution=0.025)
+#        kernel = self.__make_kernel(kind='alpha', resolution=0.025)
         self._bins = bins
         self.bins_t = bins[0:-1]
 
@@ -2440,7 +2443,7 @@ class NeuroAnalyzer(object):
                         #' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
                 ax[row][col].plot([0, control_pos+1],[0,0],'--k')
                 ax[row][col].set_xlim(0, control_pos+1)
-                ax[row][col].set_ylim(ax[row][col].ylim()[0]-1, ax[row][col].get_ylim()[1]+1)
+                ax[row][col].set_ylim(ax[row][col].get_ylim()[0]-1, ax[row][col].get_ylim()[1]+1)
                 ax[row][col].set_xticks([])
                 ax[row][col].set_xticks(x_vals, labels)
                 ax[row][col].set_xlabel('Bar Position', fontsize=8)
@@ -2598,7 +2601,7 @@ class NeuroAnalyzer(object):
 
         return ax
 
-    def plot_all_rasters(self, unit_ind=0, burst=True):
+    def plot_all_rasters(self, unit_ind=0, burst=False):
         """
         Plots all rasters for a given unit with subplots.
         Each positions is a row and each manipulation is a column.
