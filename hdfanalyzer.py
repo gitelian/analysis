@@ -92,37 +92,10 @@ class NeuroAnalyzer(object):
         # is there whisker tracking
         self.wt_bool = f.attrs['wt_bool']
 
-        # get depths for all units
-        self.__get_depths()
-
         # find stimulus IDs
         self.stim_ids = np.sort(np.unique([self.f[k].attrs['trial_type'] for k in f])).astype(int)
 
-        # find number of units
-        self.num_units = len(self.f['/segment-0000/spiketrains'])
 
-        # find shank names (i.e. names of electrodes/recording sites, e.g.
-        # 'e1', 'e2')
-        self.shank_names = np.sort(np.unique([self.f['/segment-0000/spiketrains/' + k].attrs['shank'] \
-                for k in self.f['segment-0000/spiketrains']]))
-
-        # Find depths of each shank and add it to self.shank_depths
-        self.shank_depths = self.__get_shank_depths()
-
-        # find shank IDs for each unit (e.g. [0, 0, 1, 1, 1])
-        self.shank_ids = self.__get_shank_ids()
-
-        # creat lists or array with units duration, ratio, and mean waveform
-        self.__get_waveinfo()
-
-        # reclassify units using their mean OMI (assuming ChR2 is in PV
-        # cells). This is dependent on everything above!
-#        self.reclassify_units()
-
-        # make dictionary of cell types and get cell type IDs
-        self.cell_type_dict = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
-        self.cell_type      = self.__get_celltypeID()
-        self.cell_type_og   = self.cell_type
 
         # made dictionary of whisker tracking information
         self.wt_type_dict = {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity', 5:'whisking'}
@@ -136,17 +109,17 @@ class NeuroAnalyzer(object):
         # create array with all the stimulus IDs
         self.__get_all_stim_ids()
 
+        # trim run data and align it to shortest trial
+        self.__trim_run()
+
         # classify behavior using licks and go/no-go angle position
         if self.jb_behavior:
             self.__classify_behavior()
-
-        # trim run data and align it to shortest trial
-        self.__trim_run()
+            self.rates(psth_t_start= -1.500, psth_t_stop=2.000, kind='jb_engaged', engaged=True, all_trials=False)
 
         # trim whisker tracking data and align it to shortest trial
         # defaults to False unless it finds whisker tracking data
         self.__trim_wt()
-
 
         # trim LFP data and align it to shortest trial
         if self.lfp_bool:
@@ -159,14 +132,39 @@ class NeuroAnalyzer(object):
         # return a list with the number of good trials for each stimulus condition
         self.get_num_good_trials()
 
-        # calculate rates, psths, whisking array, etc.
-        self.rates()
-        if self.spikes_bool and not self.jb_behavior:
-            self.rates(psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', engaged=True, all_trials=False)
-        elif self.jb_behavior:
-            self.rates(psth_t_start= -1.500, psth_t_stop=2.000, kind='jb_engaged', engaged=True, all_trials=False)
-
         if self.spikes_bool:
+            # get depths for all units
+            self.__get_depths()
+
+            # find number of units
+            self.num_units = len(self.f['/segment-0000/spiketrains'])
+
+            # find shank names (i.e. names of electrodes/recording sites, e.g.
+            # 'e1', 'e2')
+            self.shank_names = np.sort(np.unique([self.f['/segment-0000/spiketrains/' + k].attrs['shank'] \
+                    for k in self.f['segment-0000/spiketrains']]))
+
+            # Find depths of each shank and add it to self.shank_depths
+            self.shank_depths = self.__get_shank_depths()
+
+            # find shank IDs for each unit (e.g. [0, 0, 1, 1, 1])
+            self.shank_ids = self.__get_shank_ids()
+
+            # creat lists or array with units duration, ratio, and mean waveform
+            self.__get_waveinfo()
+
+            # make dictionary of cell types and get cell type IDs
+            self.cell_type_dict = {0:'MU', 1:'RS', 2:'FS', 3:'UC'}
+            self.cell_type      = self.__get_celltypeID()
+            self.cell_type_og   = self.cell_type
+
+            if not self.jb_behavior:
+                self.rates(psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', engaged=True, all_trials=False)
+
+            # reclassify units using their mean OMI (assuming ChR2 is in PV
+            # cells). This is dependent on everything above!
+    #        self.reclassify_units()
+
             # create region dictionary
             self.region_dict = {0:'M1', 1:'S1'}
 
@@ -531,8 +529,9 @@ class NeuroAnalyzer(object):
                                 wt_data[:, 6, i] = self.f[anlg_path][good_inds]
 
                         else:
-                            warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
-                                    + '**** this data must have already been trimmed ****')
+                            if i == 0:
+                                warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
+                                        + '**** this data must have already been trimmed ****')
                             if  anlg_name == 'angle':
                                 wt_data[:, 0, i] = self.f[anlg_path][:]
                             elif anlg_name == 'set-point':
@@ -565,7 +564,6 @@ class NeuroAnalyzer(object):
 #                            # find number of samples after stim stop
 
             self.wtt          = wtt
-            self.wt_bool   = wt_bool # indicates whether whisker tracking data is present
             self._wt_min_samp = num_samples
             self.wt_data      = wt_data
         else:
@@ -2347,12 +2345,12 @@ class NeuroAnalyzer(object):
                 if not np.isnan(np.sum(licks)):
                     lick_inds = np.where(licks > 0)[0]
                     if lick_inds.shape[0] > 0:
-                        lick_temp.append(licks[lick_ind])
+                        lick_temp.append(licks[lick_inds[0]])
 
             time2lick_mean[cond] = np.mean(lick_temp)
             time2lick_sem[cond]  = sp.stats.sem(lick_temp)
 
-        return time2lick_mean time2lick_sem
+        return time2lick_mean, time2lick_sem
 
 
 
@@ -2417,35 +2415,36 @@ class NeuroAnalyzer(object):
             num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
 
             unit_count, plot_count = 0, 0
-            fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
+            fig, ax = plt.subplots(num_rows, num_cols, figsize=(14, 10))
             for unit in unit_ind:
                 meanr = [np.mean(k[:, unit]) for k in kind_of_tuning[kind_dict[kind]]]
                 stder = [np.std(k[:, unit]) / np.sqrt(k[:, unit].shape[0]) for k in kind_of_tuning[kind_dict[kind]]]
                 for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), control_pos )):
+                    row, col = np.unravel_index(plot_count, (num_rows, num_cols))
                     # compute the means and standard errors
 
-                    ax = plt.subplot(num_rows, num_cols, plot_count+1)
+#                    ax = plt.subplot(num_rows, num_cols, plot_count+1)
                     # plot stimulus positions separately from control so the
                     # control position is not connected with the others
-                    plt.errorbar(pos[0:control_pos-1],\
+                    ax[row][col].errorbar(pos[0:control_pos-1],\
                             meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
                             yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
                             fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
                     # plot control position separately from stimulus positions
-                    plt.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
+                    ax[row][col].errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
                             fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
-                plt.title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
+                ax[row][col].set_title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
                         ' depth: ' + str(self.depths[unit]) + \
                         '\ncell type: ' + str(self.cell_type[unit]))
                         #' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
-                plt.plot([0, control_pos+1],[0,0],'--k')
-                plt.xlim(0, control_pos+1)
-                plt.ylim(plt.ylim()[0]-1, plt.ylim()[1]+1)
-                ax.set_xticks([])
-                plt.xticks(x_vals, labels)
-                plt.xlabel('Bar Position', fontsize=8)
-                plt.show()
+                ax[row][col].plot([0, control_pos+1],[0,0],'--k')
+                ax[row][col].set_xlim(0, control_pos+1)
+                ax[row][col].set_ylim(ax[row][col].ylim()[0]-1, ax[row][col].get_ylim()[1]+1)
+                ax[row][col].set_xticks([])
+                ax[row][col].set_xticks(x_vals, labels)
+                ax[row][col].set_xlabel('Bar Position', fontsize=8)
+                fig.show()
                 # count after each plot is made
                 plot_count += 1
                 unit_count += 1
@@ -2468,7 +2467,8 @@ class NeuroAnalyzer(object):
                     plt.show()
                     # create a new plot
                     if plot_count != len(unit_ind):
-                        fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
+                        #fig = plt.subplots(num_rows, num_cols, figsize=(14, 10))
+                        fig, ax = plt.subplots(num_rows, num_cols, figsize=(14, 10))
                     plot_count = 0
 
     def plot_raster(self, unit_ind=0, trial_type=0, axis=None, burst=True):
