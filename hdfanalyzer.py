@@ -2306,6 +2306,19 @@ class NeuroAnalyzer(object):
             for cond in range(num_cond - 1):
                 prob_lick[cond] = float(np.sum(self.lick_bool[cond + manip]))\
                         / self.lick_bool[cond + manip].shape[0]
+
+
+        pos = range(1, self.control_pos)
+        line_color = ['k','r','b']
+        fig, ax = plt.subplots()
+        for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
+            ax.plot(pos[0:self.control_pos-1],\
+                    prob_lick[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
+                    color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+            # plot control position separately from stimulus positions
+            ax.plot(self.control_pos, prob_lick[(control_pos_count+1)*self.control_pos-1],\
+                    color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+
         return prob_lick
 
     def get_lick_rate(self):
