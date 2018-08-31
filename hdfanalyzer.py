@@ -453,6 +453,7 @@ class NeuroAnalyzer(object):
                 jb_engaged.append(True)
 
         self.trial_class['jb_engaged'] = jb_engaged
+        self.last_engaged_trial = stop_lick_trial
 
 
         self.behavior_ids = behavior_ids
@@ -2324,7 +2325,7 @@ class NeuroAnalyzer(object):
 
         return lick_rate
 
-    def plot_lick_raster(self, axis=None):
+    def plot_lick_raster(self):
 
         fig, ax = plt.subplots(1, self.control_pos, figsize=(12, 6), sharex=True, sharey=True)
         for cond in range(len(self.stim_ids)):
@@ -2333,8 +2334,12 @@ class NeuroAnalyzer(object):
                 if not np.isnan(np.sum(licks)):
                     ax[cond].vlines(licks, trial, trial+1, color='k', linewidth=1.0)
                     trial += 1
+        max_ylim = ax[cond].get_ylim()[1]
+        for cond in range(len(self.stim_ids)):
+            ax[cond].axvspan(0, 1, alpha=0.3, color='green')
+            ax[cond].set_ylim(0, max_ylim)
 
-    def get_time2lick(self):
+    def get_time2lick(self, t_start=0):
         """
         compute time (mean +/- sem) to first lick for all angles
         """
@@ -2346,7 +2351,7 @@ class NeuroAnalyzer(object):
             lick_temp = list()
             for licks in self.licks[cond]:
                 if not np.isnan(np.sum(licks)):
-                    lick_inds = np.where(licks > 0)[0]
+                    lick_inds = np.where(licks > t_start)[0]
                     if lick_inds.shape[0] > 0:
                         lick_temp.append(licks[lick_inds[0]])
 
@@ -2474,7 +2479,7 @@ class NeuroAnalyzer(object):
                         fig, ax = plt.subplots(num_rows, num_cols, figsize=(14, 10))
                     plot_count = 0
 
-    def plot_raster(self, unit_ind=0, trial_type=0, axis=None, burst=True):
+    def plot_raster(self, unit_ind=0, trial_type=0, axis=None, burst=False):
         """
         Makes a raster plot for the given unit index and trial type.
         If called alone it will plot a raster to the current axis. This function
@@ -2512,6 +2517,7 @@ class NeuroAnalyzer(object):
                         ax.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed', linewidth=0.5)
 
         #ax.hlines(trial+1, 0, 1.5, color='k')
+        ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='green')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+1)
 
@@ -2561,6 +2567,7 @@ class NeuroAnalyzer(object):
                             ax.vlines(burst_times, trial+shift, trial+1+shift, 'r', linestyles='dashed', linewidth=0.5)
 
 #                ax.hlines(trial+1, 0, 1.5, color='k')
+        ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='green')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+shift+1)
 
