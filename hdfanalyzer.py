@@ -2352,7 +2352,7 @@ class NeuroAnalyzer(object):
             ax[cond].axvspan(0, 1, alpha=0.3, color='green')
             ax[cond].set_ylim(0, max_ylim)
 
-    def get_time2lick(self, t_start=0):
+    def plot_time2lick(self, t_start=0):
         """
         compute time (mean +/- sem) to first lick for all angles
         """
@@ -2371,7 +2371,18 @@ class NeuroAnalyzer(object):
             time2lick_mean[cond] = np.mean(lick_temp)
             time2lick_sem[cond]  = sp.stats.sem(lick_temp)
 
-        return time2lick_mean, time2lick_sem
+        pos = range(1, self.control_pos)
+        line_color = ['k','r','b']
+        fig, ax = plt.subplots()
+        for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
+            ax.errorbar(pos[0:self.control_pos-1],\
+                    time2lick_mean[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
+                    yerr=time2lick_sem[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
+                    color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+            # plot control position separately from stimulus positions
+            ax.errorbar(self.control_pos, time2lick_mean[(control_pos_count+1)*self.control_pos-1],\
+                    yerr=time2lick_sem[(control_pos_count+1)*self.control_pos-1],\
+                    color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
 
 
