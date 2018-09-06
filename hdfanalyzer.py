@@ -91,11 +91,10 @@ class NeuroAnalyzer(object):
 
         # is there whisker tracking
         #self.wt_bool = f.attrs['wt_bool']
-#        self.wt_bool = False
+        self.wt_bool = False
 
         # find stimulus IDs
         self.stim_ids = np.sort(np.unique([self.f[k].attrs['trial_type'] for k in f])).astype(int)
-        Tracer()()
 
         # made dictionary of whisker tracking information
         self.wt_type_dict = {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity', 5:'whisking'}
@@ -991,10 +990,18 @@ class NeuroAnalyzer(object):
 
                     if self.spikes_bool:
                         # get baseline and stimulus period times for this trial
-                        stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
-                        stim_stop  = self.f[seg].attrs['stim_times'][1]
-                        base_start = self.f[seg].attrs['stim_times'][0] - (stim_stop - stim_start)
-                        base_stop  = self.f[seg].attrs['stim_times'][0]
+                        # this uses ABSOLUTE TIME not relative time
+                        obj_stop = self.f[seg].attrs['stim_times'][0]
+                        stim_start = obj_stop + self.t_after_stim
+                        stim_stop= obj_stop + self.stim_duration
+                        base_start = obj_stop - np.abs((stim_stop - stim_start))
+                        base_stop  = obj_stop
+
+                        # TODO add ability to change the analysis window
+                        #stim_start = obj_stop - 1.5
+                        #stim_stop  = obj_stop
+                        #base_start = obj_stop - self.time_before
+                        #base_stop  = base_start + np.abs(stim_stop - stim_start)
 
                         # iterate through all units and count calculate various
                         # spike rates (e.g. absolute firing and evoked firing rates
