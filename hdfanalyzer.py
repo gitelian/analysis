@@ -69,7 +69,7 @@ class NeuroAnalyzer(object):
         # add time before and time after stimulus start/stop respectively
         # add stimulus period duration (avoid dependence on CSV file
         self.time_before = self.f.attrs['time_before']
-        self.time_after  = self.f.attrs['time_after']
+        self.time_after  = self.f.attrs['time_after'] # not really used
         self.stim_duration = self.f.attrs['stim_duration']
 
         # add stimulus indices (i.e. which dio channels correspond to
@@ -90,12 +90,12 @@ class NeuroAnalyzer(object):
         self.lfp_bool = f.attrs['lfp_bool']
 
         # is there whisker tracking
-        self.wt_bool = f.attrs['wt_bool']
+        #self.wt_bool = f.attrs['wt_bool']
+#        self.wt_bool = False
 
         # find stimulus IDs
         self.stim_ids = np.sort(np.unique([self.f[k].attrs['trial_type'] for k in f])).astype(int)
-
-
+        Tracer()()
 
         # made dictionary of whisker tracking information
         self.wt_type_dict = {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity', 5:'whisking'}
@@ -341,7 +341,8 @@ class NeuroAnalyzer(object):
 #        min_tafter_stim  = self.__get_exp_details_info('duration') - self.__get_exp_details_info('latency')
 
         self.min_tbefore_stim = self.time_before
-        self.min_tafter_stim  = self.stim_duration + self.time_after
+        #self.min_tafter_stim  = self.stim_duration + self.time_after
+        self.min_tafter_stim  = self.stim_duration
         print('smallest baseline period (time before stimulus): {0}\nsmallest \
                 trial length (time after stimulus): {1}'.format(str(self.min_tbefore_stim), \
                 str(self.min_tafter_stim)))
@@ -422,10 +423,11 @@ class NeuroAnalyzer(object):
 
         # find when transition from licking to not licking happens (offset by one since
         # diff shortens array by 1)
-        low = np.where(np.diff(licks_all) == -1)[0][0:-1] + 1
+        #low = np.where(np.diff(licks_all) == -1)[0][0:-1] + 1
+        low = np.where(np.diff(licks_all) == -1)[0] + 1
 
         # find when transition from not licking to licking happens, skip the first lick
-        high = np.where(np.diff(licks_all) == 1)[0][1::]
+        high = np.where(np.diff(licks_all) == 1)[0]
 
         if low[0] < high[0]:
             low = low[1::]
@@ -726,7 +728,8 @@ class NeuroAnalyzer(object):
                     run_time = self.f[anlg_path][:]
 
             base_ind = np.logical_and( run_time > time_before_stimulus, run_time < 0)
-            wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < (self.min_tbefore_stim + self.t_after_stim) )
+            #wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < (self.min_tbefore_stim + self.t_after_stim) )
+            wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < self.stim_duration)
 
             vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
             if set_all_to_true == 0:
@@ -819,7 +822,8 @@ class NeuroAnalyzer(object):
             wsk_base_ind = wtt < 0
             # min_tbefore is the min baseline length (equal to the stimulus
             # period to be analyzed) offset by t_after_stim
-            wsk_stim_ind = np.logical_and( wtt > self.t_after_stim, wtt < (self.min_tbefore_stim + self.t_after_stim) )
+            #wsk_stim_ind = np.logical_and( wtt > self.t_after_stim, wtt < (self.min_tbefore_stim + self.t_after_stim) )
+            wsk_stim_ind = np.logical_and( wtt > self.t_after_stim, wtt < self.stim_duration)
             wsk_boolean = list()
             for k in range(self.wt_data.shape[2]):
 #                wsk = anlg.reshape(-1, 1)
