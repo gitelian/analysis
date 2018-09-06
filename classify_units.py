@@ -171,6 +171,11 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
         if len(exp_e_inds) > 0:
             print('\n----- deleting old unit entries for FID{} electrode {}-----'.format(fid, e_num))
             spike_msr_mat = np.delete(spike_msr_mat, exp_e_inds, axis=0)
+            fid_index = np.where(spike_msr_mat[:, 0] == fid)[0]
+            if len(fid_index) == 0:
+                print('successfully deleted old entries!')
+            else:
+                print('WARNING: did not delete old entries!')
 
 
         # loads in matlab structure as python objects
@@ -354,7 +359,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
     #'FID1295'
-    update_spikes_measures_mat(fid_list=['FID1729'], data_dir_path='/media/greg/data/neuro/')
+    update_spikes_measures_mat(fid_list=['FID1778'], data_dir_path='/media/greg/data/neuro/')
 #    update_spikes_measures_mat(fid_list=[sys.argv[1]], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/')
 
