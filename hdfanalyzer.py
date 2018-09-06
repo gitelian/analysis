@@ -424,11 +424,11 @@ class NeuroAnalyzer(object):
         # diff shortens array by 1)
         low = np.where(np.diff(licks_all) == -1)[0][0:-1] + 1
 
-        if low[0] == 1:
-            low = low[1::]
-
         # find when transition from not licking to licking happens, skip the first lick
         high = np.where(np.diff(licks_all) == 1)[0][1::]
+
+        if low[0] < high[0]:
+            low = low[1::]
 
         # get duration between licking trials
         down_time = high - low
