@@ -14,6 +14,8 @@ import multiprocessing as mp
 import time
 from warnings import warn
 
+from IPython.core.debugger import Tracer
+
 def load_spike_file(path):
     """
     Loads spikes file from specified path
@@ -109,23 +111,49 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
     elif variable_name == 'spike_measures':
         data = mat[variable_name][:].T
 
-    elif variable_name == 'wt_cell':
-        data = list()
-        for k in range(mat['wt_cell'][0].shape[0]):
-            data.append(mat[mat['wt_cell'][0][k]][:].T)
-
-    #TODO read in LED pulses
-    #elif variable_name == '':
-        #data = [mat[element]
-
-    #TODO read in whisker trace object overlap
-
-    #TODO other whisking/HSV parameters
-
     else: # try this and hope it works!
         data = [mat[element][:].T for element in mat[variable_name][0]]
 
     return data
+
+def load_v73_wtr_file(file_path, variable_name='wt_cell'):
+    '''
+    This will load in a vector, matrix, or simple cell array
+    A simple cell array is considered a cell array that contains vectors,
+    matrices, or other entries that are NOT additional cells.
+
+    WARNING:
+    Loading in MATLAB -v7.3 files is finiky. You may need to play around with
+    the h5py.File('path/to/file') function to figure out how to access the data
+    '''
+
+    print('\n----- load_v73_wtr_file -----')
+    print('Loading data from: ' + file_path + '\nvariable: ' + variable_name)
+    mat = h5py.File(file_path)
+
+    if variable_name == 'wt_cell':
+        data = list()
+        for k in range(mat['wt_cell'][0].shape[0]):
+            data.append(mat[mat['wt_cell'][0][k]][:].T)
+
+    if variable_name in mat.keys():
+        var_present = True
+    else:
+        var_present = False
+        data = None
+
+    # read in whisker/object cells
+    if var_present and \
+            (variable_name == 'whisk_in_frame' or\
+            variable_name == 'frm' or \
+            variable_name == 'center_of_boundary'):
+        data = [mat[element][0].T for element in mat[variable_name][0]]
+
+    # read in LED pulses
+    elif var_present and variable_name == 'pulse_sequence':
+        data = mat[variable_name][:].T
+
+    return var_present, data
 
 def load_mat_file(file_path, variable_name='spike_msr_mat'):
     '''Loads in MATLAB files that are not -v7.3'''
@@ -637,7 +665,12 @@ def make_hdf_object(f, **kwargs):
         for e, wt_path in enumerate(wtrack_files):
             wt_fname = os.path.split(wt_path)[1]
             print('\nloading whisker tracking data from: ' + wt_fname)
-            wt       = load_v73_mat_file(wt_path, variable_name='wt_cell')
+            wt_present, wt = load_v73_wtr_file(wt_path, variable_name='wt_cell')
+
+            frm_present, frm = load_v73_wtr_file(wt_path, variable_name='frm')
+            led_present, led = load_v73_wtr_file(wt_path, variable_name='pulse_sequence')
+            f.attrs["object_crossing"]  = frm_present
+            f.attrs["led_signal"]       = led_present
 
             key_iter = f.iterkeys() # iterates through keys (in order)
             for trial_ind in np.arange(stim.shape[0]):
@@ -694,10 +727,19 @@ def make_hdf_object(f, **kwargs):
                     sig7.attrs["sampling_rate"] = 500
                     sig7.attrs["trial"]         = trial_ind
 
-#                if LED_info:
-                #print("LED_info HAS NOT BEEN ADDED TO THE HDF5 FILE!!!")
-#                    sig8 = f.create_dataset("/" + key + "/analog-signals/" + "whisking", data=LED_info[trial_ind])
-                    ###
+                if frm_present:
+                    sig8 = f.create_dataset("/" + key + "/analog-signals/" + "object_frames", data=frm[trial_ind])
+                    sig8.attrs["name"]          = 'Frames where whisker traces overlapped with the object boundary'
+                    sig8.attrs["unit"]          = 'index'
+                    sig8.attrs["sampling_rate"] = 500
+                    sig8.attrs["trial"]         = trial_ind
+
+                if led_present:
+                    sig9 = f.create_dataset("/" + key + "/analog-signals/" + "led_signal", data=led[trial_ind])
+                    sig9.attrs["name"]          = 'LED signal indicating jitter, trial count (resets at 20), stimulus ID'
+                    sig9.attrs["unit"]          = 'index'
+                    sig9.attrs["sampling_rate"] = 500
+                    sig9.attrs["trial"]         = trial_ind
 
 
     ## Load in spike measure mat file ##
