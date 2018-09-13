@@ -88,9 +88,10 @@ class NeuroAnalyzer(object):
 
         # are there LFPs
         self.lfp_bool = f.attrs['lfp_bool']
+        self.lfp_bool = False
 
         # is there whisker tracking
-        #self.wt_bool = f.attrs['wt_bool']
+#        self.wt_bool = f.attrs['wt_bool']
         self.wt_bool = False
 
         # find stimulus IDs
@@ -428,7 +429,7 @@ class NeuroAnalyzer(object):
         # find when transition from not licking to licking happens, skip the first lick
         high = np.where(np.diff(licks_all) == 1)[0]
 
-        if low[0] < high[0]:
+        if low[0] <= high[0]:
             low = low[1::]
 
         # get duration between licking trials
