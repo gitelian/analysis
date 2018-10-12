@@ -103,6 +103,9 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
     elif variable_name == 'dynamic_time':
         data = mat[variable_name][0][0]
 
+    elif variable_name == 'control_pos':
+        data = mat[variable_name][0][0]
+
     elif variable_name == 'lfp':
         data = list()
         for k in range(mat['lfp'][0].shape[0]):
@@ -501,6 +504,9 @@ def make_hdf_object(f, **kwargs):
     # get time before trial_boolean
     time_after = load_v73_mat_file(run_file[0], variable_name='time_after')
 
+    # get control position
+    control_pos = load_v73_mat_file(run_file[0], variable_name='control_pos')
+
     # get stimulus duration
     stim_duration = load_v73_mat_file(run_file[0], variable_name='stim_duration')
 
@@ -563,9 +569,9 @@ def make_hdf_object(f, **kwargs):
 
     run_time_list = get_running_times(trtime_list, stim_time_mat)
 
-    # get control position
-    control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
-    print('control position: {}'.format(control_pos))
+#    # get control position
+#    control_pos = get_exp_details_info(data_dir, int(fid[3::]), 'control_pos')
+#    print('control position: {}'.format(control_pos))
 
 
     ## Start adding data to the HDF5 file
