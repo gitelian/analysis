@@ -91,8 +91,8 @@ class NeuroAnalyzer(object):
         self.lfp_bool = False
 
         # is there whisker tracking
-#        self.wt_bool = f.attrs['wt_bool']
-        self.wt_bool = False
+        self.wt_bool = f.attrs['wt_bool']
+#        self.wt_bool = False
 
         # find stimulus IDs
         self.stim_ids = np.sort(np.unique([self.f[k].attrs['trial_type'] for k in f])).astype(int)
@@ -182,6 +182,10 @@ class NeuroAnalyzer(object):
 
             # kruskal wallis and dunn's test to ID sensory driven units
             self.get_sensory_drive()
+
+        if not self.jb_behavior and not self.spikes_bool:
+            self.rates(psth_t_start= -1.500, psth_t_stop=2.500, all_trials=True)
+            print('no JB_behavior or spikes')
 
         # reclassify running trials
 #        #self.reclassify_run_trials(self, time_before_stimulus= -1,\
@@ -476,7 +480,7 @@ class NeuroAnalyzer(object):
             print('whisker tracking data found! trimming data to be all the same length in time')
 
             #TODO: load in the time when HSV camera starts and stops!!!
-            if int(fid[3::]) < 1729:
+            if int(fid[3::]) < 1729 # or self.jb_behavior == 0:
                 wt_start_time = float(self.__get_exp_details_info('hsv_start'))
                 wt_stop_time  = float(self.__get_exp_details_info('hsv_stop'))
                 wt_num_frames = int(self.__get_exp_details_info('hsv_num_frames'))
@@ -484,6 +488,9 @@ class NeuroAnalyzer(object):
                 num_samples = wt_num_frames
                 wtt = np.linspace(wt_start_time, wt_stop_time, wt_num_frames) - self.min_tbefore_stim
                 wt_indices = np.arange(wtt.shape[0]) - int(self.min_tbefore_stim *fps)
+
+            #TODO: deal with ONLY tracking data (e.g. when I do a stimulation experiment
+                 # without behavior and neuro data
 
             for i, seg in enumerate(self.f):
                 for k, anlg in enumerate(self.f[seg + '/analog-signals']):
@@ -920,7 +927,7 @@ class NeuroAnalyzer(object):
             num_trials = self.num_slow_trials
 
         if all_trials == True:
-            reclassify_run_trials(self, set_all_to_true=True)
+            self.reclassify_run_trials(self, set_all_to_true=True)
             num_trials = self.num_all_trials
 
         # make bins for rasters and PSTHs
