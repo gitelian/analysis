@@ -837,7 +837,7 @@ def make_hdf_object(f, **kwargs):
                             spiketrain.attrs["fid"]           = fid_name
                             spiketrain.attrs["shank"]         = e_name
                             spiketrain.attrs["unit_id"]       = unit
-                            spiketrain.attrs["region"]        = shank_region
+                            spiketrain.attrs["region"]        = 'none'
 
                         uind += 1
 
