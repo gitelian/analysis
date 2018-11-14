@@ -398,6 +398,9 @@ class NeuroAnalyzer(object):
                 licks_all.append(0)
 
             #TODO double check this! it currently deals with optogenetics...figure that out.
+            if trial_type > self.control_pos:
+                trial_type = trial_type - self.control_pos*(int(trial_type)/int(self.control_pos))
+
             if trial_type < 5:
                 go = True
 #            # this isn't used in the experiment
@@ -425,16 +428,24 @@ class NeuroAnalyzer(object):
                 # correct reject
                 behavior_ids.append(4)
 
-        # find when transition from licking to not licking happens (offset by one since
-        # diff shortens array by 1)
-        #low = np.where(np.diff(licks_all) == -1)[0][0:-1] + 1
+        # Sometimes mice stop licking towards the end of an experiment. This
+        # finds that transition point defined as the point after which 30+
+        # trials have no licking
         low = np.where(np.diff(licks_all) == -1)[0] + 1
 
         # find when transition from not licking to licking happens, skip the first lick
         high = np.where(np.diff(licks_all) == 1)[0]
 
         if low[0] <= high[0]:
-            low = low[1::]
+            if len(low) < len(high):
+                high = high[0:len(low)]
+            elif len(high) < len(low):
+                low= low[0:len(high)]
+
+#            low = low[1::]
+
+        if high[0] < low[0]:
+            high = high[1::]
 
         # get duration between licking trials
         down_time = high - low
@@ -480,7 +491,7 @@ class NeuroAnalyzer(object):
             print('whisker tracking data found! trimming data to be all the same length in time')
 
             #TODO: load in the time when HSV camera starts and stops!!!
-            if int(fid[3::]) < 1729 # or self.jb_behavior == 0:
+            if int(fid[3::]) < 1729: # or self.jb_behavior == 0:
                 wt_start_time = float(self.__get_exp_details_info('hsv_start'))
                 wt_stop_time  = float(self.__get_exp_details_info('hsv_stop'))
                 wt_num_frames = int(self.__get_exp_details_info('hsv_num_frames'))
