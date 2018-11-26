@@ -95,7 +95,8 @@ class NeuroAnalyzer(object):
 #        self.wt_bool = False
 
         # find stimulus IDs
-        self.stim_ids = np.sort(np.unique([self.f[k].attrs['trial_type'] for k in f])).astype(int)
+        stim_ids_temp = np.sort(np.unique([self.f[k].attrs['trial_type'] for k in f])).astype(int)
+        self.stim_ids = stim_ids_temp[np.nonzero(stim_ids_temp)[0]]
 
         # made dictionary of whisker tracking information
         self.wt_type_dict = {0:'angle', 1:'set-point', 2:'amplitude', 3:'phase', 4:'velocity', 5:'whisking'}
@@ -112,14 +113,14 @@ class NeuroAnalyzer(object):
         # trim run data and align it to shortest trial
         self.__trim_run()
 
+        # trim whisker tracking data and align it to shortest trial
+        # defaults to False unless it finds whisker tracking data
+        self.__trim_wt()
+
         # classify behavior using licks and go/no-go angle position
         if self.jb_behavior and not self.spikes_bool:
             self.__classify_behavior()
             self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='jb_engaged', engaged=True, all_trials=False)
-
-        # trim whisker tracking data and align it to shortest trial
-        # defaults to False unless it finds whisker tracking data
-        self.__trim_wt()
 
         # trim LFP data and align it to shortest trial
         if self.lfp_bool:
@@ -369,7 +370,6 @@ class NeuroAnalyzer(object):
 
     def __classify_behavior(self):
         print('\n-----classify_behavior----')
-        print('\n-----THIS WILL BE WRONG WITH OPTOGENETICS:----')
         behavior_ids = list()
         licks_all    = list()
         for k, seg in enumerate(self.f):
@@ -397,7 +397,7 @@ class NeuroAnalyzer(object):
                 lick = False
                 licks_all.append(0)
 
-            #TODO double check this! it currently deals with optogenetics...figure that out.
+            #TODO double check this!
             if trial_type > self.control_pos:
                 trial_type = trial_type - self.control_pos*(int(trial_type)/int(self.control_pos))
 
@@ -436,16 +436,11 @@ class NeuroAnalyzer(object):
         # find when transition from not licking to licking happens, skip the first lick
         high = np.where(np.diff(licks_all) == 1)[0]
 
-        if low[0] <= high[0]:
-            if len(low) < len(high):
-                high = high[0:len(low)]
-            elif len(high) < len(low):
-                low= low[0:len(high)]
-
-#            low = low[1::]
-
         if high[0] < low[0]:
             high = high[1::]
+
+        if low[-1] > high[-1]:
+            low = low[:-1]
 
         # get duration between licking trials
         down_time = high - low
@@ -485,7 +480,7 @@ class NeuroAnalyzer(object):
         """
         print('\n-----__trim_wt-----')
 
-        fps        = 500.0
+        fps = 500.0
         if self.wt_bool:
 
             print('whisker tracking data found! trimming data to be all the same length in time')
@@ -500,92 +495,125 @@ class NeuroAnalyzer(object):
                 wtt = np.linspace(wt_start_time, wt_stop_time, wt_num_frames) - self.min_tbefore_stim
                 wt_indices = np.arange(wtt.shape[0]) - int(self.min_tbefore_stim *fps)
 
-            #TODO: deal with ONLY tracking data (e.g. when I do a stimulation experiment
-                 # without behavior and neuro data
 
-            for i, seg in enumerate(self.f):
-                for k, anlg in enumerate(self.f[seg + '/analog-signals']):
+                for i, seg in enumerate(self.f):
+                    for k, anlg in enumerate(self.f[seg + '/analog-signals']):
 
-                    anlg_path = seg + '/analog-signals/' + anlg
+                        anlg_path = seg + '/analog-signals/' + anlg
+
+                        # find number of samples in the trial
+                        if self.f[anlg_path].attrs['name'] == 'angle' or \
+                                self.f[anlg_path].attrs['name'] == 'set-point' or\
+                                self.f[anlg_path].attrs['name'] == 'amplitude' or\
+                                self.f[anlg_path].attrs['name'] == 'phase' or\
+                                self.f[anlg_path].attrs['name'] == 'velocity'or\
+                                self.f[anlg_path].attrs['name'] == 'whisking':
+                            num_samp = len(self.f[anlg_path])
+
+                            # get stimulus onset
+                            stim_start = self.f[seg].attrs['stim_times'][0]
+
+                            # slide indices window over
+                            # get the frame that corresponds to the stimulus time
+                            # and add it to wt_indices.
+                            good_inds = wt_indices + int( stim_start*fps )
+
+                            if i == 0 and k == 0:
+                                min_trial_length = len(good_inds)
+                                # pre-allocate array for all whisker tracking data
+                                # this way the original file/data is left untouched
+                                wt_data = np.zeros((min_trial_length, 7, len(f)))
+                            elif min_trial_length > len(good_inds):
+                                warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
+                                        LINE 208 __trim_wt')
+
+
+                            anlg_name = self.f[anlg_path].attrs['name']
+                            if num_samp > len(good_inds):
+                                if  anlg_name == 'angle':
+                                    wt_data[:, 0, i] = self.f[anlg_path][good_inds]
+                                elif anlg_name == 'set-point':
+                                    wt_data[:, 1, i] = self.f[anlg_path][good_inds]
+                                elif anlg_name == 'amplitude':
+                                    wt_data[:, 2, i] = self.f[anlg_path][good_inds]
+                                elif anlg_name == 'phase':
+                                    wt_data[:, 3, i] = self.f[anlg_path][good_inds]
+                                elif anlg_name == 'velocity':
+                                    wt_data[:, 4, i] = self.f[anlg_path][good_inds]
+                                elif anlg_name == 'whisking':
+                                    wt_data[:, 5, i] = self.f[anlg_path][good_inds]
+                                elif anlg_name == 'curvature':
+                                    wt_data[:, 6, i] = self.f[anlg_path][good_inds]
+
+                            else:
+                                if i == 0 and k == 0:
+                                    warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
+                                            + '**** this data must have already been trimmed ****')
+                                if  anlg_name == 'angle':
+                                    wt_data[:, 0, i] = self.f[anlg_path][:]
+                                elif anlg_name == 'set-point':
+                                    wt_data[:, 1, i] = self.f[anlg_path][:]
+                                elif anlg_name == 'amplitude':
+                                    wt_data[:, 2, i] = self.f[anlg_path][:]
+                                elif anlg_name == 'phase':
+                                    wt_data[:, 3, i] = self.f[anlg_path][:]
+                                elif anlg_name == 'velocity':
+                                    wt_data[:, 4, i] = self.f[anlg_path][:]
+                                elif anlg_name == 'whisking':
+                                    wt_data[:, 5, i] = self.f[anlg_path][:]
+                                elif anlg_name == 'curvature':
+                                    wt_data[:, 6, i] = self.f[anlg_path][:]
+
+            else:
+
+                cam_start_stop_times = np.zeros((len(self.f), 2))
+
+                # find the latest start time and earliest stop time and align
+                # videos to these times
+                for i, seg in enumerate(self.f):
+                    anlg_path = seg + '/analog-signals/' + 'cam_times/'
 
                     # find number of samples in the trial
-                    if self.f[anlg_path].attrs['name'] == 'angle' or \
-                            self.f[anlg_path].attrs['name'] == 'set-point' or\
-                            self.f[anlg_path].attrs['name'] == 'amplitude' or\
-                            self.f[anlg_path].attrs['name'] == 'phase' or\
-                            self.f[anlg_path].attrs['name'] == 'velocity'or\
-                            self.f[anlg_path].attrs['name'] == 'whisking':
-                        num_samp = len(self.f[anlg_path])
+                    cam_time = self.f[anlg_path][:] - self.f[seg].attrs['stim_times'][0]
+                    cam_start_stop_times[i, :] = cam_time[0], cam_time[-1]
 
-                        # get stimulus onset
-                        stim_start = self.f[seg].attrs['stim_times'][0]
+                start_time = np.max(cam_start_stop_times[:, 0])
+                stop_time  = np.min(cam_start_stop_times[:, 1])
+                num_samples = int(fps*stop_time) + int(fps*np.abs(start_time)) - 20
+                wtt = np.linspace(start_time, stop_time, num_samples)
+                wt_data = np.zeros((num_samples, 7, len(f)))
 
-                        # slide indices window over
-                        # get the frame that corresponds to the stimulus time
-                        # and add it to wt_indices.
-                        good_inds = wt_indices + int( stim_start*fps )
+                for i, seg in enumerate(self.f):
+                    anlg_path = seg + '/analog-signals/' + 'cam_times/'
+                    cam_time = self.f[anlg_path][:] - self.f[seg].attrs['stim_times'][0]
 
-                        if i == 0 and k == 0:
-                            min_trial_length = len(good_inds)
-                            # pre-allocate array for all whisker tracking data
-                            # this way the original file/data is left untouched
-                            wt_data = np.zeros((min_trial_length, 7, len(f)))
-                        elif min_trial_length > len(good_inds):
-                            warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
-                                    LINE 208 __trim_wt')
+                    # find index in cam_time that is closest to camera start
+                    # and stop times
+                    start_index = np.argmin(np.abs(cam_time - start_time))
+                    stop_index = start_index + num_samples
+                    #stop_index = np.argmin(np.abs(cam_time - stop_time))
 
-
+                    for k, anlg in enumerate(self.f[seg + '/analog-signals']):
+                        anlg_path = seg + '/analog-signals/' + anlg
                         anlg_name = self.f[anlg_path].attrs['name']
-                        if num_samp > len(good_inds):
-                            if  anlg_name == 'angle':
-                                wt_data[:, 0, i] = self.f[anlg_path][good_inds]
-                            elif anlg_name == 'set-point':
-                                wt_data[:, 1, i] = self.f[anlg_path][good_inds]
-                            elif anlg_name == 'amplitude':
-                                wt_data[:, 2, i] = self.f[anlg_path][good_inds]
-                            elif anlg_name == 'phase':
-                                wt_data[:, 3, i] = self.f[anlg_path][good_inds]
-                            elif anlg_name == 'velocity':
-                                wt_data[:, 4, i] = self.f[anlg_path][good_inds]
-                            elif anlg_name == 'whisking':
-                                wt_data[:, 5, i] = self.f[anlg_path][good_inds]
-                            elif anlg_name == 'curvature':
-                                wt_data[:, 6, i] = self.f[anlg_path][good_inds]
+                        if  anlg_name == 'angle':
+                            wt_data[:, 0, i] = self.f[anlg_path][start_index:stop_index]
+                        elif anlg_name == 'set-point':
+                            wt_data[:, 1, i] = self.f[anlg_path][start_index:stop_index]
+                        elif anlg_name == 'amplitude':
+                            wt_data[:, 2, i] = self.f[anlg_path][start_index:stop_index]
+                        elif anlg_name == 'phase':
+                            wt_data[:, 3, i] = self.f[anlg_path][start_index:stop_index]
+                        elif anlg_name == 'velocity':
+                            wt_data[:, 4, i] = self.f[anlg_path][start_index:stop_index]
+                        elif anlg_name == 'whisking':
+                            wt_data[:, 5, i] = self.f[anlg_path][start_index:stop_index]
+                        elif anlg_name == 'curvature':
+                            wt_data[:, 6, i] = self.f[anlg_path][start_index:stop_index]
 
-                        else:
-                            if i == 0 and k == 0:
-                                warnings.warn('\n**** length of whisker tracking signals is smaller than the length of the good indices ****\n'\
-                                        + '**** this data must have already been trimmed ****')
-                            if  anlg_name == 'angle':
-                                wt_data[:, 0, i] = self.f[anlg_path][:]
-                            elif anlg_name == 'set-point':
-                                wt_data[:, 1, i] = self.f[anlg_path][:]
-                            elif anlg_name == 'amplitude':
-                                wt_data[:, 2, i] = self.f[anlg_path][:]
-                            elif anlg_name == 'phase':
-                                wt_data[:, 3, i] = self.f[anlg_path][:]
-                            elif anlg_name == 'velocity':
-                                wt_data[:, 4, i] = self.f[anlg_path][:]
-                            elif anlg_name == 'whisking':
-                                wt_data[:, 5, i] = self.f[anlg_path][:]
-                            elif anlg_name == 'curvature':
-                                wt_data[:, 6, i] = self.f[anlg_path][:]
 
-# TODO collect some example data and finish this!!!
-
-#            elif int(fid[3::]) >= 1729:
-#                for i, seg in enumerate(self.f):
-#                    for k, anlg in enumerate(self.f[seg + '/analog-signals']):
-#                        anlg_path = seg + '/analog-signals/' + anlg
-#
-#                        if self.f[anlg_path].attrs['name'] == 'hsv_times':
-#                            hsv_times_temp = self.f[anlg_path]
-#                            num_samp = len(hsv_times)
-#
-#                            # find number of samples before stim start
-#                            hsv_times_temp - self.f[seg].attrs['stim_times'][0]
-#
-#                            # find number of samples after stim stop
+            #TODO: deal with ONLY tracking data (e.g. when I do a stimulation experiment
+                 # without behavior and neuro data
 
             self.wtt          = wtt
             self._wt_min_samp = num_samples
@@ -2332,15 +2360,19 @@ class NeuroAnalyzer(object):
         """
         num_cond = len(self.stim_ids)
         prob_lick = np.zeros((num_cond, ))
-        for manip in range(num_cond/self.control_pos):
-            for cond in range(num_cond - 1):
-                prob_lick[cond] = float(np.sum(self.lick_bool[cond + manip]))\
-                        / self.lick_bool[cond + manip].shape[0]
+        for cond in range(num_cond - 1):
+            prob_lick[cond] = float(np.sum(self.lick_bool[cond]))\
+                    / self.lick_bool[cond].shape[0]
 
 
         pos = range(1, self.control_pos)
         line_color = ['k','r','b']
         fig, ax = plt.subplots()
+        ax.set_title(self.fid + ' psychometric curve')
+        ax.set_ylim(0, 1.1)
+        ax.set_ylabel('P(lick)')
+        ax.set_xlabel('<--GO -- NOGO-->\npositions')
+
         for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
             ax.plot(pos[0:self.control_pos-1],\
                     prob_lick[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
@@ -2361,7 +2393,7 @@ class NeuroAnalyzer(object):
             for licks in self.licks[cond]:
 
                 lick_rate_temp = np.sum(np.logical_and(licks > 0, licks < 1))
-                if lick_rate_temp == 0:
+                if lick_rate_temp == 0 or np.isnan(lick_rate_temp):
                     lick_rate[cond].append(0)
                 elif  lick_rate_temp > 0:
                     lick_rate[cond].append(lick_rate_temp)
@@ -2370,17 +2402,21 @@ class NeuroAnalyzer(object):
 
     def plot_lick_raster(self):
 
-        fig, ax = plt.subplots(1, self.control_pos, figsize=(12, 6), sharex=True, sharey=True)
-        for cond in range(len(self.stim_ids)):
-            trial = 0
-            for licks in self.licks[cond]:
-                if not np.isnan(np.sum(licks)):
-                    ax[cond].vlines(licks, trial, trial+1, color='k', linewidth=1.0)
-                    trial += 1
-        max_ylim = ax[cond].get_ylim()[1]
-        for cond in range(len(self.stim_ids)):
-            ax[cond].axvspan(0, 1, alpha=0.3, color='green')
-            ax[cond].set_ylim(0, max_ylim)
+        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+        line_color = ['k','r','b']
+        fig, ax = plt.subplots(num_manipulations, self.control_pos, figsize=(12, 6), sharex=True, sharey=True)
+        for manip in range(num_manipulations):
+            for cond in range(self.control_pos):
+                trial = 0
+                for licks in self.licks[cond]:
+                    if not np.isnan(np.sum(licks)):
+                        ax[manip][cond].vlines(licks, trial, trial+1, color=line_color[manip], linewidth=1.0)
+                        trial += 1
+        max_ylim = ax[manip][cond].get_ylim()[1]
+        for manip in range(num_manipulations):
+            for cond in range(self.control_pos):
+                ax[manip][cond].axvspan(0, 1, alpha=0.3, color='green')
+                ax[manip][cond].set_ylim(0, max_ylim)
 
     def plot_time2lick(self, t_start=0):
         """
