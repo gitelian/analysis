@@ -372,6 +372,7 @@ class NeuroAnalyzer(object):
         print('\n-----classify_behavior----')
         behavior_ids = list()
         licks_all    = list()
+        correct_list = list() # if mouse correctly IDs GO or NOGO mark as True
         for k, seg in enumerate(self.f):
             trial_type = int(self.f[seg].attrs['trial_type'])
             stim_start = self.f[seg].attrs['stim_times'][0]
@@ -403,14 +404,24 @@ class NeuroAnalyzer(object):
 
             if trial_type < 5:
                 go = True
-#            # this isn't used in the experiment
-#            elif trial_type == 5:
-#                go = None
+
+                if lick:
+                    correct_list.append(True)
+                else:
+                    correct_list.append(False)
+
             elif trial_type >= 5 and trial_type < 9:
                 go = False
+
+                if not lick:
+                    correct_list.append(True)
+                else:
+                    correct_list.append(False)
+
             elif trial_type == 9:
                 # control position
                 go = None
+                correct_list.append(None)
 
             # label the type of behavior using logic
             if go == None:
@@ -470,6 +481,7 @@ class NeuroAnalyzer(object):
 
         self.behavior_ids = behavior_ids
         self.licks_all    = licks_all
+        self.correct_list = correct_list
         #self.behavior_labels = {'hit':1, 'miss':3, 'false_alarm':2, 'correct_reject':4}
         self.behavior_labels = {1:'hit', 3:'miss', 2:'false_alarm', 4:'correct_reject'}
 
@@ -937,6 +949,7 @@ class NeuroAnalyzer(object):
         licks           = list()
         bids            = list() # behavior IDs
         lick_bool       = list()
+        trial_choice    = list()
 
         # make whisker tracking list wt
         if self.wt_bool:
@@ -998,6 +1011,7 @@ class NeuroAnalyzer(object):
                     licks.append([list() for x in range(trials_ran)])
                     lick_bool.append(np.zeros((trials_ran,)))
                     bids.append([list() for x in range(trials_ran)])
+                    trial_choice.append([list() for x in range(trials_ran)])
 
 
         for stim_ind, stim_id in enumerate(self.stim_ids):
@@ -1032,6 +1046,7 @@ class NeuroAnalyzer(object):
 
                         lick_bool[stim_ind][good_trial_ind] = self.licks_all[k]
                         bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
+                        trial_choice[stim_ind][good_trial_ind] = self.correct_list[k]
 
                     if self.spikes_bool:
                         # get baseline and stimulus period times for this trial
@@ -1097,6 +1112,7 @@ class NeuroAnalyzer(object):
             self.licks = licks
             self.lick_bool = lick_bool
             self.binds = [np.asarray(x) for x in bids]
+            self.trial_choice = trial_choice
 
     def rebin_spikes(self, bin_size=0.005, analysis_window=[0.5, 1.5]):
         '''bin spike times with specified bin size and analysis window'''
@@ -2456,7 +2472,59 @@ class NeuroAnalyzer(object):
 #### whisker analysis for jb_behavior experiments ####
 ###########################
 
+### ONLY ANALYZE TRIALS WHERE THE MOUSE GOT IT CORRECT ###
+
 ### is set-point different ???
+# compute mean set-point for each correct condition and plot
+
+    def plot_mean_setpoint(self, t_window=[-0.5, 0.5]), cond2plot=[0, 1, 2], all_trials=False):
+
+        # get window indices
+        start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
+        stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
+
+        # get all the setpoints
+        set_point = [list() for x in range(len(self.stim_ids))]
+        mean_sp   = [list() for x in range(len(self.stim_ids))]
+        sem_sp    = [list() for x in range(len(self.stim_ids))]
+
+        for cond in range(len(self.stim_ids)):
+
+            for trial in range(len(self.lick_bool[cond])):
+
+                if all_trials:
+                    set_point[cond].append(self.wt[cond][:, 1, trial])
+
+                elif self.trial_choice[cond][trial]:
+                    # get set-point
+                    set_point[cond].append(self.wt[cond][:, 1, trial])
+
+        # convert to arrays
+        for index in range(len(set_point)):
+            set_point[index] = np.asarray(set_point[index])
+            # extract data from window of interest
+            mean_sp[index]   = np.mean(set_point[index], axis=0)
+            sem_sp[index]    = sp.stats.sem(set_point[index], axis=0)
+
+        # plot
+        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+        line_color = ['k','r','b']
+        fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
+
+        for k, cond in enumerate(cond2plot):
+
+            if cond < 4:
+                ax[k].set_title('GO (position {})'.format(cond))
+            if cond >= 4:
+                ax[k].set_title('NOGO (position {})'.format(cond))
+
+            ax[k].set_xlabel('time (s)')
+            ax[k].set_ylabel('set-point (deg)')
+
+            for manip in range(num_manipulations):
+                ax[k].plot(self.wtt[start_ind:stop_ind], mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
+                ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_sp[cond + (self.control_pos*manip)][start_ind:stop_ind],\
+                        mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_sp[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
 
 ### is whisk frequency different ???
 
