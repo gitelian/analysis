@@ -64,7 +64,7 @@ class NeuroAnalyzer(object):
         self.control_pos = int(f.attrs['control_pos'])
 
         # is this a jb_behavior experiment
-        self.jb_behavior = self.f.attrs['jb_behavior']
+        self.jb_behavior = int(self.f.attrs['jb_behavior'])
 
         # add time before and time after stimulus start/stop respectively
         # add stimulus period duration (avoid dependence on CSV file
@@ -1007,8 +1007,6 @@ class NeuroAnalyzer(object):
             for k, seg in enumerate(self.f):
 
                 # if running or whisking or jb_engaged trial add data to arrays
-                # TODO stop adding trial data if the mouse has stopped
-                # licking/performing in the task
                 if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == engaged or \
                         all_trials == True):
 
@@ -2358,97 +2356,111 @@ class NeuroAnalyzer(object):
         """
         compute psychometric curve for entire behavioral experiment
         """
-        num_cond = len(self.stim_ids)
-        prob_lick = np.zeros((num_cond, ))
-        for cond in range(num_cond - 1):
-            prob_lick[cond] = float(np.sum(self.lick_bool[cond]))\
-                    / self.lick_bool[cond].shape[0]
+        if self.jb_behavior:
+            num_cond = len(self.stim_ids)
+            prob_lick = np.zeros((num_cond, ))
+            for cond in range(num_cond - 1):
+                prob_lick[cond] = float(np.sum(self.lick_bool[cond]))\
+                        / self.lick_bool[cond].shape[0]
 
 
-        pos = range(1, self.control_pos)
-        line_color = ['k','r','b']
-        fig, ax = plt.subplots()
-        ax.set_title(self.fid + ' psychometric curve')
-        ax.set_ylim(0, 1.1)
-        ax.set_ylabel('P(lick)')
-        ax.set_xlabel('<--GO -- NOGO-->\npositions')
+            pos = range(1, self.control_pos)
+            line_color = ['k','r','b']
+            fig, ax = plt.subplots()
+            ax.set_title(self.fid + ' psychometric curve')
+            ax.set_ylim(0, 1.1)
+            ax.set_ylabel('P(lick)')
+            ax.set_xlabel('<--GO -- NOGO-->\npositions')
 
-        for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
-            ax.plot(pos[0:self.control_pos-1],\
-                    prob_lick[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
-                    color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-            # plot control position separately from stimulus positions
-            ax.plot(self.control_pos, prob_lick[(control_pos_count+1)*self.control_pos-1],\
-                    color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+            for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
+                ax.plot(pos[0:self.control_pos-1],\
+                        prob_lick[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
+                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                # plot control position separately from stimulus positions
+                ax.plot(self.control_pos, prob_lick[(control_pos_count+1)*self.control_pos-1],\
+                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
-        return prob_lick
+            return prob_lick
 
-    def get_lick_rate(self):
-        """
-        compute lick rate for each condition
-        """
-        num_cond = len(self.stim_ids)
-        lick_rate = [list() for x in range(num_cond)]
-        for cond in range(num_cond):
-            for licks in self.licks[cond]:
+        def get_lick_rate(self):
+            """
+            compute lick rate for each condition
+            """
+            if self.jb_behavior:
+                num_cond = len(self.stim_ids)
+                lick_rate = [list() for x in range(num_cond)]
+                for cond in range(num_cond):
+                    for licks in self.licks[cond]:
 
-                lick_rate_temp = np.sum(np.logical_and(licks > 0, licks < 1))
-                if lick_rate_temp == 0 or np.isnan(lick_rate_temp):
-                    lick_rate[cond].append(0)
-                elif  lick_rate_temp > 0:
-                    lick_rate[cond].append(lick_rate_temp)
+                        lick_rate_temp = np.sum(np.logical_and(licks > 0, licks < 1))
+                        if lick_rate_temp == 0 or np.isnan(lick_rate_temp):
+                            lick_rate[cond].append(0)
+                        elif  lick_rate_temp > 0:
+                            lick_rate[cond].append(lick_rate_temp)
 
-        return lick_rate
+                return lick_rate
 
     def plot_lick_raster(self):
 
-        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
-        line_color = ['k','r','b']
-        fig, ax = plt.subplots(num_manipulations, self.control_pos, figsize=(12, 6), sharex=True, sharey=True)
-        for manip in range(num_manipulations):
-            for cond in range(self.control_pos):
-                trial = 0
-                for licks in self.licks[cond]:
-                    if not np.isnan(np.sum(licks)):
-                        ax[manip][cond].vlines(licks, trial, trial+1, color=line_color[manip], linewidth=1.0)
-                        trial += 1
-        max_ylim = ax[manip][cond].get_ylim()[1]
-        for manip in range(num_manipulations):
-            for cond in range(self.control_pos):
-                ax[manip][cond].axvspan(0, 1, alpha=0.3, color='green')
-                ax[manip][cond].set_ylim(0, max_ylim)
+        if self.jb_behavior:
+            num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+            line_color = ['k','r','b']
+            fig, ax = plt.subplots(num_manipulations, self.control_pos, figsize=(12, 6), sharex=True, sharey=True)
+            for manip in range(num_manipulations):
+                for cond in range(self.control_pos):
+                    trial = 0
+                    for licks in self.licks[cond]:
+                        if not np.isnan(np.sum(licks)):
+                            ax[manip][cond].vlines(licks, trial, trial+1, color=line_color[manip], linewidth=1.0)
+                            trial += 1
+            max_ylim = ax[manip][cond].get_ylim()[1]
+            for manip in range(num_manipulations):
+                for cond in range(self.control_pos):
+                    ax[manip][cond].axvspan(0, 1, alpha=0.3, color='green')
+                    ax[manip][cond].set_ylim(0, max_ylim)
 
     def plot_time2lick(self, t_start=0):
         """
         compute time (mean +/- sem) to first lick for all angles
         """
-        num_cond = len(self.stim_ids)
-        time2lick_mean = np.zeros((num_cond, ))
-        time2lick_sem = np.zeros((num_cond, ))
+        if self.jb_behavior:
+            num_cond = len(self.stim_ids)
+            time2lick_mean = np.zeros((num_cond, ))
+            time2lick_sem = np.zeros((num_cond, ))
 
-        for cond in range(num_cond):
-            lick_temp = list()
-            for licks in self.licks[cond]:
-                if not np.isnan(np.sum(licks)):
-                    lick_inds = np.where(licks > t_start)[0]
-                    if lick_inds.shape[0] > 0:
-                        lick_temp.append(licks[lick_inds[0]])
+            for cond in range(num_cond):
+                lick_temp = list()
+                for licks in self.licks[cond]:
+                    if not np.isnan(np.sum(licks)):
+                        lick_inds = np.where(licks > t_start)[0]
+                        if lick_inds.shape[0] > 0:
+                            lick_temp.append(licks[lick_inds[0]])
 
-            time2lick_mean[cond] = np.mean(lick_temp)
-            time2lick_sem[cond]  = sp.stats.sem(lick_temp)
+                time2lick_mean[cond] = np.mean(lick_temp)
+                time2lick_sem[cond]  = sp.stats.sem(lick_temp)
 
-        pos = range(1, self.control_pos)
-        line_color = ['k','r','b']
-        fig, ax = plt.subplots()
-        for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
-            ax.errorbar(pos[0:self.control_pos-1],\
-                    time2lick_mean[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
-                    yerr=time2lick_sem[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
-                    color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-            # plot control position separately from stimulus positions
-            ax.errorbar(self.control_pos, time2lick_mean[(control_pos_count+1)*self.control_pos-1],\
-                    yerr=time2lick_sem[(control_pos_count+1)*self.control_pos-1],\
-                    color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+            pos = range(1, self.control_pos)
+            line_color = ['k','r','b']
+            fig, ax = plt.subplots()
+            for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
+                ax.errorbar(pos[0:self.control_pos-1],\
+                        time2lick_mean[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
+                        yerr=time2lick_sem[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
+                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                # plot control position separately from stimulus positions
+                ax.errorbar(self.control_pos, time2lick_mean[(control_pos_count+1)*self.control_pos-1],\
+                        yerr=time2lick_sem[(control_pos_count+1)*self.control_pos-1],\
+                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+
+###########################
+#### whisker analysis for jb_behavior experiments ####
+###########################
+
+### is set-point different ???
+
+### is whisk frequency different ???
+
+### is the slope of the set-point after contact different?
 
 
 
