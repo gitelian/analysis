@@ -9,6 +9,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.cm as cm
+from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mpl
 import scipy.signal
 import h5py
@@ -2477,7 +2478,7 @@ class NeuroAnalyzer(object):
 ### is set-point different ???
 # compute mean set-point for each correct condition and plot
 
-    def plot_mean_setpoint(self, t_window=[-0.5, 0.5]), cond2plot=[0, 1, 2], all_trials=False):
+    def plot_mean_setpoint(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
 
         # get window indices
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
@@ -2502,7 +2503,6 @@ class NeuroAnalyzer(object):
         # convert to arrays
         for index in range(len(set_point)):
             set_point[index] = np.asarray(set_point[index])
-            # extract data from window of interest
             mean_sp[index]   = np.mean(set_point[index], axis=0)
             sem_sp[index]    = sp.stats.sem(set_point[index], axis=0)
 
@@ -2527,6 +2527,90 @@ class NeuroAnalyzer(object):
                         mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_sp[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
 
 ### is whisk frequency different ???
+    def plot_wt_freq(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
+
+        # get window indices
+        start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
+        stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
+
+        # get all the angles
+        wt_angle      = [list() for x in range(len(self.stim_ids))]
+        mean_psd = [list() for x in range(len(self.stim_ids))]
+        sem_psd  = [list() for x in range(len(self.stim_ids))]
+
+        for cond in range(len(self.stim_ids)):
+
+            for trial in range(len(self.lick_bool[cond])):
+
+                if all_trials:
+                    wt_angle[cond].append(self.wt[cond][start_ind:stop_ind, 0, trial])
+
+                elif self.trial_choice[cond][trial]:
+                    # get angle
+                    wt_angle[cond].append(self.wt[cond][start_ind:stop_ind, 0, trial])
+
+        # convert to arrays
+        for index in range(len(wt_angle)):
+            wt_angle[index] = np.asarray(wt_angle[index])
+
+            # compute PSD
+            angle_temp = wt_angle[index]
+            if angle_temp.shape[0] == 0:
+                mean_psd[index] = np.nan
+                sem_psd[index] = np.nan
+            else:
+                f, frq_mat_temp = self.get_psd(angle_temp.T, 500)
+                mean_psd[index] = np.mean(frq_mat_temp, axis=1)
+                sem_psd[index]  = sp.stats.sem(frq_mat_temp, axis=1)
+
+        # plot
+        f = np.linspace(0, 250, mean_psd[0].shape[0])
+        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+        line_color = ['k','r','b']
+        fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
+
+        for k, cond in enumerate(cond2plot):
+
+            if cond < 4:
+                ax[k].set_title('GO (position {})'.format(cond))
+            if cond >= 4:
+                ax[k].set_title('NOGO (position {})'.format(cond))
+
+            ax[k].set_xlim(0, 30)
+            ax[k].set_xlabel('frequency (Hz)')
+            ax[k].set_ylabel('PSD power')
+
+            for manip in range(num_manipulations):
+                if not type(mean_psd[cond + (self.control_pos*manip)]) == float:
+                    ax[k].plot(f, mean_psd[cond + (self.control_pos*manip)], color=line_color[manip])
+                    ax[k].fill_between(f, mean_psd[cond + (self.control_pos*manip)] + sem_psd[cond + (self.control_pos*manip)],\
+                            mean_psd[cond + (self.control_pos*manip)] + sem_psd[cond + (self.control_pos*manip)], facecolor=line_color[manip], alpha=0.3)
+
+
+    def plot_wt_angle_flip_book(self, t_window=[-1, 0] ):
+
+        ### TODO edit this to only plot trials where the mouse was correct! ###
+        start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
+        stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
+        line_color = ['k','r','b']
+
+        min_trials2plot = np.min(np.reshape(self.num_good_trials, [2,9]), axis=0)
+        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+
+        with PdfPages('~/Desktop/' + fid + '_wt_angle.pdf') as pdf:
+            for cond in range(self.control_pos):
+                for k in range(min_trials2plot[cond]):
+                    fig, ax = plt.subplots()
+                    ax.set_title('Pos {}'.format(cond))
+                    ax.set_xlabel('time (s)')
+                    ax.set_ylabel('set-point (deg)')
+                    ax.set_ylim(80, 160)
+                    for manip in range(num_manipulations):
+                        ax.plot(self.wtt[start_ind:stop_ind], self.wt[cond + (self.control_pos*manip)][start_ind:stop_ind, 0, k], color=line_color[manip])
+                    pdf.savefig()
+                    fig.clear()
+                    plt.close()
+
 
 ### is the slope of the set-point after contact different?
 
