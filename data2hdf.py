@@ -587,8 +587,10 @@ def make_hdf_object(f, **kwargs):
 
     if spikes_files:
         f.attrs["spikes_bool"] = True
+        print('\nSPIKES FOUND\n')
     else:
         f.attrs["spikes_bool"] = False
+        print('\nNO SPIKES\n')
 
     if lfp_files:
         f.attrs["lfp_bool"] = True
@@ -752,6 +754,7 @@ def make_hdf_object(f, **kwargs):
     if os.path.exists(spike_measure_path):
         spk_msrs = load_mat_file(spike_measure_path, variable_name='spike_msr_mat')
 
+    print('\nLooking for spike files')
     if spikes_files:
         for e, spike_path in enumerate(spikes_files):
             spike_fname       = os.path.split(spike_path)[1]
@@ -840,6 +843,8 @@ def make_hdf_object(f, **kwargs):
                             spiketrain.attrs["region"]        = 'none'
 
                         uind += 1
+    else:
+        print('\nNO SPIKE FILES FOUND')
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
