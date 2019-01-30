@@ -2551,6 +2551,7 @@ class NeuroAnalyzer(object):
         set_point = [list() for x in range(len(self.stim_ids))]
         mean_sp   = [list() for x in range(len(self.stim_ids))]
         sem_sp    = [list() for x in range(len(self.stim_ids))]
+        num_trials = np.zeros((len(self.stim_ids), 1))
 
         for cond in range(len(self.stim_ids)):
 
@@ -2569,9 +2570,10 @@ class NeuroAnalyzer(object):
             set_point[index] = np.asarray(set_point[index])
             mean_sp[index]   = np.mean(set_point[index], axis=0)
             sem_sp[index]    = sp.stats.sem(set_point[index], axis=0)
+            num_trials[index] = len(set_point[index])
             print('cond {} has {} trials'.format(index, len(set_point[index])))
 
-        return mean_sp, sem_sp
+        return mean_sp, sem_sp, num_trials
 
     def plot_wt_freq(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
 
