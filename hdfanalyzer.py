@@ -604,6 +604,12 @@ class NeuroAnalyzer(object):
                     # and stop times
                     start_index = np.argmin(np.abs(cam_time - start_time))
                     stop_index = start_index + num_samples
+                    number_of_samples = self.f[anlg_path].shape[0]
+
+                    if stop_index > number_of_samples:
+                        print('WARNING TRYING TO INDEX OUT OF ARRAY USING CRAPPY HACK TO MAKE IT WORK')
+                        start_index = self.f[anlg_path].shape[0] - num_samples
+                        stop_index = self.f[anlg_path].shape[0]
                     #stop_index = np.argmin(np.abs(cam_time - stop_time))
 
                     for k, anlg in enumerate(self.f[seg + '/analog-signals']):
@@ -2473,12 +2479,14 @@ class NeuroAnalyzer(object):
 #### whisker analysis for jb_behavior experiments ####
 ###########################
 
-### ONLY ANALYZE TRIALS WHERE THE MOUSE GOT IT CORRECT ###
+### ONLY ANALYZE TRIALS WHERE THE MOUSE GOT IT CORRECT ??? ###
 
-### is set-point different ???
-# compute mean set-point for each correct condition and plot
 
     def plot_mean_setpoint(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
+
+        ### is set-point different ???
+        # compute mean set-point for each correct condition and plot
+        ### is the slope of the set-point after contact different?
 
         # get window indices
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
@@ -2496,6 +2504,7 @@ class NeuroAnalyzer(object):
                 if all_trials:
                     set_point[cond].append(self.wt[cond][:, 1, trial])
 
+                # if mouse made correct choice
                 elif self.trial_choice[cond][trial]:
                     # get set-point
                     set_point[cond].append(self.wt[cond][:, 1, trial])
@@ -2505,6 +2514,7 @@ class NeuroAnalyzer(object):
             set_point[index] = np.asarray(set_point[index])
             mean_sp[index]   = np.mean(set_point[index], axis=0)
             sem_sp[index]    = sp.stats.sem(set_point[index], axis=0)
+            print('cond {} has {} trials'.format(index, len(set_point[index])))
 
         # plot
         num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
@@ -2515,19 +2525,26 @@ class NeuroAnalyzer(object):
 
             if cond < 4:
                 ax[k].set_title('GO (position {})'.format(cond))
-            if cond >= 4:
+            if cond >= 4 and cond < 8:
                 ax[k].set_title('NOGO (position {})'.format(cond))
+            if cond == 8:
+                ax[k].set_title('Catch (position control)')
 
             ax[k].set_xlabel('time (s)')
             ax[k].set_ylabel('set-point (deg)')
 
             for manip in range(num_manipulations):
-                ax[k].plot(self.wtt[start_ind:stop_ind], mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
-                ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_sp[cond + (self.control_pos*manip)][start_ind:stop_ind],\
-                        mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_sp[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
+                if not np.where(np.isnan(mean_sp[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                    ax[k].plot(self.wtt[start_ind:stop_ind], mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
+                    ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_sp[cond + (self.control_pos*manip)][start_ind:stop_ind],\
+                            mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_sp[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
 
-### is whisk frequency different ???
+        return fig, ax
+
     def plot_wt_freq(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
+
+        print('\n #!#! CAUTION this uses nanmean/nansem. NOT sure why there are NANs #!#!')
+        ### is whisk frequency different ???
 
         # get window indices
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
@@ -2552,6 +2569,7 @@ class NeuroAnalyzer(object):
         # convert to arrays
         for index in range(len(wt_angle)):
             wt_angle[index] = np.asarray(wt_angle[index])
+            print(wt_angle[index].shape)
 
             # compute PSD
             angle_temp = wt_angle[index]
@@ -2559,9 +2577,11 @@ class NeuroAnalyzer(object):
                 mean_psd[index] = np.nan
                 sem_psd[index] = np.nan
             else:
+
                 f, frq_mat_temp = self.get_psd(angle_temp.T, 500)
-                mean_psd[index] = np.mean(frq_mat_temp, axis=1)
-                sem_psd[index]  = sp.stats.sem(frq_mat_temp, axis=1)
+                #mean_psd[index] = np.mean(frq_mat_temp, axis=1)
+                mean_psd[index] = np.nanmean(frq_mat_temp, axis=1)
+                sem_psd[index]  = sp.stats.sem(frq_mat_temp, axis=1, nan_policy='omit')
 
         # plot
         f = np.linspace(0, 250, mean_psd[0].shape[0])
@@ -2573,8 +2593,10 @@ class NeuroAnalyzer(object):
 
             if cond < 4:
                 ax[k].set_title('GO (position {})'.format(cond))
-            if cond >= 4:
+            if cond >= 4 and cond < 8:
                 ax[k].set_title('NOGO (position {})'.format(cond))
+            if cond == 8:
+                ax[k].set_title('Catch (position control)')
 
             ax[k].set_xlim(0, 30)
             ax[k].set_xlabel('frequency (Hz)')
@@ -2587,32 +2609,67 @@ class NeuroAnalyzer(object):
                             mean_psd[cond + (self.control_pos*manip)] + sem_psd[cond + (self.control_pos*manip)], facecolor=line_color[manip], alpha=0.3)
 
 
-    def plot_wt_angle_flip_book(self, t_window=[-1, 0] ):
+    def plot_wt_flip_book(self, t_window=[-1, 0], kind='angle'):
 
         ### TODO edit this to only plot trials where the mouse was correct! ###
+        ### TODO make sure trials where animal was ENGAGED are being plotted ! ###
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
         stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
         line_color = ['k','r','b']
 
+        if kind == 'angle':
+            kind_ind = 0
+        elif kind == 'setpoint':
+            kind_ind = 1
+        elif kind == 'amplitude':
+            kind_ind = 2
+
         min_trials2plot = np.min(np.reshape(self.num_good_trials, [2,9]), axis=0)
         num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
 
-        with PdfPages('~/Desktop/' + fid + '_wt_angle.pdf') as pdf:
-            for cond in range(self.control_pos):
-                for k in range(min_trials2plot[cond]):
-                    fig, ax = plt.subplots()
-                    ax.set_title('Pos {}'.format(cond))
-                    ax.set_xlabel('time (s)')
-                    ax.set_ylabel('set-point (deg)')
-                    ax.set_ylim(80, 160)
-                    for manip in range(num_manipulations):
-                        ax.plot(self.wtt[start_ind:stop_ind], self.wt[cond + (self.control_pos*manip)][start_ind:stop_ind, 0, k], color=line_color[manip])
-                    pdf.savefig()
-                    fig.clear()
-                    plt.close()
+        with PdfPages(os.path.expanduser('~/Desktop/' + fid + '_wt_{}.pdf'.format(kind))) as pdf:
+            for manip in range(num_manipulations):
+                for cond in range(self.control_pos-1):
+                    # get number of correct and incorrect trials for this condition
+                    # PLUS manipulation
+
+                    num_correct   = sum(self.trial_choice[cond + (self.control_pos*manip)])
+                    correct_inds = np.where(np.asarray(self.trial_choice[cond + (self.control_pos*manip)]) == True)[0]
+
+                    num_incorrect = len(self.trial_choice[cond + (self.control_pos*manip)]) - num_correct
+                    incorrect_inds = np.where(np.asarray(self.trial_choice[cond + (self.control_pos*manip)]) == False)[0]
+
+                    min_trials2plot = min([num_correct, num_incorrect])
+
+                    #for k in range(min_trials2plot[cond]):
+                    # creates a new page
+                    for k in range(min_trials2plot):
+                        fig, ax = plt.subplots(1, 2)
+                        fig.suptitle('Pos {}'.format(cond))
+
+                        # plot correct trials
+                        ax[0].plot(self.wtt[start_ind:stop_ind],\
+                                self.wt[cond + (self.control_pos*manip)][start_ind:stop_ind, kind_ind, correct_inds[k]],\
+                                color=line_color[manip])
+                        # plot incorrect trials
+                        ax[1].plot(self.wtt[start_ind:stop_ind],\
+                                self.wt[cond + (self.control_pos*manip)][start_ind:stop_ind, kind_ind, incorrect_inds[k]],\
+                                color=line_color[manip])
+
+                        ax[0].set_xlabel('time (s)')
+                        ax[0].set_ylabel('set-point (deg)')
+                        ax[0].set_ylim(80, 160)
+                        ax[0].set_title('Correct choice')
+                        ax[1].set_xlabel('time (s)')
+                        ax[1].set_ylabel('set-point (deg)')
+                        ax[1].set_ylim(80, 160)
+                        ax[1].set_title('Incorrect choice')
+
+                        pdf.savefig()
+                        fig.clear()
+                        plt.close()
 
 
-### is the slope of the set-point after contact different?
 
 
 
