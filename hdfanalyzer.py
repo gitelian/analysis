@@ -2541,6 +2541,38 @@ class NeuroAnalyzer(object):
 
         return fig, ax
 
+    def get_setpoint(self, t_window=[-0.5, 0.5], cond=[0, 1, 2], correct=True):
+
+        # get window indices
+        start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
+        stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
+
+        # get all the setpoints
+        set_point = [list() for x in range(len(self.stim_ids))]
+        mean_sp   = [list() for x in range(len(self.stim_ids))]
+        sem_sp    = [list() for x in range(len(self.stim_ids))]
+
+        for cond in range(len(self.stim_ids)):
+
+            for trial in range(len(self.lick_bool[cond])):
+
+                # if mouse made correct choice
+                if  correct and self.trial_choice[cond][trial]:
+                    # get set-point
+                    set_point[cond].append(self.wt[cond][:, 1, trial])
+                elif not correct and not self.trial_choice[cond][trial]:
+                    # get set-point
+                    set_point[cond].append(self.wt[cond][:, 1, trial])
+
+        # convert to arrays
+        for index in range(len(set_point)):
+            set_point[index] = np.asarray(set_point[index])
+            mean_sp[index]   = np.mean(set_point[index], axis=0)
+            sem_sp[index]    = sp.stats.sem(set_point[index], axis=0)
+            print('cond {} has {} trials'.format(index, len(set_point[index])))
+
+        return mean_sp, sem_sp
+
     def plot_wt_freq(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
 
         print('\n #!#! CAUTION this uses nanmean/nansem. NOT sure why there are NANs #!#!')
