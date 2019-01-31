@@ -2549,6 +2549,60 @@ class NeuroAnalyzer(object):
 
         return fig, ax
 
+    def plot_mean_runspeed(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
+
+        # get window indices
+        start_ind = np.argmin(np.abs(self.run_t - t_window[0]))
+        stop_ind  = np.argmin(np.abs(self.run_t - t_window[1]))
+
+        # get all the setpoints
+        run = [list() for x in range(len(self.stim_ids))]
+        mean_run = [list() for x in range(len(self.stim_ids))]
+        sem_run = [list() for x in range(len(self.stim_ids))]
+
+        for cond in range(len(self.stim_ids)):
+
+            for trial in range(len(self.lick_bool[cond])):
+
+                if all_trials:
+                    run[cond].append(self.run[cond][:, trial])
+
+                # if mouse made correct choice
+                elif self.trial_choice[cond][trial]:
+                    # get set-point
+                    run[cond].append(self.run[cond][:, trial])
+
+        # convert to arrays
+        for index in range(len(run)):
+            run[index] = np.asarray(run[index])
+            mean_run[index]   = np.mean(run[index], axis=0)
+            sem_run[index]    = sp.stats.sem(run[index], axis=0)
+            print('cond {} has {} trials'.format(index, len(run[index])))
+
+        # plot
+        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+        line_color = ['k','r','b']
+        fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
+
+        for k, cond in enumerate(cond2plot):
+
+            if cond < 4:
+                ax[k].set_title('GO (position {})'.format(cond))
+            if cond >= 4 and cond < 8:
+                ax[k].set_title('NOGO (position {})'.format(cond))
+            if cond == 8:
+                ax[k].set_title('Catch (position control)')
+
+            ax[k].set_xlabel('time (s)')
+            ax[k].set_ylabel('runspeed (cm/sec)')
+
+            for manip in range(num_manipulations):
+                if not np.where(np.isnan(mean_run[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                    ax[k].plot(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
+                    ax[k].fill_between(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind],\
+                            mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
+
+        return fig, ax
     def get_setpoint(self, t_window=[-0.5, 0.5], cond=[0, 1, 2], correct=True):
 
         # get window indices
