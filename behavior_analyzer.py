@@ -39,7 +39,9 @@ for a in ax:
     a.set_ylim(ylim)
     a.axvspan(-1, 0, alpha=0.2, color='green')
 
-##TODO plot PSD of whisker angle
+## plot PSD of whisker angle
+neuro.plot_wt_freq(t_window=[-1, 0], cond2plot=[0, 3, 4, 7, 8], all_trials=True)
+fig.suptitle(fid + ' whisker angle frequency with t_window = {}'.format(t_window))
 
 ## plot mean set-point with NOLIGHT for CORRECT vs INCORRECT
 sp_mean_right, sp_sem_right, num_trials_right = neuro.get_setpoint(correct=True)
