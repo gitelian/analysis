@@ -2382,9 +2382,10 @@ class NeuroAnalyzer(object):
         if self.jb_behavior:
             num_cond = len(self.stim_ids)
             prob_lick = np.zeros((num_cond, ))
-            for cond in range(num_cond - 1):
+            for cond in range(num_cond ):
                 prob_lick[cond] = float(np.sum(self.lick_bool[cond]))\
                         / self.lick_bool[cond].shape[0]
+                print(cond, prob_lick[cond])
 
 
             pos = range(1, self.control_pos)
@@ -2405,23 +2406,23 @@ class NeuroAnalyzer(object):
 
             return prob_lick
 
-        def get_lick_rate(self):
-            """
-            compute lick rate for each condition
-            """
-            if self.jb_behavior:
-                num_cond = len(self.stim_ids)
-                lick_rate = [list() for x in range(num_cond)]
-                for cond in range(num_cond):
-                    for licks in self.licks[cond]:
+    def get_lick_rate(self):
+        """
+        compute lick rate for each condition
+        """
+        if self.jb_behavior:
+            num_cond = len(self.stim_ids)
+            lick_rate = [list() for x in range(num_cond)]
+            for cond in range(num_cond):
+                for licks in self.licks[cond]:
 
-                        lick_rate_temp = np.sum(np.logical_and(licks > 0, licks < 1))
-                        if lick_rate_temp == 0 or np.isnan(lick_rate_temp):
-                            lick_rate[cond].append(0)
-                        elif  lick_rate_temp > 0:
-                            lick_rate[cond].append(lick_rate_temp)
+                    lick_rate_temp = np.sum(np.logical_and(licks > 0, licks < 1))
+                    if lick_rate_temp == 0 or np.isnan(lick_rate_temp):
+                        lick_rate[cond].append(0)
+                    elif  lick_rate_temp > 0:
+                        lick_rate[cond].append(lick_rate_temp)
 
-                return lick_rate
+            return lick_rate
 
     def plot_lick_raster(self):
 
@@ -2482,39 +2483,46 @@ class NeuroAnalyzer(object):
 ### ONLY ANALYZE TRIALS WHERE THE MOUSE GOT IT CORRECT ??? ###
 
 
-    def plot_mean_setpoint(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
+    def plot_mean_whisker(self, t_window=[-0.5, 0.5], kind='setpoint', cond2plot=[0, 1, 2], all_trials=False):
 
         ### is set-point different ???
         # compute mean set-point for each correct condition and plot
         ### is the slope of the set-point after contact different?
+
+        if kind == 'setpoint':
+            whisk_ind = 1
+        elif kind == 'amplitude':
+            whisk_ind = 2
+        else:
+            print('TYPO "kind" probably misspelled')
 
         # get window indices
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
         stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
 
         # get all the setpoints
-        set_point = [list() for x in range(len(self.stim_ids))]
-        mean_sp   = [list() for x in range(len(self.stim_ids))]
-        sem_sp    = [list() for x in range(len(self.stim_ids))]
+        whisk_kinematic = [list() for x in range(len(self.stim_ids))]
+        mean_kin   = [list() for x in range(len(self.stim_ids))]
+        sem_kin    = [list() for x in range(len(self.stim_ids))]
 
         for cond in range(len(self.stim_ids)):
 
             for trial in range(len(self.lick_bool[cond])):
 
                 if all_trials:
-                    set_point[cond].append(self.wt[cond][:, 1, trial])
+                    whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
 
                 # if mouse made correct choice
                 elif self.trial_choice[cond][trial]:
                     # get set-point
-                    set_point[cond].append(self.wt[cond][:, 1, trial])
+                    whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
 
         # convert to arrays
-        for index in range(len(set_point)):
-            set_point[index] = np.asarray(set_point[index])
-            mean_sp[index]   = np.mean(set_point[index], axis=0)
-            sem_sp[index]    = sp.stats.sem(set_point[index], axis=0)
-            print('cond {} has {} trials'.format(index, len(set_point[index])))
+        for index in range(len(whisk_kinematic)):
+            whisk_kinematic[index] = np.asarray(whisk_kinematic[index])
+            mean_kin[index]   = np.mean(whisk_kinematic[index], axis=0)
+            sem_kin[index]    = sp.stats.sem(whisk_kinematic[index], axis=0)
+            print('cond {} has {} trials'.format(index, len(whisk_kinematic[index])))
 
         # plot
         num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
@@ -2531,13 +2539,13 @@ class NeuroAnalyzer(object):
                 ax[k].set_title('Catch (position control)')
 
             ax[k].set_xlabel('time (s)')
-            ax[k].set_ylabel('set-point (deg)')
+            ax[k].set_ylabel('{} (deg)'.format(kind))
 
             for manip in range(num_manipulations):
-                if not np.where(np.isnan(mean_sp[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
-                    ax[k].plot(self.wtt[start_ind:stop_ind], mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
-                    ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_sp[cond + (self.control_pos*manip)][start_ind:stop_ind],\
-                            mean_sp[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_sp[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
+                if not np.where(np.isnan(mean_kin[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                    ax[k].plot(self.wtt[start_ind:stop_ind], mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
+                    ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind],\
+                            mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
 
         return fig, ax
 
