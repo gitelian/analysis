@@ -2624,6 +2624,7 @@ class NeuroAnalyzer(object):
                 #mean_psd[index] = np.mean(frq_mat_temp, axis=1)
                 mean_psd[index] = np.nanmean(frq_mat_temp, axis=1)
                 sem_psd[index]  = sp.stats.sem(frq_mat_temp, axis=1, nan_policy='omit')
+                print(sem_psd)
 
         # plot
         f = np.linspace(0, 250, mean_psd[0].shape[0])
@@ -2648,7 +2649,7 @@ class NeuroAnalyzer(object):
                 if not type(mean_psd[cond + (self.control_pos*manip)]) == float:
                     ax[k].plot(f, mean_psd[cond + (self.control_pos*manip)], color=line_color[manip])
                     ax[k].fill_between(f, mean_psd[cond + (self.control_pos*manip)] + sem_psd[cond + (self.control_pos*manip)],\
-                            mean_psd[cond + (self.control_pos*manip)] + sem_psd[cond + (self.control_pos*manip)], facecolor=line_color[manip], alpha=0.3)
+                            mean_psd[cond + (self.control_pos*manip)] - sem_psd[cond + (self.control_pos*manip)], facecolor=line_color[manip], alpha=0.3)
 
 
     def plot_wt_flip_book(self, t_window=[-1, 0], kind='angle'):
