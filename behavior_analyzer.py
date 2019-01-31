@@ -41,7 +41,16 @@ for a in ax:
 
 ## plot PSD of whisker angle
 neuro.plot_wt_freq(t_window=[-1, 0], cond2plot=[0, 3, 4, 7, 8], all_trials=True)
-fig.suptitle(fid + ' whisker angle frequency with t_window = {}'.format(t_window))
+
+## plot mean runspeed
+fig, ax = neuro.plot_mean_runspeed(t_window=[-1.5, 1.5], cond2plot=[0, 3, 4, 7, 8], all_trials=True)
+fig.suptitle(fid + ' mean runspeed ALL TRIALS')
+ylim = ax[0].get_ylim()
+for a in ax:
+    a.vlines([-1, 1], ylim[0], ylim[1], colors='c')
+    a.set_ylim(ylim)
+    a.axvspan(-1, 0, alpha=0.2, color='green')
+
 
 ## plot mean set-point with NOLIGHT for CORRECT vs INCORRECT
 sp_mean_right, sp_sem_right, num_trials_right = neuro.get_setpoint(correct=True)
