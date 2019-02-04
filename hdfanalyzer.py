@@ -347,8 +347,9 @@ class NeuroAnalyzer(object):
 #        min_tafter_stim  = self.__get_exp_details_info('duration') - self.__get_exp_details_info('latency')
 
         self.min_tbefore_stim = self.time_before
-        #self.min_tafter_stim  = self.stim_duration + self.time_after
-        self.min_tafter_stim  = self.stim_duration
+        self.min_tafter_stim  = self.stim_duration + self.time_after
+        print('using stim_duration + time_after as min_tafter_stim')
+        #self.min_tafter_stim  = self.stim_duration
         print('smallest baseline period (time before stimulus): {0}\nsmallest \
                 trial length (time after stimulus): {1}'.format(str(self.min_tbefore_stim), \
                 str(self.min_tafter_stim)))
