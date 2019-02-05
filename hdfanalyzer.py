@@ -930,7 +930,8 @@ class NeuroAnalyzer(object):
         self.classify_whisking_trials(threshold='user')
         self.rates()
 
-    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', engaged=True, all_trials=False):
+    def rates(self, psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean',\
+            engaged=True, all_trials=False, t_window=None):
         """
         rates computes the absolute and evoked firing rate and counts for the
         specified stimulus period. The time to start analyzing after the stimulus
@@ -1060,10 +1061,17 @@ class NeuroAnalyzer(object):
                         # get baseline and stimulus period times for this trial
                         # this uses ABSOLUTE TIME not relative time
                         obj_stop = self.f[seg].attrs['stim_times'][0]
-                        stim_start = obj_stop + self.t_after_stim
-                        stim_stop= obj_stop + self.stim_duration
-                        base_start = obj_stop - np.abs((stim_stop - stim_start))
-                        base_stop  = obj_stop
+
+                        if t_window == None:
+                            stim_start = obj_stop + self.t_after_stim
+                            stim_stop= obj_stop + self.stim_duration
+                            base_start = obj_stop - np.abs((stim_stop - stim_start))
+                            base_stop  = obj_stop
+                        else:
+                            stim_start = obj_stop + t_window['start_time']
+                            stim_stop  = obj_stop + t_window['stop_time']
+                            base_start = obj_stop + t_window['base_start']
+                            base_stop  = obj_stop + t_window['base_stop']
 
                         # TODO add ability to change the analysis window
                         #stim_start = obj_stop - 1.5
@@ -2826,6 +2834,8 @@ class NeuroAnalyzer(object):
                 ax.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
                         fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
+            ax.plot([0, control_pos+1],[0,0],'--k')
+
         # if all tuning curves from all units are to be plotted
         else:
             # determine number of rows and columns in the subplot
@@ -2891,13 +2901,16 @@ class NeuroAnalyzer(object):
                         fig, ax = plt.subplots(num_rows, num_cols, figsize=(14, 10))
                     plot_count = 0
 
-    def plot_raster(self, unit_ind=0, trial_type=0, axis=None, burst=False):
+    def plot_raster(self, unit_ind=0, trial_type=0, axis=None, burst=False, stim_choice=True):
         """
         Makes a raster plot for the given unit index and trial type.
         If called alone it will plot a raster to the current axis. This function
         is called by plot_all_rasters and returns an axis handle to the current
         subplot. This allows plot_all_rasters to plot rasters in the appropriate
         subplots.
+
+        stim_choice will highlight the stim region for 8-bar position experiment
+            or the decision region for jb_behavior
         """
         # if the rates have not been calculated do that now
         if hasattr(self, 'binned_spikes') is False:
@@ -2929,13 +2942,14 @@ class NeuroAnalyzer(object):
                         ax.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed', linewidth=0.5)
 
         #ax.hlines(trial+1, 0, 1.5, color='k')
-        ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='green')
+        if stim_choice:
+            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='green')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+1)
 
         return ax
 
-    def plot_raster_all_conditions(self, unit_ind=0, num_trials=None, offset=5, axis=None, burst=False):
+    def plot_raster_all_conditions(self, unit_ind=0, num_trials=None, offset=5, axis=None, burst=False, stim_choice=True):
         """
         Makes a raster plot for the given unit index and trial type.
         If called alone it will plot a raster to the current axis. This function
@@ -2979,7 +2993,8 @@ class NeuroAnalyzer(object):
                             ax.vlines(burst_times, trial+shift, trial+1+shift, 'r', linestyles='dashed', linewidth=0.5)
 
 #                ax.hlines(trial+1, 0, 1.5, color='k')
-        ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='green')
+        if stim_choice:
+            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='green')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+shift+1)
 
@@ -3020,19 +3035,21 @@ class NeuroAnalyzer(object):
 
         return ax
 
-    def plot_all_rasters(self, unit_ind=0, burst=False):
+    def plot_all_rasters(self, unit_ind=0, burst=False, stim_choice=True):
         """
         Plots all rasters for a given unit with subplots.
         Each positions is a row and each manipulation is a column.
         """
         num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
         subplt_indices    = np.arange(self.control_pos*num_manipulations).reshape(self.control_pos, num_manipulations)
-        fig = plt.subplots(self.control_pos, num_manipulations, figsize=(6*num_manipulations, 12))
+        fig, ax = plt.subplots(self.control_pos, num_manipulations, figsize=(6*num_manipulations, 12))
 
         for manip in range(num_manipulations):
             for trial in range(self.control_pos):
                 plt.subplot(self.control_pos, num_manipulations, subplt_indices[trial, manip]+1)
-                self.plot_raster(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip), burst=burst)
+                self.plot_raster(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip), burst=burst, stim_choice=stim_choice)
+
+        return ax
 
     def plot_all_psths(self, unit_ind=0, error='sem'):
         """
