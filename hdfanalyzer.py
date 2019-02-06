@@ -2384,7 +2384,7 @@ class NeuroAnalyzer(object):
 ###### JB_Behavior angle experiment specific functions #####
 ################################################################################
 
-    def get_psychometric_curve(self):
+    def get_psychometric_curve(self, axis=None):
         """
         compute psychometric curve for entire behavioral experiment
         """
@@ -2399,7 +2399,11 @@ class NeuroAnalyzer(object):
 
             pos = range(1, self.control_pos)
             line_color = ['k','r','b']
-            fig, ax = plt.subplots()
+            if axis is None:
+                fig, ax = plt.subplots()
+            else:
+                ax = axis
+
             ax.set_title(self.fid + ' psychometric curve')
             ax.set_ylim(0, 1.1)
             ax.set_ylabel('P(lick)')
@@ -2442,7 +2446,7 @@ class NeuroAnalyzer(object):
             for manip in range(num_manipulations):
                 for cond in range(self.control_pos):
                     trial = 0
-                    for licks in self.licks[cond]:
+                    for licks in self.licks[cond + (manip*self.control_pos)]:
                         if not np.isnan(np.sum(licks)):
                             ax[manip][cond].vlines(licks, trial, trial+1, color=line_color[manip], linewidth=1.0)
                             trial += 1
@@ -2451,6 +2455,9 @@ class NeuroAnalyzer(object):
                 for cond in range(self.control_pos):
                     ax[manip][cond].axvspan(0, 1, alpha=0.3, color='green')
                     ax[manip][cond].set_ylim(0, max_ylim)
+                    ax[manip][cond].set_title('n = {}'.format(len(self.licks[cond + (manip * self.control_pos)])))
+
+            fig.suptitle(fid + ' lick raster')
 
     def plot_time2lick(self, t_start=0):
         """
@@ -2492,7 +2499,7 @@ class NeuroAnalyzer(object):
 ### ONLY ANALYZE TRIALS WHERE THE MOUSE GOT IT CORRECT ??? ###
 
 
-    def plot_mean_whisker(self, t_window=[-0.5, 0.5], kind='setpoint', cond2plot=[0, 1, 2], all_trials=False):
+    def plot_mean_whisker(self, t_window=[-0.5, 0.5], kind='setpoint', cond2plot=[0, 1, 2], all_trials=False, delta=False):
 
         ### is set-point different ???
         # compute mean set-point for each correct condition and plot
@@ -2550,15 +2557,26 @@ class NeuroAnalyzer(object):
             ax[k].set_xlabel('time (s)')
             ax[k].set_ylabel('{} (deg)'.format(kind))
 
-            for manip in range(num_manipulations):
-                if not np.where(np.isnan(mean_kin[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
-                    ax[k].plot(self.wtt[start_ind:stop_ind], mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
-                    ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind],\
-                            mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
+            if not delta:
+                for manip in range(num_manipulations):
+                    if not np.where(np.isnan(mean_kin[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                        ax[k].plot(self.wtt[start_ind:stop_ind], mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
+                        ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind],\
+                                mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
+            elif delta:
+                for manip in range(num_manipulations - 1):
+                    if not np.where(np.isnan(mean_kin[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                        mean_delta = mean_kin[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind] - mean_kin[cond][start_ind:stop_ind]
+                        ax[k].plot(self.wtt[start_ind:stop_ind], mean_delta, color=line_color[manip + 1])
+                        sem_manip = sem_kin[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind]
+                        sem_nolight = sem_kin[cond][start_ind:stop_ind]
+                        sem_delta = np.sqrt(sem_manip**2 + sem_nolight**2)
+                        ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_delta + sem_delta, mean_delta - sem_delta, color=line_color[manip + 1], alpha=0.3)
+                ax[k].plot(t_window, [0,0],'--k')
 
         return fig, ax
 
-    def plot_mean_runspeed(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
+    def plot_mean_runspeed(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False, delta=False):
 
         # get window indices
         start_ind = np.argmin(np.abs(self.run_t - t_window[0]))
@@ -2605,11 +2623,23 @@ class NeuroAnalyzer(object):
             ax[k].set_xlabel('time (s)')
             ax[k].set_ylabel('runspeed (cm/sec)')
 
-            for manip in range(num_manipulations):
-                if not np.where(np.isnan(mean_run[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
-                    ax[k].plot(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
-                    ax[k].fill_between(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind],\
-                            mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
+            if not delta:
+                for manip in range(num_manipulations):
+                    if not np.where(np.isnan(mean_run[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                        ax[k].plot(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip + 1])
+                        ax[k].fill_between(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind],\
+                                mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip + 1], alpha=0.3)
+
+            elif delta:
+                for manip in range(num_manipulations - 1):
+                    if not np.where(np.isnan(mean_run[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                        mean_delta = mean_run[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind] - mean_run[cond][start_ind:stop_ind]
+                        sem_manip = sem_run[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind]
+                        sem_nolight = sem_run[cond][start_ind:stop_ind]
+                        sem_delta = np.sqrt(sem_manip**2 + sem_nolight**2)
+                        ax[k].plot(self.run_t[start_ind:stop_ind], mean_delta, color=line_color[manip + 1])
+                        ax[k].fill_between(self.run_t[start_ind:stop_ind], mean_delta + sem_delta, mean_delta - sem_delta, color=line_color[manip + 1], alpha=0.3)
+                ax[k].plot(t_window, [0,0],'--k')
 
         return fig, ax
     def get_setpoint(self, t_window=[-0.5, 0.5], cond=[0, 1, 2], correct=True):
