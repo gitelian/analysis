@@ -21,11 +21,20 @@ from IPython.core.debugger import Tracer
 # TODO: overlay object x-position
 
 cond2plot = np.arange(9)
-cond2plot=[3, 4]
+#cond2plot=[3, 4]
 
 ## plot mean set-point
 fig, ax = neuro.plot_mean_whisker(t_window=[-1.5, 1.5], kind='setpoint', cond2plot=cond2plot, all_trials=True)
 fig.suptitle(fid + ' mean set-point ALL TRIALS')
+ylim = ax[0].get_ylim()
+for a in ax:
+    a.vlines([-1, 1], ylim[0], ylim[1], colors='c')
+    a.set_ylim(ylim)
+    a.axvspan(-1, 0, alpha=0.2, color='green')
+
+## plot change in set-point
+fig, ax = neuro.plot_mean_whisker(t_window=[-1.5, 1.5], kind='setpoint', cond2plot=cond2plot, all_trials=True, delta=True)
+fig.suptitle(fid + ' mean change in set-point ALL TRIALS')
 ylim = ax[0].get_ylim()
 for a in ax:
     a.vlines([-1, 1], ylim[0], ylim[1], colors='c')
@@ -53,6 +62,14 @@ for a in ax:
     a.set_ylim(ylim)
     a.axvspan(-1, 0, alpha=0.2, color='green')
 
+## plot change in runspeed
+fig, ax = neuro.plot_mean_runspeed(t_window=[-1.5, 1.5], cond2plot=cond2plot, all_trials=True, delta=True)
+fig.suptitle(fid + ' mean change in runspeed ALL TRIALS\nLIGHT - noLIGHT')
+ylim = ax[0].get_ylim()
+for a in ax:
+    a.vlines([-1, 1], ylim[0], ylim[1], colors='c')
+    a.set_ylim(ylim)
+    a.axvspan(-1, 0, alpha=0.2, color='green')
 
 ## plot mean set-point with NOLIGHT for CORRECT vs INCORRECT
 sp_mean_right, sp_sem_right, num_trials_right = neuro.get_setpoint(correct=True)
@@ -100,87 +117,113 @@ for t in neuro.wtt:
 
 
 
+# analyze time before light on (up to 1 sec) and each subsequent second after
+# that.
+#t_bins = np.asarray([-2, -1, 0, 1, 2])
+step = 0.500
+step = 1
+t_bins = np.arange(-1.5, 1.5 + step, step)
+corrcoef = np.zeros((len(neuro.stim_ids), len(t_bins) - 1))
+
+t = neuro.wtt
+print('\nwtt ranges from {} to {}'.format(t[0], t[-1]))
+
 for cond in range(len(neuro.stim_ids)):
 
-    cond = 3
-    all_setpoints_nolight = list()
-    all_runspeeds_nolight  = list()
-
-    all_setpoints_light = list()
-    all_runspeeds_light  = list()
-
+    setpoints = list()
+    runspeeds = list()
     for trial in range(len(neuro.lick_bool[cond])):
-        all_setpoints_nolight.append(neuro.wt[cond][:, 1, trial])
-        all_runspeeds_nolight.append(neuro.run[cond][run_inds2keep, trial])
+        setpoints.append(neuro.wt[cond][:, 1, trial])
+        runspeeds.append(neuro.run[cond][run_inds2keep, trial])
 
-    for trial in range(len(neuro.lick_bool[cond + neuro.control_pos])):
-        all_setpoints_light.append(neuro.wt[cond + neuro.control_pos][:, 1, trial])
-        all_runspeeds_light.append(neuro.run[cond + neuro.control_pos][run_inds2keep, trial])
+    setpoints = np.asarray(setpoints)
+    runspeeds = np.asarray(runspeeds)
 
-    all_setpoints_nolight = np.asarray(all_setpoints_nolight)
-    all_runspeeds_nolight = np.asarray(all_runspeeds_nolight)
+    for t_ind in range(len(t_bins) - 1):
 
-    all_setpoints_light = np.asarray(all_setpoints_light)
-    all_runspeeds_light = np.asarray(all_runspeeds_light)
+        t_start = t_bins[t_ind]
+        t_stop  = t_bins[t_ind + 1]
 
-    corrcoef_nolight = list()
-    corrcoef_light = list()
-    for sample in range(all_setpoints_nolight.shape[1]):
-        corrcoef_nolight.append(sp.stats.pearsonr(all_runspeeds_nolight[:, sample], all_setpoints_nolight[:, sample])[0])
-        corrcoef_light.append(sp.stats.pearsonr(all_runspeeds_light[:, sample], all_setpoints_light[:, sample])[0])
+        t_start_ind = np.argmin(np.abs(t - t_start))
+        t_stop_ind  = np.argmin(np.abs(t - t_stop))
 
+#        setpoints_in_bin = np.ravel(np.mean(setpoints[:, t_start_ind:t_stop_ind], axis=1))
+#        runspeeds_in_bin = np.ravel(np.mean(runspeeds[:, t_start_ind:t_stop_ind], axis=1))
+        setpoints_in_bin = np.ravel(setpoints[:, t_start_ind:t_stop_ind])
+        runspeeds_in_bin = np.ravel(runspeeds[:, t_start_ind:t_stop_ind])
 
-#### THINK ABOUT THIS. SOMETHING ISNT RIGHT. why am I getting a positive correlation
-#### when there is clearly a negative one?????
-    plot(neuro.wtt, corrcoef_nolight, 'k', neuro.wtt, corrcoef_light, 'b')
+        corrcoef[cond, t_ind] = sp.stats.pearsonr(runspeeds_in_bin, setpoints_in_bin)[0]
 
-
-
-
-
-
+fig, ax = plt.subplots()
+ax.plot(t_bins[0:-1]+step/2, corrcoef[3, :], 'k', t_bins[0:-1]+step/2, corrcoef[3+9, :], 'r')
+ax.vlines([-1, 1], -1, 1, colors='c')
+ax.axvspan(-1, 0, alpha=0.2, color='green')
+ax.set_xlim(t[0], t[-1])
+ax.set_ylim(-1, 1)
 
 
 
 
+##### make psychometric curves with errors for each mouse
+
+### GT015_LT vM1 silencing
+fids = ['1855', '1874', '1882', '1891', '1892'] # none of these have whisker tracking
+gt015_lt_vm1 = list()
+gt015_lt_vm1_psy  = np.zeros((len(fids), 18))
+fig, ax = plt.subplots()
+for k, fid in enumerate(fids):
+    #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
+    get_ipython().magic(u"run hdfanalyzer.py {}".format(fid))
+    #neuro.rates(kind='wsk_boolean')
+    gt015_lt_vm1.append(neuro)
+    gt015_lt_vm1_psy[k, :] = neuro.get_psychometric_curve(axis=ax)
+
+# compute mean and sem of psychometric curve and plot
+plt.figure()
+gt015_lt_vm1_mean = np.reshape(np.mean(gt015_lt_vm1_psy, axis=0), [2, 9])
+gt015_lt_vm1_sem = np.reshape(sp.stats.sem(gt015_lt_vm1_psy, axis=0), [2, 9])
+plt.errorbar(np.arange(9), gt015_lt_vm1_mean[0, :], yerr=gt015_lt_vm1_sem[0, :], c='k')
+plt.errorbar(np.arange(9), gt015_lt_vm1_mean[1, :], yerr=gt015_lt_vm1_sem[1, :], c='r')
 
 
+### GT015_LT vS1 silencing
+fids = ['1895', '1898', '1904'] # whisker tracking is good
+gt015_lt_vs1 = list()
+gt015_lt_vs1_psy  = np.zeros((len(fids), 18))
+fig, ax = plt.subplots()
+for k, fid in enumerate(fids):
+    #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
+    get_ipython().magic(u"run hdfanalyzer.py {}".format(fid))
+    #neuro.rates(kind='wsk_boolean')
+    gt015_lt_vs1.append(neuro)
+    gt015_lt_vs1_psy[k, :] = neuro.get_psychometric_curve(axis=ax)
+
+# compute mean and sem of psychometric curve and plot
+plt.figure()
+gt015_lt_vs1_mean = np.reshape(np.mean(gt015_lt_vs1_psy, axis=0), [2, 9])
+gt015_lt_vs1_sem = np.reshape(sp.stats.sem(gt015_lt_vs1_psy, axis=0), [2, 9])
+plt.errorbar(np.arange(9), gt015_lt_vs1_mean[0, :], yerr=gt015_lt_vs1_sem[0, :], c='k')
+plt.errorbar(np.arange(9), gt015_lt_vs1_mean[1, :], yerr=gt015_lt_vs1_sem[1, :], c='r')
 
 
+### GT017_NT vM1 silencing
+fids = ['1911', '1912', '1913', '1923', '1924', '1929'] # whisker tracking is good 1929 is the only with ephys
+gt017_nt_vm1 = list()
+gt017_nt_vm1_psy = np.zeros((len(fids), 18))
+fig, ax = plt.subplots()
+for k, fid in enumerate(fids):
+    #get_ipython().magic(u"run neoanalyzer.py {'1290'}")
+    get_ipython().magic(u"run hdfanalyzer.py {}".format(fid))
+    #neuro.rates(kind='wsk_boolean')
+    gt017_nt_vm1.append(neuro)
+    gt017_nt_vm1_psy[k, :] = neuro.get_psychometric_curve(axis=ax)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#        if all_trials:
-#            whisk_kinematic[cond].append(neuro.wt[cond][:, whisk_ind, trial])
-#
-#        # if mouse made correct choice
-#        elif neuro.trial_choice[cond][trial]:
-#            # get set-point
-#            whisk_kinematic[cond].append(neuro.wt[cond][:, whisk_ind, trial])
-
-
-
-
-
-
-
-
-
-
-
+# compute mean and sem of psychometric curve and plot
+plt.figure()
+gt017_nt_vm1_mean = np.reshape(np.mean(gt017_nt_vm1_psy, axis=0), [2, 9])
+gt017_nt_vm1_sem = np.reshape(sp.stats.sem(gt017_nt_vm1_psy, axis=0), [2, 9])
+plt.errorbar(np.arange(9), gt017_nt_vm1_mean[0, :], yerr=gt017_nt_vm1_sem[0, :], c='k')
+plt.errorbar(np.arange(9), gt017_nt_vm1_mean[1, :], yerr=gt017_nt_vm1_sem[1, :], c='r')
 
 
 
