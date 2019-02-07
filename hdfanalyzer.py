@@ -2742,6 +2742,7 @@ class NeuroAnalyzer(object):
                     ax[k].plot(f, mean_psd[cond + (self.control_pos*manip)], color=line_color[manip])
                     ax[k].fill_between(f, mean_psd[cond + (self.control_pos*manip)] + sem_psd[cond + (self.control_pos*manip)],\
                             mean_psd[cond + (self.control_pos*manip)] - sem_psd[cond + (self.control_pos*manip)], facecolor=line_color[manip], alpha=0.3)
+                    ax[k].set_yscale("log", nonposy='clip')
 
             fig.suptitle(fid + ' whisker angle frequency with t_window = {}'.format(t_window))
 
