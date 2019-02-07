@@ -16,12 +16,40 @@ from IPython.core.debugger import Tracer
 
 
 
+## plot single trial example (whisker movement and runspeed)
+cond = 3
+trial = 0
+fig, ax = plt.subplots(1, 1)
+ax.plot(neuro.wtt, neuro.wt[cond][:, 0, trial], 'k')
+ax.plot(neuro.wtt, neuro.wt[cond + 9][:, 0, trial], 'tab:blue')
+#ax.vlines([-1, 1], 70, 180, colors='cyan', alpha=0.7, linewidth=3)
+ax.hlines(162, -1, 1, colors='tab:blue', alpha=0.7, linewidth=3, label='vM1 silencing')
+ax.hlines(161, 0, 1, colors='dimgray', alpha=0.7, linewidth=3, label='object stationary')
+ax.set_ylim(85, 165)
+ax.legend(loc='lower left')
+ax.set_ylabel('whisker angle (deg)')
+ax.set_xlabel('time (s)')
+ax.set_title('Example GO trial ({})'.format(neuro.fid))
+
+cond = 3
+trial = 0
+fig, ax = plt.subplots(1, 1)
+ax.plot(neuro.run_t, neuro.run[cond][:, trial], 'k')
+ax.plot(neuro.run_t, neuro.run[cond + 9][:, trial], 'tab:blue')
+ax.hlines(22, -1, 1, colors='tab:blue', alpha=0.7, linewidth=3, label='vM1 silencing')
+ax.hlines(23, 0, 1, colors='dimgray', alpha=0.7, linewidth=3, label='object stationary')
+ax.set_ylim(-1, 25)
+ax.set_xlim(-1.7, 1.6)
+ax.legend(loc='lower left')
+ax.set_ylabel('runspeed (cm/sec)')
+ax.set_xlabel('time (s)')
+ax.set_title('Example GO trial ({})'.format(neuro.fid))
 
 # plot mean set-point, indicate light on
 # TODO: overlay object x-position
 
-cond2plot = np.arange(9)
-#cond2plot=[3, 4]
+#cond2plot = np.arange(9)
+cond2plot=[0, 3, 4, 7, 8]
 
 ## plot mean set-point
 fig, ax = neuro.plot_mean_whisker(t_window=[-1.5, 1.5], kind='setpoint', cond2plot=cond2plot, all_trials=True)
@@ -167,6 +195,8 @@ ax.set_ylim(-1, 1)
 ##### make psychometric curves with errors for each mouse
 
 ### GT015_LT vM1 silencing
+### GT015_LT vM1 silencing
+### GT015_LT vM1 silencing
 fids = ['1855', '1874', '1882', '1891', '1892'] # none of these have whisker tracking
 gt015_lt_vm1 = list()
 gt015_lt_vm1_psy  = np.zeros((len(fids), 18))
@@ -182,10 +212,16 @@ for k, fid in enumerate(fids):
 plt.figure()
 gt015_lt_vm1_mean = np.reshape(np.mean(gt015_lt_vm1_psy, axis=0), [2, 9])
 gt015_lt_vm1_sem = np.reshape(sp.stats.sem(gt015_lt_vm1_psy, axis=0), [2, 9])
-plt.errorbar(np.arange(9), gt015_lt_vm1_mean[0, :], yerr=gt015_lt_vm1_sem[0, :], c='k')
-plt.errorbar(np.arange(9), gt015_lt_vm1_mean[1, :], yerr=gt015_lt_vm1_sem[1, :], c='r')
+plt.errorbar(np.arange(1, 9), gt015_lt_vm1_mean[0, 0:-1], yerr=gt015_lt_vm1_sem[0, 0:-1], c='k', marker='o', markersize=6.0, linewidth=2)
+plt.errorbar(np.arange(1, 9), gt015_lt_vm1_mean[1, 0:-1], yerr=gt015_lt_vm1_sem[1, 0:-1], c='tab:blue', marker='o', markersize=6.0, linewidth=2)
+
+plt.errorbar(9, gt015_lt_vm1_mean[0, -1], yerr=gt015_lt_vm1_sem[0, -1], c='k', marker='o', markersize=6.0, linewidth=2)
+plt.errorbar(9, gt015_lt_vm1_mean[1, -1], yerr=gt015_lt_vm1_sem[1, -1], c='tab:blue', marker='o', markersize=6.0, linewidth=2)
+plt.title('GT015_LT Psychometric curve (n=5)')
 
 
+### GT015_LT vS1 silencing
+### GT015_LT vS1 silencing
 ### GT015_LT vS1 silencing
 fids = ['1895', '1898', '1904'] # whisker tracking is good
 gt015_lt_vs1 = list()
@@ -202,10 +238,15 @@ for k, fid in enumerate(fids):
 plt.figure()
 gt015_lt_vs1_mean = np.reshape(np.mean(gt015_lt_vs1_psy, axis=0), [2, 9])
 gt015_lt_vs1_sem = np.reshape(sp.stats.sem(gt015_lt_vs1_psy, axis=0), [2, 9])
-plt.errorbar(np.arange(9), gt015_lt_vs1_mean[0, :], yerr=gt015_lt_vs1_sem[0, :], c='k')
-plt.errorbar(np.arange(9), gt015_lt_vs1_mean[1, :], yerr=gt015_lt_vs1_sem[1, :], c='r')
+plt.errorbar(np.arange(1, 9), gt015_lt_vs1_mean[0, 0:-1], yerr=gt015_lt_vs1_sem[0, 0:-1], c='k', marker='o', markersize=6.0, linewidth=2)
+plt.errorbar(np.arange(1, 9), gt015_lt_vs1_mean[1, 0:-1], yerr=gt015_lt_vs1_sem[1, 0:-1], c='tab:blue', marker='o', markersize=6.0, linewidth=2)
+
+plt.errorbar(9, gt015_lt_vs1_mean[0, -1], yerr=gt015_lt_vs1_sem[0, -1], c='k', marker='o', markersize=6.0, linewidth=2)
+plt.errorbar(9, gt015_lt_vs1_mean[1, -1], yerr=gt015_lt_vs1_sem[1, -1], c='tab:blue', marker='o', markersize=6.0, linewidth=2)
 
 
+### GT017_NT vM1 silencing
+### GT017_NT vM1 silencing
 ### GT017_NT vM1 silencing
 fids = ['1911', '1912', '1913', '1923', '1924', '1929'] # whisker tracking is good 1929 is the only with ephys
 gt017_nt_vm1 = list()
@@ -222,10 +263,12 @@ for k, fid in enumerate(fids):
 plt.figure()
 gt017_nt_vm1_mean = np.reshape(np.mean(gt017_nt_vm1_psy, axis=0), [2, 9])
 gt017_nt_vm1_sem = np.reshape(sp.stats.sem(gt017_nt_vm1_psy, axis=0), [2, 9])
-plt.errorbar(np.arange(9), gt017_nt_vm1_mean[0, :], yerr=gt017_nt_vm1_sem[0, :], c='k')
-plt.errorbar(np.arange(9), gt017_nt_vm1_mean[1, :], yerr=gt017_nt_vm1_sem[1, :], c='r')
+plt.errorbar(np.arange(1, 9), gt017_nt_vm1_mean[0, 0:-1], yerr=gt017_nt_vm1_sem[0, 0:-1], c='k', marker='o', markersize=6.0, linewidth=2)
+plt.errorbar(np.arange(1, 9), gt017_nt_vm1_mean[1, 0:-1], yerr=gt017_nt_vm1_sem[1, 0:-1], c='tab:blue', marker='o', markersize=6.0, linewidth=2)
 
-
+plt.errorbar(9, gt017_nt_vm1_mean[0, -1], yerr=gt017_nt_vm1_sem[0, -1], c='k', marker='o', markersize=6.0, linewidth=2)
+plt.errorbar(9, gt017_nt_vm1_mean[1, -1], yerr=gt017_nt_vm1_sem[1, -1], c='tab:blue', marker='o', markersize=6.0, linewidth=2)
+plt.title('GT017_NT Psychometric curve (n=6)')
 
 
 
