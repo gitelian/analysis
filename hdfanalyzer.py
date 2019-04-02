@@ -183,7 +183,7 @@ class NeuroAnalyzer(object):
             self.get_best_contact()
 
             # kruskal wallis and dunn's test to ID sensory driven units
-            self.get_sensory_drive()
+#            self.get_sensory_drive()
 
         if not self.jb_behavior and not self.spikes_bool:
             self.rates(psth_t_start= -1.500, psth_t_stop=2.500, all_trials=True)
@@ -2843,7 +2843,18 @@ class NeuroAnalyzer(object):
         pos = range(1,control_pos)
         x_vals = range(1, control_pos+1)
         labels = [str(i) for i in pos]; labels.append('NC')
-        line_color = ['k','r','b']
+        #line_color = ['k','r','b']
+
+        num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
+
+        if num_manipulations <= 3:
+            # use my default color choices
+            line_color = ['k','r','b']
+        else:
+            line_color = list()
+            color_idx = np.linspace(0, 1, num_manipulations)
+            for manip in range(num_manipulations):
+                line_color.append(plt.cm.Blues(color_idx[manip]))
 
         # if tuning curves from one unit will be plotted on a given axis
         if unit_ind != None:
@@ -2860,10 +2871,10 @@ class NeuroAnalyzer(object):
                 ax.errorbar(pos[0:control_pos-1],\
                         meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
                         yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
-                        fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
                 # plot control position separately from stimulus positions
                 ax.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
-                        fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
             ax.plot([0, control_pos+1],[0,0],'--k')
 
@@ -2873,7 +2884,7 @@ class NeuroAnalyzer(object):
             unit_ind = range(self.num_units)
             num_rows, num_cols = 3, 3
 
-            num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
+            #num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
 
             unit_count, plot_count = 0, 0
             fig, ax = plt.subplots(num_rows, num_cols, figsize=(14, 10))
@@ -2890,14 +2901,14 @@ class NeuroAnalyzer(object):
                     ax[row][col].errorbar(pos[0:control_pos-1],\
                             meanr[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
                             yerr=stder[(control_pos_count*control_pos):((control_pos_count+1)*control_pos-1)],\
-                            fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                            color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
                     # plot control position separately from stimulus positions
                     ax[row][col].errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
-                            fmt=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                            color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
                 ax[row][col].set_title('shank: ' + self.shank_names[self.shank_ids[unit]] + \
                         ' depth: ' + str(self.depths[unit]) + \
-                        '\ncell type: ' + str(self.cell_type[unit]))
+                        '\ncell type: ' + str(self.cell_type[unit]) + ' unit index: ' + str(unit))
                         #' depth: ' + str(self.neo_obj.segments[0].spiketrains[unit].annotations['depth']) + \
                 ax[row][col].plot([0, control_pos+1],[0,0],'--k')
                 ax[row][col].set_xlim(0, control_pos+1)
