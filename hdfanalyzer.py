@@ -186,7 +186,7 @@ class NeuroAnalyzer(object):
 #            self.get_sensory_drive()
 
         if not self.jb_behavior and not self.spikes_bool:
-            self.rates(psth_t_start= -1.500, psth_t_stop=2.500, all_trials=True)
+            self.rates(psth_t_start= -1.500, psth_t_stop=2.500, all_trials=False)
             print('no JB_behavior or spikes')
 
         # reclassify running trials
@@ -376,6 +376,9 @@ class NeuroAnalyzer(object):
         licks_all    = list()
         correct_list = list() # if mouse correctly IDs GO or NOGO mark as True
         for k, seg in enumerate(self.f):
+            # trial_type is 1 based! Does not start from 0, these are IDed from
+            # the stimulus ID pulses sent from Jenny's equipment to Spike
+            # Gadgets...but put into a sequential range (no gaps)
             trial_type = int(self.f[seg].attrs['trial_type'])
             stim_start = self.f[seg].attrs['stim_times'][0]
             stim_stop  = self.f[seg].attrs['stim_times'][1]
@@ -400,9 +403,12 @@ class NeuroAnalyzer(object):
                 lick = False
                 licks_all.append(0)
 
-            #TODO double check this!
-            if trial_type > self.control_pos:
-                trial_type = trial_type - self.control_pos*(int(trial_type)/int(self.control_pos))
+            # the trial_type values are based on a 9 pivot position for each
+            # experiment (i.e. trial_type 10 is position 1 manipulation 2)
+            if trial_type > 9:
+                # trial_type - (9*((trial_type - 1)/9)) i.e. which manipulation
+                # is it?
+                trial_type = trial_type - (self.control_pos*(int(trial_type - 1)/int(self.control_pos)))
 
             if trial_type < 5:
                 go = True
@@ -423,7 +429,7 @@ class NeuroAnalyzer(object):
             elif trial_type == 9:
                 # control position
                 go = None
-                correct_list.append(None)
+                correct_list.append(True)
 
             # label the type of behavior using logic
             if go == None:
@@ -441,31 +447,37 @@ class NeuroAnalyzer(object):
                 # correct reject
                 behavior_ids.append(4)
 
-        # Sometimes mice stop licking towards the end of an experiment. This
-        # finds that transition point defined as the point after which 30+
-        # trials have no licking
-        low = np.where(np.diff(licks_all) == -1)[0] + 1
+        if sum(licks_all) > 0:
+            # Sometimes mice stop licking towards the end of an experiment. This
+            # finds that transition point defined as the point after which 30+
+            # trials have no licking
+            low = np.where(np.diff(licks_all) == -1)[0] + 1
 
-        # find when transition from not licking to licking happens, skip the first lick
-        high = np.where(np.diff(licks_all) == 1)[0]
+            # find when transition from not licking to licking happens, skip the first lick
+            high = np.where(np.diff(licks_all) == 1)[0]
 
-        if high[0] < low[0]:
-            high = high[1::]
+            if high[0] < low[0]:
+                high = high[1::]
 
-        if low[-1] > high[-1]:
-            low = low[:-1]
+            if low[-1] > high[-1]:
+                low = low[:-1]
 
-        # get duration between licking trials
-        down_time = high - low
+            # get duration between licking trials
+            down_time = high - low
 
-        # find when mouse stopped licking
-        stop_ind = np.where(down_time > 30)[0]
+            # find when mouse stopped licking
+            stop_ind = np.where(down_time > 30)[0]
 
-        # get trial number when mouse stopped licking
-        if stop_ind.shape[0] != 0:
-            stop_lick_trial = low[stop_ind[0]]
+            # get trial number when mouse stopped licking
+            if stop_ind.shape[0] != 0:
+                stop_lick_trial = low[stop_ind[0]]
+                print('\nMouse stopped licking on trial #{}\nexcluding all trials past it'.format(stop_lick_trial))
+            else:
+                stop_lick_trial = None
+                print('\nMouse did not lick at all!\nIncluding all trials for analysis')
         else:
             stop_lick_trial = None
+            print('\nMouse did not lick at all!\nIncluding all trials for analysis')
 
         jb_engaged = list()
         for k, seg in enumerate(self.f):
@@ -581,19 +593,27 @@ class NeuroAnalyzer(object):
             else:
 
                 cam_start_stop_times = np.zeros((len(self.f), 2))
+                num_camera_triggers = list()
 
                 # find the latest start time and earliest stop time and align
                 # videos to these times
                 for i, seg in enumerate(self.f):
                     anlg_path = seg + '/analog-signals/' + 'cam_times/'
-
                     # find number of samples in the trial
                     cam_time = self.f[anlg_path][:] - self.f[seg].attrs['stim_times'][0]
                     cam_start_stop_times[i, :] = cam_time[0], cam_time[-1]
+                    num_camera_triggers.append(len(cam_time))
+
+                # determine which is the most common number of camera triggers
+                list_mode = sp.stats.mode(num_camera_triggers)[0][0]
 
                 start_time = np.max(cam_start_stop_times[:, 0])
                 stop_time  = np.min(cam_start_stop_times[:, 1])
+
+                # number of samples to take from all trials
                 num_samples = int(fps*stop_time) + int(fps*np.abs(start_time)) - 20
+
+
                 wtt = np.linspace(start_time, stop_time, num_samples)
                 wt_data = np.zeros((num_samples, 7, len(f)))
 
@@ -601,21 +621,33 @@ class NeuroAnalyzer(object):
                     anlg_path = seg + '/analog-signals/' + 'cam_times/'
                     cam_time = self.f[anlg_path][:] - self.f[seg].attrs['stim_times'][0]
 
-                    # find index in cam_time that is closest to camera start
-                    # and stop times
-                    start_index = np.argmin(np.abs(cam_time - start_time))
-                    stop_index = start_index + num_samples
-                    number_of_samples = self.f[anlg_path].shape[0]
+                    if cam_time.shape[0] != list_mode:
+                        # uh-oh! the current number of camera pulses does NOT
+                        # equal the most common number of pulses (2000 most likely)
+                        # TODO IGNORE BAD TRIALS (maybe with a bad_trial = True
+                        # flag, or fill with NaNs and change things to nanmean)
+                        warnings.warn("\n\n#!#!#!\n#!#!#!\nuh-oh! The current number of pulses {} does NOT equal the most common number of pulses {}\nTaking first samples (no way to know when time of capture)".format(cam_time.shape[0], list_mode))
+                        start_index = 0
+                        stop_index = num_samples
+                    else:
+                        # find index in cam_time that is closest to camera start
+                        # and stop times
+                        start_index = np.argmin(np.abs(cam_time - start_time))
+                        stop_index = start_index + num_samples
+                        number_of_samples_in_trial = self.f[anlg_path].shape[0]
 
-                    if stop_index > number_of_samples:
+
+                    if stop_index > number_of_samples_in_trial:
                         print('WARNING TRYING TO INDEX OUT OF ARRAY USING CRAPPY HACK TO MAKE IT WORK')
                         start_index = self.f[anlg_path].shape[0] - num_samples
                         stop_index = self.f[anlg_path].shape[0]
+
                     #stop_index = np.argmin(np.abs(cam_time - stop_time))
 
                     for k, anlg in enumerate(self.f[seg + '/analog-signals']):
                         anlg_path = seg + '/analog-signals/' + anlg
                         anlg_name = self.f[anlg_path].attrs['name']
+
                         if  anlg_name == 'angle':
                             wt_data[:, 0, i] = self.f[anlg_path][start_index:stop_index]
                         elif anlg_name == 'set-point':
@@ -1030,6 +1062,7 @@ class NeuroAnalyzer(object):
             for k, seg in enumerate(self.f):
 
                 # if running or whisking or jb_engaged trial add data to arrays
+                #TODO if trial is considered BAD ignore trial!
                 if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == engaged or \
                         all_trials == True):
 
@@ -2547,11 +2580,13 @@ class NeuroAnalyzer(object):
 
         for k, cond in enumerate(cond2plot):
 
-            if cond < 4:
+            trial_type = self.stim_ids[cond]
+            print(trial_type)
+            if trial_type < 5:
                 ax[k].set_title('GO (position {})'.format(cond))
-            if cond >= 4 and cond < 8:
+            if trial_type >= 5 and cond < 9:
                 ax[k].set_title('NOGO (position {})'.format(cond))
-            if cond == 8:
+            if trial_type == 9:
                 ax[k].set_title('Catch (position control)')
 
             ax[k].set_xlabel('time (s)')
