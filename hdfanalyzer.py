@@ -121,7 +121,7 @@ class NeuroAnalyzer(object):
         # classify behavior using licks and go/no-go angle position
         if self.jb_behavior and not self.spikes_bool:
             self.__classify_behavior()
-            self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='jb_engaged', engaged=True, all_trials=False)
+            self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='run_boolean', engaged=True, all_trials=False)
 
         # trim LFP data and align it to shortest trial
         if self.lfp_bool:
@@ -827,16 +827,37 @@ class NeuroAnalyzer(object):
 
             base_ind = np.logical_and( run_time > time_before_stimulus, run_time < 0)
             #wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < (self.min_tbefore_stim + self.t_after_stim) )
-            wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < self.stim_duration)
 
-            vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
-            if set_all_to_true == 0:
-                if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
+            if self.jb_behavior:
+                # this gets running velocity as the object moves in and during
+                # the last second of the trial data (usually 1 second after the
+                # stimulus leaves (assumming the trial time after stimulus stop
+                # is 3sec and the time before stim stop is 1sec)
+                wsk_stim_ind = np.logical_and( run_time > (self.time_after - np.abs(time_before_stimulus)), run_time < self.time_after)
+                vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
+
+                if set_all_to_true == 0:
+
+                    if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
+                        self.trial_class['run_boolean'][count] = True
+                    else:
+                        self.trial_class['run_boolean'][count] = False
+
+                elif set_all_to_true == 1:
                     self.trial_class['run_boolean'][count] = True
-                else:
-                    self.trial_class['run_boolean'][count] = False
-            elif set_all_to_true == 1:
-                self.trial_class['run_boolean'][count] = True
+            else:
+                wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < self.stim_duration)
+                vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
+
+                if set_all_to_true == 0:
+
+                    if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
+                        self.trial_class['run_boolean'][count] = True
+                    else:
+                        self.trial_class['run_boolean'][count] = False
+
+                elif set_all_to_true == 1:
+                    self.trial_class['run_boolean'][count] = True
 
     def get_num_good_trials(self, kind='run_boolean'):
         """
@@ -977,6 +998,9 @@ class NeuroAnalyzer(object):
         kind can be set to either 'wsk_boolean' or 'run_boolean' (default) or 'jb_engaged'
 
         Recomputes whisker tracking data and adds it to self.wt
+
+
+        !!! engaged if true means either running OR jb_engaged trials will be used
         """
 
         print('\n-----computing rates----')
@@ -2559,12 +2583,21 @@ class NeuroAnalyzer(object):
             for trial in range(len(self.lick_bool[cond])):
 
                 if all_trials:
+                    # all trials refers to all trials organized by "rates" so
+                    # if run_boolean was used this would mean all RUN trials
+                    # will be analyzed
+                    # OTHERWISE only trials where the mouse made the CORRECT
+                    # choice will be included
                     whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
+
+                # if mouse was running
 
                 # if mouse made correct choice
                 elif self.trial_choice[cond][trial]:
                     # get set-point
                     whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
+
+                # if mouse was running and made correct choice
 
         # convert to arrays
         for index in range(len(whisk_kinematic)):
