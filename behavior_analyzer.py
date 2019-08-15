@@ -49,7 +49,8 @@ ax.set_title('Example GO trial ({})'.format(neuro.fid))
 # TODO: overlay object x-position
 
 #cond2plot = np.arange(9)
-cond2plot=[0, 3, 4, 7, 8]
+#cond2plot=[0, 3, 4, 7, 8]
+cond2plot=[0, 2]
 
 ## plot mean set-point
 fig, ax = neuro.plot_mean_whisker(t_window=[-1.5, 1.5], kind='setpoint', cond2plot=cond2plot, all_trials=True)

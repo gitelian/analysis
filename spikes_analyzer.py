@@ -463,6 +463,7 @@ S_all       = np.empty((1, 3))
 for neuro in experiments:
     # calculate measures that weren't calculated at init
     neuro.get_best_contact()
+    neuro.get_sensory_drive()
 
     # concatenate measures
     cell_type.extend(neuro.cell_type)
