@@ -2556,7 +2556,7 @@ class NeuroAnalyzer(object):
 ### ONLY ANALYZE TRIALS WHERE THE MOUSE GOT IT CORRECT ??? ###
 
 
-    def plot_mean_whisker(self, t_window=[-0.5, 0.5], kind='setpoint', cond2plot=[0, 1, 2], all_trials=False, delta=False):
+    def plot_mean_whisker(self, t_window=[-0.5, 0.5], kind='setpoint', cond2plot=[0, 1, 2], all_correct_trials=False, delta=False):
 
         ### is set-point different ???
         # compute mean set-point for each correct condition and plot
@@ -2582,7 +2582,7 @@ class NeuroAnalyzer(object):
 
             for trial in range(len(self.lick_bool[cond])):
 
-                if all_trials:
+                if not all_correct_trials:
                     # all trials refers to all trials organized by "rates" so
                     # if run_boolean was used this would mean all RUN trials
                     # will be analyzed
@@ -2644,7 +2644,7 @@ class NeuroAnalyzer(object):
 
         return fig, ax
 
-    def plot_mean_runspeed(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False, delta=False):
+    def plot_mean_runspeed(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_correct_trials=False, delta=False):
 
         # get window indices
         start_ind = np.argmin(np.abs(self.run_t - t_window[0]))
@@ -2659,7 +2659,7 @@ class NeuroAnalyzer(object):
 
             for trial in range(len(self.lick_bool[cond])):
 
-                if all_trials:
+                if not all_correct_trials:
                     run[cond].append(self.run[cond][:, trial])
 
                 # if mouse made correct choice
@@ -2744,7 +2744,7 @@ class NeuroAnalyzer(object):
 
         return mean_sp, sem_sp, num_trials
 
-    def plot_wt_freq(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_trials=False):
+    def plot_wt_freq(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_correct_trials=False):
 
         print('\n #!#! CAUTION this uses nanmean/nansem. NOT sure why there are NANs #!#!')
         ### is whisk frequency different ???
@@ -2762,7 +2762,7 @@ class NeuroAnalyzer(object):
 
             for trial in range(len(self.lick_bool[cond])):
 
-                if all_trials:
+                if not all_correct_trials:
                     wt_angle[cond].append(self.wt[cond][start_ind:stop_ind, 0, trial])
 
                 elif self.trial_choice[cond][trial]:
