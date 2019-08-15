@@ -1044,7 +1044,7 @@ class NeuroAnalyzer(object):
             num_trials = self.num_slow_trials
 
         if all_trials == True:
-            self.reclassify_run_trials(self, set_all_to_true=True)
+            self.reclassify_run_trials(set_all_to_true=True)
             num_trials = self.num_all_trials
 
         # make bins for rasters and PSTHs
