@@ -374,7 +374,7 @@ def plot_running_subset(trtime_list, vel_list, stim_time_mat, conversion=False):
     plt.show()
 
 def classify_run_trials(vel_list, trtime_list, stim_time_mat, t_after_start=0.250,\
-        t_after_stop=0.5, t_before_start=1.0, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=False):
+        t_after_stop=0.5, t_before_start=1.0, t_before_stop=0, mean_thresh=250, sigma_thresh=150, low_thresh=200, display=False):
     '''
     t_after_stop: when to start looking for running (time after the object stops)
     t_before_start: when to calculate baseline running (from beginning of trial
@@ -387,19 +387,31 @@ def classify_run_trials(vel_list, trtime_list, stim_time_mat, t_after_start=0.25
 
     for count, trial in enumerate(range(num_trials)):
 
-        # get indices of stimulus period run speed
-        stim_period_inds = (trtime_list[trial] >= (stim_time_mat[trial, 0] + t_after_start))\
-                & (trtime_list[trial] <= (stim_time_mat[trial, 0] + t_after_stop))
+        if t_after_start != None and t_after_stop != None:
+            # get indices of stimulus period run speed
+            stim_period_inds = (trtime_list[trial] >= (stim_time_mat[trial, 0] + t_after_start))\
+                    & (trtime_list[trial] <= (stim_time_mat[trial, 0] + t_after_stop))
 
-        # get indices of baseline run speed
-        base_period_inds = (trtime_list[trial] >= (stim_time_mat[trial, 0] - t_before_start))\
-                & (trtime_list[trial] <= (stim_time_mat[trial, 0]))
+            vel = vel_list[trial][stim_period_inds]
 
-        vel = vel_list[trial][stim_period_inds]
-        vel = np.concatenate((vel_list[trial][stim_period_inds], vel_list[trial][base_period_inds]))
+            # get indices of baseline run speed
+            base_period_inds = (trtime_list[trial] >= (stim_time_mat[trial, 0] - t_before_start))\
+                    & (trtime_list[trial] <= (stim_time_mat[trial, 0] - t_before_stop))
+
+            vel = np.concatenate((vel, vel_list[trial][base_period_inds]))
+
+        else:
+            # get indices of baseline run speed
+            base_period_inds = (trtime_list[trial] >= (stim_time_mat[trial, 0] - t_before_start))\
+                    & (trtime_list[trial] <= (stim_time_mat[trial, 0] - t_before_stop))
+
+            vel = vel_list[trial][base_period_inds]
+
 
         mean_vel.append(np.mean(vel))
         sigm_vel.append(np.std(vel))
+
+        # determine if running velocity is above threshold
         if np.mean(vel) >= mean_thresh and np.std(vel) <= sigma_thresh and (sum(vel <= low_thresh)/len(vel)) <= 0.1:
             run_bool_list[count] = True
 
@@ -555,13 +567,16 @@ def make_hdf_object(f, **kwargs):
     # Create running trial dictionary
     if jb_behavior:
         # check running for Jenny's behavrioal experiment
+        # mark trials as running if mouse was running during the second after
+        # the response window and the second before stimulus stop
+        print('\n#### Classifying run trials based on ONLY BASELINE velocity #####')
         run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_mat,\
-                t_after_start=-1, t_after_stop=0, t_before_start=1.5,\
+                t_after_start=None, t_after_stop=None, t_before_start=1.5, t_before_stop=0.5,\
                 mean_thresh=rparam[0], sigma_thresh=rparam[1], low_thresh=rparam[2], display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
     else:
         # this if for original 8 bar position experiment
         run_bool_list = classify_run_trials(vel_list, trtime_list, stim_time_mat,\
-                t_after_start=0.50, t_after_stop=1.50, t_before_start=1.0,\
+                t_after_start=0.50, t_after_stop=1.50, t_before_start=1.0, t_before_stop=0,\
                 mean_thresh=rparam[0], sigma_thresh=rparam[1], low_thresh=rparam[2], display=False) # 250, 150, 200 (easy runner: mean:100, sigma:100, low:050)
 
     run_time_list = get_running_times(trtime_list, stim_time_mat)
