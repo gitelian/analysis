@@ -872,7 +872,7 @@ if __name__ == "__main__":
     # define parameters
     run_param_dict = {\
             'fast':   [250, 150, 135],\
-            'medium': [200, 150, 135],\
+            'medium': [150, 200, 100],\
             'slow':   [100, 150, 050]}
 
     data_dir = '/media/greg/data/neuro/'

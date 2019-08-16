@@ -447,7 +447,7 @@ class NeuroAnalyzer(object):
                 # correct reject
                 behavior_ids.append(4)
 
-        if sum(licks_all) > 0:
+        if sum(licks_all) > 10:
             # Sometimes mice stop licking towards the end of an experiment. This
             # finds that transition point defined as the point after which 30+
             # trials have no licking
@@ -476,6 +476,7 @@ class NeuroAnalyzer(object):
                 stop_lick_trial = None
                 print('\nMouse did not lick at all!\nIncluding all trials for analysis')
         else:
+            print('\n\n#!#!#! hack used to ignore no to very low lick experiments #!#!#!\n\n')
             stop_lick_trial = None
             print('\nMouse did not lick at all!\nIncluding all trials for analysis')
 
@@ -797,7 +798,7 @@ class NeuroAnalyzer(object):
             print('NO LFP DATA FOUND!\nSetting lfp_boolean to False')
             self.lfp_boolean = lfp_boolean
 
-    def reclassify_run_trials(self, time_before_stimulus= -1,\
+    def reclassify_run_trials(self, time_before_stimulus= -1.5,\
             mean_thresh=250, sigma_thresh=150, low_thresh=200, set_all_to_true=False):
         """
         If the neo object is still associated with the NeuroAnalyzer class this
@@ -825,7 +826,7 @@ class NeuroAnalyzer(object):
                 elif self.f[anlg_path].attrs['name'] == 'run_speed_time':
                     run_time = self.f[anlg_path][:]
 
-            base_ind = np.logical_and( run_time > time_before_stimulus, run_time < 0)
+            base_ind = np.logical_and( run_time > time_before_stimulus, run_time < -0.5)
             #wsk_stim_ind = np.logical_and( run_time > self.t_after_stim, run_time < (self.min_tbefore_stim + self.t_after_stim) )
 
             if self.jb_behavior:
@@ -833,8 +834,11 @@ class NeuroAnalyzer(object):
                 # the last second of the trial data (usually 1 second after the
                 # stimulus leaves (assumming the trial time after stimulus stop
                 # is 3sec and the time before stim stop is 1sec)
-                wsk_stim_ind = np.logical_and( run_time > (self.time_after - np.abs(time_before_stimulus)), run_time < self.time_after)
-                vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
+
+                #wsk_stim_ind = np.logical_and( run_time > (self.time_after - np.abs(time_before_stimulus)), run_time < self.time_after)
+
+                #vel = np.concatenate( (run_speed[base_ind], run_speed[wsk_stim_ind]))
+                vel = run_speed[base_ind]
 
                 if set_all_to_true == 0:
 
