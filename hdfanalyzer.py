@@ -630,6 +630,7 @@ class NeuroAnalyzer(object):
                         warnings.warn("\n\n#!#!#!\n#!#!#!\nuh-oh! The current number of pulses {} does NOT equal the most common number of pulses {}\nTaking first samples (no way to know when time of capture)".format(cam_time.shape[0], list_mode))
                         start_index = 0
                         stop_index = num_samples
+                        number_of_samples_in_trial = self.f[anlg_path].shape[0]
                     else:
                         # find index in cam_time that is closest to camera start
                         # and stop times
