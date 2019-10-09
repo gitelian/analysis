@@ -120,6 +120,7 @@ class NeuroAnalyzer(object):
 
         # classify behavior using licks and go/no-go angle position
         if self.jb_behavior and not self.spikes_bool:
+            #self.reclassify_run_trials(mean_thresh=150, sigma_thresh=200, low_thresh=100)
             self.__classify_behavior()
             self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='run_boolean', engaged=True, all_trials=False)
 
