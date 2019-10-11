@@ -46,7 +46,7 @@ class NeuroAnalyzer(object):
         # specify where the data is
         if os.path.isdir('/Users/Greg/Dropbox/A1Thesis/data/hdf5/'):
             data_dir = '/Users/Greg/Dropbox/A1Thesis/data/hdf5/'
-            self.exp_csv_dir = 'Users/Greg/Dropbox/A1Thesis/data/'
+            self.exp_csv_dir = '/Users/Greg/Dropbox/A1Thesis/data/'
         elif os.path.isdir('/media/greg/data/neuro/hdf5/'):
             data_dir = '/media/greg/data/neuro/hdf5/'
             self.exp_csv_dir = '/media/greg/data/neuro/'
@@ -86,6 +86,7 @@ class NeuroAnalyzer(object):
 
         # are there spikes
         self.spikes_bool = f.attrs['spikes_bool']
+#        self.spikes_bool = 0
 
         # are there LFPs
         self.lfp_bool = f.attrs['lfp_bool']
@@ -162,7 +163,7 @@ class NeuroAnalyzer(object):
             self.cell_type_og   = self.cell_type
 
             if not self.jb_behavior:
-                self.rates(psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', engaged=True, all_trials=False)
+                self.rates(psth_t_start= -1.000, psth_t_stop=2.500, kind='run_boolean', engaged=True, all_trials=False)
             if self.jb_behavior:
                 self.__classify_behavior()
                 self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='jb_engaged', engaged=True, all_trials=False)
@@ -1123,6 +1124,9 @@ class NeuroAnalyzer(object):
                     if self.spikes_bool:
                         # get baseline and stimulus period times for this trial
                         # this uses ABSOLUTE TIME not relative time
+
+                        ## obj_stop???? isn't this object BEGIN moving? but when
+                        ## trial_bool goes high??
                         obj_stop = self.f[seg].attrs['stim_times'][0]
 
                         if t_window == None:
@@ -1149,6 +1153,7 @@ class NeuroAnalyzer(object):
                             spk_times = self.f[seg + '/spiketrains/' + spike_train][:]
 
                             # bin spikes for rasters (time 0 is stimulus start)
+                            spk_times_relative = spk_times - self.f[seg].attrs['stim_times'][0]
                             spk_times_relative = spk_times - self.f[seg].attrs['stim_times'][0]
                             counts = np.histogram(spk_times_relative, bins=bins)[0]
                             binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
