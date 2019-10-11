@@ -44,9 +44,9 @@ class NeuroAnalyzer(object):
 
         print('\n-----__init__-----')
         # specify where the data is
-        if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
-            data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-            self.exp_csv_dir = data_dir
+        if os.path.isdir('/Users/Greg/Dropbox/A1Thesis/data/hdf5/'):
+            data_dir = '/Users/Greg/Dropbox/A1Thesis/data/hdf5/'
+            self.exp_csv_dir = 'Users/Greg/Dropbox/A1Thesis/data/'
         elif os.path.isdir('/media/greg/data/neuro/hdf5/'):
             data_dir = '/media/greg/data/neuro/hdf5/'
             self.exp_csv_dir = '/media/greg/data/neuro/'
@@ -3215,8 +3215,8 @@ class NeuroAnalyzer(object):
 if __name__ == "__main__":
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-    if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
-        data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+    if os.path.isdir('/Users/Greg/Dropbox/A1Thesis/data/hdf5/'):
+        data_dir = '/Users/Greg/Dropbox/A1Thesis/data/hdf5/'
     elif os.path.isdir('/media/greg/data/neuro/hdf5/'):
         data_dir = '/media/greg/data/neuro/hdf5/'
 
