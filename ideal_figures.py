@@ -117,20 +117,33 @@ ax.set_xlabel('Time (s)')
 neuro.get_psychometric_curve()
 
 
-a1 = neuro.wt[0][:, 0, :]
-a2 = neuro.wt[1][:, 0, :]
-a3 = neuro.wt[8][:, 0, :]
+#### PSD of whisker frequency
+#### vM1 light ####
+## FID1911 vM1 silencing
+
+t = np.where(np.logical_and(neuro.wtt >= -1, neuro.wtt<=0) == True)
+
+a1 = neuro.wt[0][t, 0, :].squeeze()
+a2 = neuro.wt[1][t, 0, :].squeeze()
+a3 = neuro.wt[8][t, 0, :].squeeze()
 a = np.concatenate( (a1, a2, a3), axis=1)
 af, afmat = neuro.get_psd(a, 500)
 
-b1 = neuro.wt[0+9][:, 0, :]
-b2 = neuro.wt[1+9][:, 0, :]
-b3 = neuro.wt[8+9][:, 0, :]
+b1 = neuro.wt[0+9][t, 0, :].squeeze()
+b2 = neuro.wt[1+9][t, 0, :].squeeze()
+b3 = neuro.wt[8+9][t, 0, :].squeeze()
 b = np.concatenate( (b1, b2, b3), axis=1)
 bf, bfmat = neuro.get_psd(b, 500)
 
-neuro.plot_freq(af, afmat, color='dimgray', error='ci')
-neuro.plot_freq(bf, bfmat, color='tab:blue', error='ci')
+fig, ax = plt.subplots()
+neuro.plot_freq(af, afmat, color='dimgray', error='ci', axis=ax)
+neuro.plot_freq(bf, bfmat, color='tab:blue', error='ci', axis=ax)
+#neuro.plot_freq(bf, bfmat, color='tab:red', error='ci', axis=ax)
+ax.set_yscale('log')
+ax.set_xlabel('frequency (Hz)')
+ax.set_ylabel('PSD power (arbitrary units)')
+ax.set_xlim(1, 50)
+ax.set_ylim(0.015, 30)
 
 
 
