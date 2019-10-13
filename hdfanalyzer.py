@@ -3115,7 +3115,7 @@ class NeuroAnalyzer(object):
 
 #                ax.hlines(trial+1, 0, 1.5, color='k')
         if stim_choice:
-            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='green')
+            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='tab:blue')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+shift+1)
 
