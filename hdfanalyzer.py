@@ -2891,7 +2891,7 @@ class NeuroAnalyzer(object):
 ##### Plotting Functions #####
 ###############################################################################
 
-    def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None):
+    def plot_tuning_curve(self, unit_ind=None, kind='abs_count', axis=None, labels=None, xlabel=None):
         """
         make_simple_tuning_curve allows one to specify what type of tuning
         curve to plot as well as which unit for a single tuning curve or all
@@ -2916,7 +2916,12 @@ class NeuroAnalyzer(object):
         # setup x-axis with correct labels and range
         pos = range(1,control_pos)
         x_vals = range(1, control_pos+1)
-        labels = [str(i) for i in pos]; labels.append('NC')
+
+        if labels is None:
+            labels = [str(i) for i in pos]; labels.append('NC')
+
+        if xlabel is None:
+            xlabel = 'Bar Position'
         #line_color = ['k','r','b']
 
         num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
@@ -2950,6 +2955,7 @@ class NeuroAnalyzer(object):
                 ax.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
                         color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
+            ax.set_xlabel(xlabel, fontsize=8)
             ax.plot([0, control_pos+1],[0,0],'--k')
 
         # if all tuning curves from all units are to be plotted
@@ -2987,9 +2993,10 @@ class NeuroAnalyzer(object):
                 ax[row][col].plot([0, control_pos+1],[0,0],'--k')
                 ax[row][col].set_xlim(0, control_pos+1)
                 ax[row][col].set_ylim(ax[row][col].get_ylim()[0]-1, ax[row][col].get_ylim()[1]+1)
-                ax[row][col].set_xticks([])
-                ax[row][col].set_xticks(x_vals, labels)
-                ax[row][col].set_xlabel('Bar Position', fontsize=8)
+                #ax[row][col].set_xticks([])
+                ax[row][col].set_xticks(x_vals)
+                ax[row][col].set_xticklabels(labels, fontsize=8, rotation=45)
+                ax[row][col].set_xlabel(xlabel, fontsize=10)
                 fig.show()
                 # count after each plot is made
                 plot_count += 1
