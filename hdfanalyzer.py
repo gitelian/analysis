@@ -44,9 +44,9 @@ class NeuroAnalyzer(object):
 
         print('\n-----__init__-----')
         # specify where the data is
-        if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
-            data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
-            self.exp_csv_dir = data_dir
+        if os.path.isdir('/Users/Greg/Dropbox/A1Thesis/data/hdf5/'):
+            data_dir = '/Users/Greg/Dropbox/A1Thesis/data/hdf5/'
+            self.exp_csv_dir = '/Users/Greg/Dropbox/A1Thesis/data/'
         elif os.path.isdir('/media/greg/data/neuro/hdf5/'):
             data_dir = '/media/greg/data/neuro/hdf5/'
             self.exp_csv_dir = '/media/greg/data/neuro/'
@@ -86,6 +86,7 @@ class NeuroAnalyzer(object):
 
         # are there spikes
         self.spikes_bool = f.attrs['spikes_bool']
+#        self.spikes_bool = 0
 
         # are there LFPs
         self.lfp_bool = f.attrs['lfp_bool']
@@ -166,7 +167,7 @@ class NeuroAnalyzer(object):
             self.cell_type_og   = self.cell_type
 
             if not self.jb_behavior:
-                self.rates(psth_t_start= -0.500, psth_t_stop=2.000, kind='run_boolean', engaged=True, all_trials=False)
+                self.rates(psth_t_start= -1.000, psth_t_stop=2.500, kind='run_boolean', engaged=True, all_trials=False)
             if self.jb_behavior:
                 self.__classify_behavior()
                 self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='jb_engaged', engaged=True, all_trials=False)
@@ -1194,7 +1195,6 @@ class NeuroAnalyzer(object):
                                 evk_rate = float(evk_count)/float((stim_stop - stim_start))
                                 absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
                                 evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
-
 
                         good_trial_ind += 1
 
@@ -3142,7 +3142,7 @@ class NeuroAnalyzer(object):
 
 #                ax.hlines(trial+1, 0, 1.5, color='k')
         if stim_choice:
-            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='green')
+            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='tab:blue')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+shift+1)
 
@@ -3247,8 +3247,8 @@ class NeuroAnalyzer(object):
 if __name__ == "__main__":
     sns.set_style("whitegrid", {'axes.grid' : False})
 
-    if os.path.isdir('/Users/Greg/Documents/AdesnikLab/Data/'):
-        data_dir = '/Users/Greg/Documents/AdesnikLab/Data/'
+    if os.path.isdir('/Users/Greg/Dropbox/A1Thesis/data/hdf5/'):
+        data_dir = '/Users/Greg/Dropbox/A1Thesis/data/hdf5/'
     elif os.path.isdir('/media/greg/data/neuro/hdf5/'):
         data_dir = '/media/greg/data/neuro/hdf5/'
 
