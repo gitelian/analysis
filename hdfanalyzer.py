@@ -108,6 +108,10 @@ class NeuroAnalyzer(object):
         # create run_boolean array
         self.__get_run_bool()
 
+        # create list of trials where True represents trials with no problems
+        # and False represents trials that should be skipped due to error
+        self.good_trials = [True]*len(self.f)
+
         # create array with all the stimulus IDs
         self.__get_all_stim_ids()
 
@@ -174,14 +178,20 @@ class NeuroAnalyzer(object):
             # create region dictionary
             self.region_dict = {0:'M1', 1:'S1'}
 
+
+            ## TODO remove this ##
+            self.rates(psth_t_start= -1, psth_t_stop=2, all_trials=True)
+
+            ## TODO uncomment below this ##
+
             # get selectivity for all units
-            self.get_selectivity()
-
-            # get preferred position for all units
-            self.get_preferred_position()
-
-            # get best contact for each unit
-            self.get_best_contact()
+#            self.get_selectivity()
+#
+#            # get preferred position for all units
+#            self.get_preferred_position()
+#
+#            # get best contact for each unit
+#            self.get_best_contact()
 
             # kruskal wallis and dunn's test to ID sensory driven units
 #            self.get_sensory_drive()
@@ -612,6 +622,16 @@ class NeuroAnalyzer(object):
                 start_time = np.max(cam_start_stop_times[:, 0])
                 stop_time  = np.min(cam_start_stop_times[:, 1])
 
+                if start_time > 0:
+                    bad_index = np.argmax(cam_start_stop_times[:, 0])
+                    self.good_trials[bad_index] = False
+                    start_time = max(i for i in cam_start_stop_times[:, 0] if i < 0)
+
+                if stop_time < 0:
+                    bad_index = np.argmin(cam_start_stop_times[:, 1])
+                    self.good_trials[bad_index] = False
+                    stop_time = min(i for i in cam_start_stop_times[:, 1] if i > 0)
+
                 # number of samples to take from all trials
                 num_samples = int(fps*stop_time) + int(fps*np.abs(start_time)) - 20
 
@@ -620,51 +640,52 @@ class NeuroAnalyzer(object):
                 wt_data = np.zeros((num_samples, 7, len(f)))
 
                 for i, seg in enumerate(self.f):
-                    anlg_path = seg + '/analog-signals/' + 'cam_times/'
-                    cam_time = self.f[anlg_path][:] - self.f[seg].attrs['stim_times'][0]
+                    if self.good_trials[i]:
+                        anlg_path = seg + '/analog-signals/' + 'cam_times/'
+                        cam_time = self.f[anlg_path][:] - self.f[seg].attrs['stim_times'][0]
 
-                    if cam_time.shape[0] != list_mode:
-                        # uh-oh! the current number of camera pulses does NOT
-                        # equal the most common number of pulses (2000 most likely)
-                        # TODO IGNORE BAD TRIALS (maybe with a bad_trial = True
-                        # flag, or fill with NaNs and change things to nanmean)
-                        warnings.warn("\n\n#!#!#!\n#!#!#!\nuh-oh! The current number of pulses {} does NOT equal the most common number of pulses {}\nTaking first samples (no way to know when time of capture)".format(cam_time.shape[0], list_mode))
-                        start_index = 0
-                        stop_index = num_samples
-                        number_of_samples_in_trial = self.f[anlg_path].shape[0]
-                    else:
-                        # find index in cam_time that is closest to camera start
-                        # and stop times
-                        start_index = np.argmin(np.abs(cam_time - start_time))
-                        stop_index = start_index + num_samples
-                        number_of_samples_in_trial = self.f[anlg_path].shape[0]
+                        if cam_time.shape[0] != list_mode:
+                            # uh-oh! the current number of camera pulses does NOT
+                            # equal the most common number of pulses (2000 most likely)
+                            # TODO IGNORE BAD TRIALS (maybe with a bad_trial = True
+                            # flag, or fill with NaNs and change things to nanmean)
+                            warnings.warn("\n\n#!#!#!\n#!#!#!\nuh-oh! The current number of pulses {} does NOT equal the most common number of pulses {}\nTaking first samples (no way to know when time of capture)".format(cam_time.shape[0], list_mode))
+                            start_index = 0
+                            stop_index = num_samples
+                            number_of_samples_in_trial = self.f[anlg_path].shape[0]
+                        else:
+                            # find index in cam_time that is closest to camera start
+                            # and stop times
+                            start_index = np.argmin(np.abs(cam_time - start_time))
+                            stop_index = start_index + num_samples
+                            number_of_samples_in_trial = self.f[anlg_path].shape[0]
 
 
-                    if stop_index > number_of_samples_in_trial:
-                        print('WARNING TRYING TO INDEX OUT OF ARRAY USING CRAPPY HACK TO MAKE IT WORK')
-                        start_index = self.f[anlg_path].shape[0] - num_samples
-                        stop_index = self.f[anlg_path].shape[0]
+                        if stop_index > number_of_samples_in_trial:
+                            print('WARNING TRYING TO INDEX OUT OF ARRAY USING CRAPPY HACK TO MAKE IT WORK')
+                            start_index = self.f[anlg_path].shape[0] - num_samples
+                            stop_index = self.f[anlg_path].shape[0]
 
-                    #stop_index = np.argmin(np.abs(cam_time - stop_time))
+                        #stop_index = np.argmin(np.abs(cam_time - stop_time))
 
-                    for k, anlg in enumerate(self.f[seg + '/analog-signals']):
-                        anlg_path = seg + '/analog-signals/' + anlg
-                        anlg_name = self.f[anlg_path].attrs['name']
+                        for k, anlg in enumerate(self.f[seg + '/analog-signals']):
+                            anlg_path = seg + '/analog-signals/' + anlg
+                            anlg_name = self.f[anlg_path].attrs['name']
 
-                        if  anlg_name == 'angle':
-                            wt_data[:, 0, i] = self.f[anlg_path][start_index:stop_index]
-                        elif anlg_name == 'set-point':
-                            wt_data[:, 1, i] = self.f[anlg_path][start_index:stop_index]
-                        elif anlg_name == 'amplitude':
-                            wt_data[:, 2, i] = self.f[anlg_path][start_index:stop_index]
-                        elif anlg_name == 'phase':
-                            wt_data[:, 3, i] = self.f[anlg_path][start_index:stop_index]
-                        elif anlg_name == 'velocity':
-                            wt_data[:, 4, i] = self.f[anlg_path][start_index:stop_index]
-                        elif anlg_name == 'whisking':
-                            wt_data[:, 5, i] = self.f[anlg_path][start_index:stop_index]
-                        elif anlg_name == 'curvature':
-                            wt_data[:, 6, i] = self.f[anlg_path][start_index:stop_index]
+                            if  anlg_name == 'angle':
+                                wt_data[:, 0, i] = self.f[anlg_path][start_index:stop_index]
+                            elif anlg_name == 'set-point':
+                                wt_data[:, 1, i] = self.f[anlg_path][start_index:stop_index]
+                            elif anlg_name == 'amplitude':
+                                wt_data[:, 2, i] = self.f[anlg_path][start_index:stop_index]
+                            elif anlg_name == 'phase':
+                                wt_data[:, 3, i] = self.f[anlg_path][start_index:stop_index]
+                            elif anlg_name == 'velocity':
+                                wt_data[:, 4, i] = self.f[anlg_path][start_index:stop_index]
+                            elif anlg_name == 'whisking':
+                                wt_data[:, 5, i] = self.f[anlg_path][start_index:stop_index]
+                            elif anlg_name == 'curvature':
+                                wt_data[:, 6, i] = self.f[anlg_path][start_index:stop_index]
 
 
             #TODO: deal with ONLY tracking data (e.g. when I do a stimulation experiment
@@ -883,13 +904,15 @@ class NeuroAnalyzer(object):
 
             for k, seg in enumerate(self.f):
 
-                if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
-                    run_count += 1
-                elif self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == False:
-                    slow_count += 1
+                if self.good_trials[k]:
 
-                if self.stim_ids_all[k] == stim_id:
-                    all_count += 1
+                    if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
+                        run_count += 1
+                    elif self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == False:
+                        slow_count += 1
+
+                    if self.stim_ids_all[k] == stim_id:
+                        all_count += 1
 
             num_good_trials.append(run_count)
             num_slow_trials.append(slow_count)
@@ -1091,87 +1114,89 @@ class NeuroAnalyzer(object):
             # iterate through all segments in HDF5 file
             for k, seg in enumerate(self.f):
 
-                # if running or whisking or jb_engaged trial add data to arrays
-                #TODO if trial is considered BAD ignore trial!
-                if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == engaged or \
-                        all_trials == True):
+                if self.good_trials[k]:
 
-                    # add run data to list
-                    run[stim_ind][:, good_trial_ind] = self.run_data[:, k]
+                    # if running or whisking or jb_engaged trial add data to arrays
+                    #TODO if trial is considered BAD ignore trial!
+                    if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == engaged or \
+                            all_trials == True):
 
-                    # organize whisker tracking data by trial type
-                    if self.wt_bool:
-                        for wt_ind in range(self.wt_data.shape[1]):
-                            # k should be the segment/trial index
-                            wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
+                        # add run data to list
+                        run[stim_ind][:, good_trial_ind] = self.run_data[:, k]
 
-                    if self.jb_behavior:
-                        # get lick times
-                        stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
-                        try:
-                            lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
-                            lick_times= lick_times - stim_start
-                        except:
-                            lick_times = np.nan
+                        # organize whisker tracking data by trial type
+                        if self.wt_bool:
+                            for wt_ind in range(self.wt_data.shape[1]):
+                                # k should be the segment/trial index
+                                wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
 
-                        licks[stim_ind][good_trial_ind] = lick_times
+                        if self.jb_behavior:
+                            # get lick times
+                            stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
+                            try:
+                                lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+                                lick_times= lick_times - stim_start
+                            except:
+                                lick_times = np.nan
 
-                        lick_bool[stim_ind][good_trial_ind] = self.licks_all[k]
-                        bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
-                        trial_choice[stim_ind][good_trial_ind] = self.correct_list[k]
+                            licks[stim_ind][good_trial_ind] = lick_times
 
-                    if self.spikes_bool:
-                        # get baseline and stimulus period times for this trial
-                        # this uses ABSOLUTE TIME not relative time
-                        obj_stop = self.f[seg].attrs['stim_times'][0]
+                            lick_bool[stim_ind][good_trial_ind] = self.licks_all[k]
+                            bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
+                            trial_choice[stim_ind][good_trial_ind] = self.correct_list[k]
 
-                        if t_window == None:
-                            stim_start = obj_stop + self.t_after_stim
-                            stim_stop= obj_stop + self.stim_duration
-                            base_start = obj_stop - np.abs((stim_stop - stim_start))
-                            base_stop  = obj_stop
-                        else:
-                            stim_start = obj_stop + t_window['start_time']
-                            stim_stop  = obj_stop + t_window['stop_time']
-                            base_start = obj_stop + t_window['base_start']
-                            base_stop  = obj_stop + t_window['base_stop']
+                        if self.spikes_bool:
+                            # get baseline and stimulus period times for this trial
+                            # this uses ABSOLUTE TIME not relative time
+                            obj_stop = self.f[seg].attrs['stim_times'][0]
 
-                        # TODO add ability to change the analysis window
-                        #stim_start = obj_stop - 1.5
-                        #stim_stop  = obj_stop
-                        #base_start = obj_stop - self.time_before
-                        #base_stop  = base_start + np.abs(stim_stop - stim_start)
+                            if t_window == None:
+                                stim_start = obj_stop + self.t_after_stim
+                                stim_stop= obj_stop + self.stim_duration
+                                base_start = obj_stop - np.abs((stim_stop - stim_start))
+                                base_stop  = obj_stop
+                            else:
+                                stim_start = obj_stop + t_window['start_time']
+                                stim_stop  = obj_stop + t_window['stop_time']
+                                base_start = obj_stop + t_window['base_start']
+                                base_stop  = obj_stop + t_window['base_stop']
 
-                        # iterate through all units and count calculate various
-                        # spike rates (e.g. absolute firing and evoked firing rates
-                        # and counts)
-                        for unit, spike_train in enumerate(self.f[seg + '/spiketrains']):
-                            spk_times = self.f[seg + '/spiketrains/' + spike_train][:]
+                            # TODO add ability to change the analysis window
+                            #stim_start = obj_stop - 1.5
+                            #stim_stop  = obj_stop
+                            #base_start = obj_stop - self.time_before
+                            #base_stop  = base_start + np.abs(stim_stop - stim_start)
 
-                            # bin spikes for rasters (time 0 is stimulus start)
-                            spk_times_relative = spk_times - self.f[seg].attrs['stim_times'][0]
-                            counts = np.histogram(spk_times_relative, bins=bins)[0]
-                            binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
+                            # iterate through all units and count calculate various
+                            # spike rates (e.g. absolute firing and evoked firing rates
+                            # and counts)
+                            for unit, spike_train in enumerate(self.f[seg + '/spiketrains']):
+                                spk_times = self.f[seg + '/spiketrains/' + spike_train][:]
 
-                            # convolve binned spikes to make PSTH
-                            psth[stim_ind][:, good_trial_ind, unit] =\
-                                    np.convolve(counts, kernel)[:-kernel.shape[0]+1]
+                                # bin spikes for rasters (time 0 is stimulus start)
+                                spk_times_relative = spk_times - self.f[seg].attrs['stim_times'][0]
+                                counts = np.histogram(spk_times_relative, bins=bins)[0]
+                                binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
 
-                            # calculate absolute and evoked counts
-                            abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
-                            evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
-                                    (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
-                            absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
-                            evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
+                                # convolve binned spikes to make PSTH
+                                psth[stim_ind][:, good_trial_ind, unit] =\
+                                        np.convolve(counts, kernel)[:-kernel.shape[0]+1]
 
-                            # calculate absolute and evoked rate
-                            abs_rate = float(abs_count)/float((stim_stop - stim_start))
-                            evk_rate = float(evk_count)/float((stim_stop - stim_start))
-                            absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
-                            evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
+                                # calculate absolute and evoked counts
+                                abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
+                                evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
+                                        (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
+                                absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
+                                evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
+
+                                # calculate absolute and evoked rate
+                                abs_rate = float(abs_count)/float((stim_stop - stim_start))
+                                evk_rate = float(evk_count)/float((stim_stop - stim_start))
+                                absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
+                                evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
 
 
-                    good_trial_ind += 1
+                        good_trial_ind += 1
 
         self.run           = run
 
