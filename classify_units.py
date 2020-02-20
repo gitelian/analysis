@@ -52,7 +52,7 @@ def load_mat_file(file_path, variable_name='spike_msr_mat'):
 
 def get_depth(best_chan, exp_info):
 
-    tip_depth = exp_info['e1_depth']
+    tip_depth = float(exp_info['e1_depth'])
     probe     = exp_info['e1_probe']
 
     if probe == 'a1x16':
@@ -359,7 +359,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
     #'FID1295'
-    update_spikes_measures_mat(fid_list=['FID1966'], data_dir_path='/media/greg/data/neuro/')
+    update_spikes_measures_mat(fid_list=['FID2143'], data_dir_path='/media/greg/data/neuro/')
 #    update_spikes_measures_mat(fid_list=[sys.argv[1]], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/')
 

@@ -182,6 +182,7 @@ class NeuroAnalyzer(object):
 
             ## TODO remove this ##
             self.rates(psth_t_start= -1, psth_t_stop=2, all_trials=True)
+            print('REMOVE HARD CODED RATES: ALL_TRIALS SET TO TRUE')
 
             ## TODO uncomment below this ##
 
