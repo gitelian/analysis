@@ -90,7 +90,7 @@ class NeuroAnalyzer(object):
 
         # are there LFPs
         self.lfp_bool = f.attrs['lfp_bool']
-        self.lfp_bool = False
+        #self.lfp_bool = False
 
         # is there whisker tracking
         self.wt_bool = f.attrs['wt_bool']
@@ -181,8 +181,8 @@ class NeuroAnalyzer(object):
 
 
             ## TODO remove this ##
-            self.rates(psth_t_start= -1, psth_t_stop=2, all_trials=True)
-            print('REMOVE HARD CODED RATES: ALL_TRIALS SET TO TRUE')
+#            self.rates(psth_t_start= -1, psth_t_stop=2, all_trials=True)
+#            print('REMOVE HARD CODED RATES: ALL_TRIALS SET TO TRUE')
 
             ## TODO uncomment below this ##
 
