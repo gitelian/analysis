@@ -1762,8 +1762,10 @@ class NeuroAnalyzer(object):
         self.bisi_list = bisi_list
         self.isi_list  = isi_list
 
+
+
 ################################################################################
-###### Eight-Position experiment specific functions #####
+###### Eight-Position e-phys experiment specific functions #####
 ################################################################################
 
     def get_selectivity(self):
@@ -2124,6 +2126,50 @@ class NeuroAnalyzer(object):
 
         return S_life_mean, S_life_all
 
+    def sta_lfp(self, unit_ind=0, shank=0, contact=0, cond=0, analysis_window=[0.6, 1.4], bin_window=[-0.25, 0.25]):
+        """
+        Create a spike triggered array of LFPs
+        Returns: array (total spikes for specified unit x values) where each
+        entry is the whisker tracking value (e.g. angle, phase, set-point) when
+        the specified unit spiked.
+
+        The second array is all the whisker tracking values that occurred
+        during the analysis window for all analyzed trials
+        """
+        sr = 1500
+        window = np.arange(bin_window[0]*sr, bin_window[1]*sr) # 1/1500 is the sampling rate of the LFP traces
+        window_size = window.shape[0]
+        num_trials = self.num_good_trials[cond]
+        sta_array = np.zeros((1, window_size))
+
+        # iterate through all trials and count spikes
+        for trial_ind in range(num_trials):
+            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
+            windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
+                    all_spike_times < analysis_window[1])
+            windowed_spike_times = all_spike_times[windowed_spike_indices] # spike times to align LFPs to
+#            windowed_spike_times = np.random.rand(windowed_spike_times.shape[0]) + 0.6
+
+            # iterate through all spike times and grabe LFP signal of
+            # window_size
+            for k, stime in enumerate(windowed_spike_times):
+                lfp_index = np.argmin(np.abs(stime - self.lfp_t))
+                lfp_inds  = window - lfp_index
+                lfp_inds = lfp_inds.astype(int)
+                lfp_temp = self.lfps[shank][cond][lfp_inds, contact, cond] # get individual LFP trace
+                sta_lfp  = lfp_temp.reshape(1, lfp_temp.shape[0])
+                # I may need to filter it at the specified frequency here
+                #TODO filter LFP trace with a Butterworth filter (see online example)
+                y = self.butterworth_filter(sta_lfp, 10, 55, 1500.0)
+
+                # add all whisker tracking values in analysis window to matrix
+                sta_array = np.concatenate((sta_array, y), axis=0)
+
+        sta_array = sta_array[1::, :]
+
+        return sta_array, window
+
+
 
 ###############################################################################
 ##### Whisker tracking functions #####
@@ -2415,49 +2461,6 @@ class NeuroAnalyzer(object):
         self.mod_index = mod_mat
         self.mod_pval  = mod_pval
 
-    def sta_lfp(self, unit_ind=0, shank=0, contact=0, cond=0, analysis_window=[0.6, 1.4], bin_window=[-0.25, 0.25]):
-        """
-        Create a spike triggered array of LFPs
-        Returns: array (total spikes for specified unit x values) where each
-        entry is the whisker tracking value (e.g. angle, phase, set-point) when
-        the specified unit spiked.
-
-        The second array is all the whisker tracking values that occurred
-        during the analysis window for all analyzed trials
-        """
-        sr = 1500
-        window = np.arange(bin_window[0]*sr, bin_window[1]*sr) # 1/1500 is the sampling rate of the LFP traces
-        window_size = window.shape[0]
-        num_trials = self.num_good_trials[cond]
-        sta_array = np.zeros((1, window_size))
-
-        # iterate through all trials and count spikes
-        for trial_ind in range(num_trials):
-            all_spike_times = self.bins_t[self.binned_spikes[cond][:, trial_ind, unit_ind].astype(bool)]
-            windowed_spike_indices = np.logical_and(all_spike_times > analysis_window[0],\
-                    all_spike_times < analysis_window[1])
-            windowed_spike_times = all_spike_times[windowed_spike_indices] # spike times to align LFPs to
-#            windowed_spike_times = np.random.rand(windowed_spike_times.shape[0]) + 0.6
-
-            # iterate through all spike times and grabe LFP signal of
-            # window_size
-            for k, stime in enumerate(windowed_spike_times):
-                lfp_index = np.argmin(np.abs(stime - self.lfp_t))
-                lfp_inds  = window - lfp_index
-                lfp_inds = lfp_inds.astype(int)
-                lfp_temp = self.lfps[shank][cond][lfp_inds, contact, cond] # get individual LFP trace
-                sta_lfp  = lfp_temp.reshape(1, lfp_temp.shape[0])
-                # I may need to filter it at the specified frequency here
-                #TODO filter LFP trace with a Butterworth filter (see online example)
-                y = self.butterworth_filter(sta_lfp, 10, 55, 1500.0)
-
-                # add all whisker tracking values in analysis window to matrix
-                sta_array = np.concatenate((sta_array, y), axis=0)
-
-        sta_array = sta_array[1::, :]
-
-        return sta_array, window
-
     def butterworth_filter(self, data, lowcut, highcut, fs, order=4):
         #ndpass(lowcut, highcut, fs, order=5):
         nyq  = 0.5 * fs
@@ -2581,6 +2584,20 @@ class NeuroAnalyzer(object):
                 ax.errorbar(self.control_pos, time2lick_mean[(control_pos_count+1)*self.control_pos-1],\
                         yerr=time2lick_sem[(control_pos_count+1)*self.control_pos-1],\
                         color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+
+    def performance_vs_time(self, bin=25):
+        """compute performance vs time from 0-100%"""
+        pc = np.asarray(self.correct_list).astype(float)
+        win = np.ones(bin)/float(bin)
+        performance = np.convolve(pc, win, 'valid')
+
+        plt.figure()
+        plt.plot(performance)
+        plt.ylim(0, 1.05); plt.ylabel('Mouse performance')
+        plt.xlim(0, pc.shape[0]); plt.xlabel('Trial number')
+        plt.hlines(0.5, 0, pc.shape[0], linestyles='dashed')
+
+        return performance
 
 ###########################
 #### whisker analysis for jb_behavior experiments ####
@@ -3240,7 +3257,6 @@ class NeuroAnalyzer(object):
         axis.plot(f, mean_frq, color=color)
         axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
         #axis.set_yscale('log')
-
 
 
 ########## MAIN CODE ##########
