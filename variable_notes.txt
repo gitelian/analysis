@@ -1,0 +1,84 @@
+
+
+### single value variables ###
+### OR single lists NOT the same length as total trials ###
+chan_per_shank: number of channels there are per shank (LFP analysis only)
+
+depths: estimated depth of all units
+
+last_engaged_trial: last trial mouse was performing task
+
+lfp_t: timestamps corresponding to each LFP sample
+
+min_tbefore_stim: time to analyze before trial line goes HIGH
+
+min_tafter_stim: time to analyze after trial line goes HIGH
+
+num_good_trials: num trials / stimulus condition considered good (e.g. ran)
+    (i.e. run_boolean, wsk_boolean)
+num_slow_trials: num_trials / stimulus condition when mouse ran below threshold
+    or did not whisk
+num_all_trials: num_trials / stimulus condition
+
+run_t: timestamps corresponding to each running velocity sample
+
+t_after_stim: time between trial line goes HIGH and the BEGINNING of the
+    analysis period (i.e. time to SKIP)
+
+wtt: timestamps corresponding to each whisker tracking sample
+
+
+
+### CREATED by "rates()"  ###
+### list of lists [trial type][trial index] ###
+
+   ### spikes
+abs_rate, abs_count, evk_rate, evk_count: spike counts or rates during
+    specified window
+
+binned_spikes: number of spikes per bin
+
+psth: smoothed PSTH
+
+psth_t: LIST time stamps for each time bin
+
+   ### behavior
+binds: behavior ids
+
+licks: lick times
+
+lick_bool: whether mouse licked (either engaged/ran trials or all trials,
+        depends on the parameters set in rates(params))
+
+trial_choice: did mouse make correct decision
+
+
+
+### array variables ###
+lfp_data: blah blah blah
+run_boolean: True/False did mouse run self.trial_class['run_boolean']
+
+run_data: _run_min_samp x trials, velocity per trial
+
+wt_data: _wt_min_samp x 7 x trials, whisker tracking data per trial (angle,
+        set-point, amplitude, phase, velocity, whisking, curvature)
+
+
+
+### List variables (value / trial) ###
+correct_list: did mouse make correct choice
+
+behavior_ids: numerical value indicating 'hit', 'miss', 'false alarm',
+    'correct reject')
+
+behavior_labels: dictionary, behavior_ids are keys to the names in dict
+
+good_trials: True/False, skip trial if False
+
+licks_all: 0/1 did mouse lick
+
+stim_ids_all: list of stimulus IDs / trial | self.stim_ids_all
+
+trial_class: whether mouse ran ('run_boolean') or mouse was engaged
+             ('jb_engaged'), Dictionary containing lists
+
