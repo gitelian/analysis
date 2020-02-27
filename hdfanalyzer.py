@@ -127,7 +127,7 @@ class NeuroAnalyzer(object):
         if self.jb_behavior and not self.spikes_bool:
             #self.reclassify_run_trials(mean_thresh=150, sigma_thresh=200, low_thresh=100)
             self.__classify_behavior()
-            self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='run_boolean', engaged=True, all_trials=False)
+            self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='run_boolean')#, engaged=True, all_trials=False)
 
         # trim LFP data and align it to shortest trial
         if self.lfp_bool:
@@ -137,8 +137,8 @@ class NeuroAnalyzer(object):
         # a new annotation ('wsk_boolean') is added to self.trial_class
 #        self.classify_whisking_trials(threshold='median')
 
-        # return a list with the number of good trials for each stimulus condition
-        self.get_num_good_trials()
+        # return a boolean array indicating whether a trial should be analyzed
+        #   also an array indicating number of good/bad/total trials
 
         if self.spikes_bool:
             # get depths for all units
@@ -888,41 +888,98 @@ class NeuroAnalyzer(object):
                 elif set_all_to_true == 1:
                     self.trial_class['run_boolean'][count] = True
 
-    def get_num_good_trials(self, kind='run_boolean'):
+    def get_trials2analyze(self, kind='run_boolean', engaged=None):
         """
-        Return a list with the number of good trials for each stimulus condition
-        And the specified annotations to use.
-        kind can be set to either 'wsk_boolean' or 'run_boolean' (default)
+        Return a boolean array indicating whether a trial should be analyzed.
+        Creates lists with the number of good/bad/total trials for each
+        stimulus condition.
+
+        kind can be set to either 'run_boolean' (default), 'wsk_boolean',
+        or 'jb_engaged'
+
+        20200226 G.T. added engaged flag.
+        If jb_behavior is True then use engaged flag to filter trials
+
+        Note: can currently ID running vs not running trials during no behavior
+        and during behavior can ID (running AND engaged) or (running AND disengaged)
+        as good trials.
+
+        output: will return a list indicating whether a trial is good or bad
         """
+
+        print('\n-----get_trials2analyze-----\nkind = {}, engaged = {}'.format(kind, engaged))
+
         num_good_trials = list()
-        num_slow_trials = list()
+        num_bad_trials = list()
         num_all_trials  = list()
+
+        trials2analyze = [False]*len(self.f)
+
+        if engaged is None:
+            use_engaged_value = False
+
+        else:
+
+            if self.jb_behavior:
+                use_engaged_value = True
+                print('using engaged value')
+
+            else:
+                use_engaged_value = False
+                print('can not use engaged value, no behavior data found\nusing RUNNING to indicate trials2analyze')
+
 
         for stim_id in self.stim_ids:
 
-            run_count  = 0
-            slow_count = 0
-            all_count  = 0
+            good_trials  = 0
+            bad_trials = 0
+            all_trials  = 0
 
             for k, seg in enumerate(self.f):
 
                 if self.good_trials[k]:
 
-                    if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
-                        run_count += 1
-                    elif self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == False:
-                        slow_count += 1
+                    # use only kind (e.g. running) to indicate good trials
+                    if not use_engaged_value:
 
-                    if self.stim_ids_all[k] == stim_id:
-                        all_count += 1
+                        if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
+                            trials2analyze[k] = True
+                            good_trials += 1
 
-            num_good_trials.append(run_count)
-            num_slow_trials.append(slow_count)
-            num_all_trials.append(all_count)
+                        elif self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == False:
+                            trials2analyze[k] = False
+                            bad_trials += 1
+
+                        if self.stim_ids_all[k] == stim_id:
+                            all_trials += 1
+
+                    # if this is a behavior session AND engaged value was set
+                    # then indicate good trials based on what engaged is set to
+                    elif use_engaged_value:
+
+                        # e.g. running and disengaged (run == True and jb_engaged == False)
+                        if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True\
+                                and self.trial_class['jb_engaged'][k] == engaged:
+                            trials2analyze[k] = True
+                            good_trials += 1
+
+                        elif self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == False\
+                                and self.trial_class['jb_engaged'][k] == engaged:
+                            trials2analyze[k] = False
+                            bad_trials += 1
+
+                        if self.stim_ids_all[k] == stim_id:
+                            all_trials += 1
+
+            num_good_trials.append(good_trials)
+            num_bad_trials.append(bad_trials)
+            num_all_trials.append(all_trials)
 
         self.num_good_trials = num_good_trials
-        self.num_slow_trials = num_slow_trials
+        self.num_bad_trials  = num_bad_trials
         self.num_all_trials  = num_all_trials
+
+        return trials2analyze
 
     def classify_whisking_trials(self, threshold='user'):
         """
@@ -1023,15 +1080,13 @@ class NeuroAnalyzer(object):
         be analyzed is taken to be the same size as the length of the stimulus
         period.
 
-        MAKE SURE THAT THE EXPERIMENT WAS DESIGNED TO HAVE A LONG ENOUGH BASELINE
-        THAT IT IS AT LEAST AS LONG AS THE STIMULUS PERIOD TO BE ANALYZED
-
         kind can be set to either 'wsk_boolean' or 'run_boolean' (default) or 'jb_engaged'
 
-        Recomputes whisker tracking data and adds it to self.wt
+        For behavior you can have running AND engaged or running AND not engaged
 
+        t_window: dictionary, with keys 'start_time', 'stop_time', 'base_start',
+            'base_stop'. Use to have rates look at a different analysis window
 
-        !!! engaged if true means either running OR jb_engaged trials will be used
         """
 
         print('\n-----computing rates----')
@@ -1041,7 +1096,7 @@ class NeuroAnalyzer(object):
         evoked_counts   = list()
         binned_spikes   = list()
         psth            = list()
-        run             = list()
+        running         = list()
         licks           = list()
         bids            = list() # behavior IDs
         lick_bool       = list()
@@ -1049,41 +1104,32 @@ class NeuroAnalyzer(object):
 
         # make whisker tracking list wt
         if self.wt_bool:
-            wt          = list()
+            wt = list()
 
         if kind == 'wsk_boolean' and not self.wt_bool:
             warnings.warn('**** NO WHISKER TRACKING DATA AVAILABLE ****\n\
                     using run speed to select good trials')
             kind = 'run_boolean'
+            trials2analyze = self.get_trials2analyze(kind='run_boolean')
 
         elif kind == 'wsk_boolean' and self.wt_bool:
             print('using whisking to find good trials')
-            self.get_num_good_trials(kind='wsk_boolean')
+            trials2analyze = self.get_trials2analyze(kind='wsk_boolean')
 
-        elif self.jb_behavior and kind == 'jb_engaged':
-            self.get_num_good_trials(kind='jb_engaged')
+        else:
+            trials2analyze = self.get_trials2analyze(kind=kind, engaged=engaged)
 
-        elif kind == 'run_boolean':
-            print('using running to find good trials')
-            self.get_num_good_trials(kind='run_boolean')
-
-        if engaged == True:
-            num_trials = self.num_good_trials
-
-        elif engaged == False:
-            print('!!!!! NOT ALL FUNCTIONS WILL USE NON-RUNNING TRIALS !!!!!')
-            num_trials = self.num_slow_trials
+        num_trials = self.num_good_trials
 
         if all_trials == True:
             self.reclassify_run_trials(set_all_to_true=True)
-            self.get_num_good_trials(kind='run_boolean')
+            trials2analyze = self.get_trials2analyze(kind='run_boolean')
             num_trials = self.num_all_trials
 
         # make bins for rasters and PSTHs
 #        bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
         bins = np.arange(psth_t_start, psth_t_stop, 0.001)
         kernel = self.__make_kernel(kind='square', resolution=0.100)
-#        kernel = self.__make_kernel(kind='square', resolution=0.025)
 #        kernel = self.__make_kernel(kind='alpha', resolution=0.025)
         self._bins = bins
         self.bins_t = bins[0:-1]
@@ -1091,7 +1137,7 @@ class NeuroAnalyzer(object):
 
         # preallocation loop
         for k, trials_ran in enumerate(num_trials):
-                run.append(np.zeros((self.run_t.shape[0], trials_ran)))
+                running.append(np.zeros((self.run_t.shape[0], trials_ran)))
 
                 if self.spikes_bool:
                     absolute_rate.append(np.zeros((trials_ran, self.num_units)))
@@ -1111,96 +1157,89 @@ class NeuroAnalyzer(object):
                     trial_choice.append([list() for x in range(trials_ran)])
 
 
+        # main loops (stimulus type (outer), all trials (inner))
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
 
             # iterate through all segments in HDF5 file
             for k, seg in enumerate(self.f):
 
-                if self.good_trials[k]:
+                # if running or whisking or jb_engaged trial add data to arrays
+                #if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == engaged or \
+                #        all_trials == True):
+                if self.stim_ids_all[k] == stim_id and trials2analyze[k]:
 
-                    # if running or whisking or jb_engaged trial add data to arrays
-                    #TODO if trial is considered BAD ignore trial!
-                    if  self.stim_ids_all[k] == stim_id and (self.trial_class[kind][k] == engaged or \
-                            all_trials == True):
+                    # add run data to list
+                    running[stim_ind][:, good_trial_ind] = self.run_data[:, k]
 
-                        # add run data to list
-                        run[stim_ind][:, good_trial_ind] = self.run_data[:, k]
+                    # organize whisker tracking data by trial type
+                    if self.wt_bool:
+                        for wt_ind in range(self.wt_data.shape[1]):
+                            # k should be the segment/trial index
+                            wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
 
-                        # organize whisker tracking data by trial type
-                        if self.wt_bool:
-                            for wt_ind in range(self.wt_data.shape[1]):
-                                # k should be the segment/trial index
-                                wt[stim_ind][:, wt_ind, good_trial_ind] = self.wt_data[:, wt_ind, k]
+                    if self.jb_behavior:
+                        # get lick times
+                        stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
+                        try:
+                            lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
+                            lick_times= lick_times - stim_start
+                        except:
+                            lick_times = np.nan
 
-                        if self.jb_behavior:
-                            # get lick times
-                            stim_start = self.f[seg].attrs['stim_times'][0] + self.t_after_stim
-                            try:
-                                lick_times = self.f[seg + '/analog-signals/lick-timestamps'][:]
-                                lick_times= lick_times - stim_start
-                            except:
-                                lick_times = np.nan
+                        licks[stim_ind][good_trial_ind] = lick_times
 
-                            licks[stim_ind][good_trial_ind] = lick_times
+                        lick_bool[stim_ind][good_trial_ind] = self.licks_all[k]
+                        bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
+                        trial_choice[stim_ind][good_trial_ind] = self.correct_list[k]
 
-                            lick_bool[stim_ind][good_trial_ind] = self.licks_all[k]
-                            bids[stim_ind][good_trial_ind] = self.behavior_ids[k]
-                            trial_choice[stim_ind][good_trial_ind] = self.correct_list[k]
+                    if self.spikes_bool:
+                        # get baseline and stimulus period times for this trial
+                        # this uses ABSOLUTE TIME not relative time
+                        obj_stop = self.f[seg].attrs['stim_times'][0]
 
-                        if self.spikes_bool:
-                            # get baseline and stimulus period times for this trial
-                            # this uses ABSOLUTE TIME not relative time
-                            obj_stop = self.f[seg].attrs['stim_times'][0]
+                        if t_window == None:
+                            stim_start = obj_stop + self.t_after_stim
+                            stim_stop= obj_stop + self.stim_duration
+                            base_start = obj_stop - np.abs((stim_stop - stim_start))
+                            base_stop  = obj_stop
+                        else:
+                            stim_start = obj_stop + t_window['start_time']
+                            stim_stop  = obj_stop + t_window['stop_time']
+                            base_start = obj_stop + t_window['base_start']
+                            base_stop  = obj_stop + t_window['base_stop']
 
-                            if t_window == None:
-                                stim_start = obj_stop + self.t_after_stim
-                                stim_stop= obj_stop + self.stim_duration
-                                base_start = obj_stop - np.abs((stim_stop - stim_start))
-                                base_stop  = obj_stop
-                            else:
-                                stim_start = obj_stop + t_window['start_time']
-                                stim_stop  = obj_stop + t_window['stop_time']
-                                base_start = obj_stop + t_window['base_start']
-                                base_stop  = obj_stop + t_window['base_stop']
+                        # iterate through all units and count calculate various
+                        # spike rates (e.g. absolute firing and evoked firing rates
+                        # and counts)
+                        for unit, spike_train in enumerate(self.f[seg + '/spiketrains']):
+                            spk_times = self.f[seg + '/spiketrains/' + spike_train][:]
 
-                            # TODO add ability to change the analysis window
-                            #stim_start = obj_stop - 1.5
-                            #stim_stop  = obj_stop
-                            #base_start = obj_stop - self.time_before
-                            #base_stop  = base_start + np.abs(stim_stop - stim_start)
+                            # bin spikes for rasters (time 0 is stimulus start)
+                            spk_times_relative = spk_times - self.f[seg].attrs['stim_times'][0]
+                            counts = np.histogram(spk_times_relative, bins=bins)[0]
+                            binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
 
-                            # iterate through all units and count calculate various
-                            # spike rates (e.g. absolute firing and evoked firing rates
-                            # and counts)
-                            for unit, spike_train in enumerate(self.f[seg + '/spiketrains']):
-                                spk_times = self.f[seg + '/spiketrains/' + spike_train][:]
+                            # convolve binned spikes to make PSTH
+                            psth[stim_ind][:, good_trial_ind, unit] =\
+                                    np.convolve(counts, kernel)[:-kernel.shape[0]+1]
 
-                                # bin spikes for rasters (time 0 is stimulus start)
-                                spk_times_relative = spk_times - self.f[seg].attrs['stim_times'][0]
-                                counts = np.histogram(spk_times_relative, bins=bins)[0]
-                                binned_spikes[stim_ind][:, good_trial_ind, unit] = counts
+                            # calculate absolute and evoked counts
+                            abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
+                            evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
+                                    (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
+                            absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
+                            evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
 
-                                # convolve binned spikes to make PSTH
-                                psth[stim_ind][:, good_trial_ind, unit] =\
-                                        np.convolve(counts, kernel)[:-kernel.shape[0]+1]
+                            # calculate absolute and evoked rate
+                            abs_rate = float(abs_count)/float((stim_stop - stim_start))
+                            evk_rate = float(evk_count)/float((stim_stop - stim_start))
+                            absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
+                            evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
 
-                                # calculate absolute and evoked counts
-                                abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
-                                evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
-                                        (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
-                                absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
-                                evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
+                    good_trial_ind += 1
 
-                                # calculate absolute and evoked rate
-                                abs_rate = float(abs_count)/float((stim_stop - stim_start))
-                                evk_rate = float(evk_count)/float((stim_stop - stim_start))
-                                absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
-                                evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
-
-                        good_trial_ind += 1
-
-        self.run           = run
+        self.run           = running
 
         if self.spikes_bool:
             self.abs_rate      = absolute_rate
@@ -1407,7 +1446,7 @@ class NeuroAnalyzer(object):
                 for k, trials_ran in enumerate(self.num_good_trials):
                     lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_ran )))
             elif not engaged:
-                for k, trials_not_ran in enumerate(self.num_slow_trials):
+                for k, trials_not_ran in enumerate(self.num_bad_trials):
                     lfps[shank].append(np.zeros(( self._lfp_min_samp, self.chan_per_shank[shank], trials_not_ran )))
 
         for shank in range(len(self.shank_names)):
@@ -1685,10 +1724,10 @@ class NeuroAnalyzer(object):
             kind = 'run_boolean'
         elif kind == 'wsk_boolean' and self.wt_bool:
             print('using whisking to find good trials')
-            self.get_num_good_trials(kind='wsk_boolean')
+            trial2analyze = self.get_trials2analyze(kind='wsk_boolean')
         elif kind == 'run_boolean':
             print('using running to find good trials')
-            self.get_num_good_trials(kind='run_boolean')
+            trial2analyze = self.get_trials2analyze(kind='run_boolean')
 
         t_after_stim = self.t_after_stim
 
@@ -1708,7 +1747,8 @@ class NeuroAnalyzer(object):
 
                 # if a trial segment is from the current stim_id and it is a
                 # running trial get the spike ISIs.
-                if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
+#                if self.stim_ids_all[k] == stim_id and self.trial_class[kind][k] == True:
+                if trial2analyze[k]:
 
                     # get the stimulus start and stop times for this trial
                     stim_start = self.f[seg].attrs['stim_times'][0]
