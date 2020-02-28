@@ -7,23 +7,17 @@ import scipy as sp
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mpl
-import scipy.signal
 import h5py
 from scipy.signal import butter, lfilter
+import statsmodels.stats.proportion
+
 #import 3rd party code found on github
 #import icsd
 import ranksurprise
 import dunn
-# for LDA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-# for t-distributed stochastic neighbor embedding
-from sklearn.manifold import TSNE
-# for MDS
-from sklearn import manifold
 # for python circular statistics
 import pycircstat as pycirc
 
@@ -888,6 +882,62 @@ class NeuroAnalyzer(object):
                 elif set_all_to_true == 1:
                     self.trial_class['run_boolean'][count] = True
 
+    def set_engaged_disengaged_trials(self, e_ind=None, d_ind=None, reset=False):
+        """
+        manually specify engaged vs disengaged trials
+
+        e_ind: an nx2 array where each row represents indices that should be
+            marked as "engaged" (i.e. True)
+
+        d_ind: an nx2 array where each row represents indices that should be
+            marked as "dis-engaged" (i.e. False)
+
+        reset will revert to the original Engaged/Disengaged indication...where
+            trials prior to self.last_engaged_trial are engaged (True) and trials
+            after are disengaged (False)
+        """
+
+        num_trials = len(self.f)
+
+        if reset:
+            e_list = [True if x < self.last_engaged_trial else False for x in range(num_trials)]
+            self.trial_class['jb_engaged'] = e_list
+
+        else:
+
+            if e_ind is not None and d_ind is not None:
+                e_list = [None]*num_trials
+                e_ind = np.asarray(e_ind)
+                d_ind = np.asarray(d_ind)
+
+                for x in range(num_trials):
+
+                    # is trial in an "engaged" range
+                    r1 = e_ind[:, 0] <= x
+                    r2 = e_ind[:, 1] >= x
+                    e_bool = sum(np.logical_and(r1, r2)) > 0
+
+                    # is trial in an "dis-engaged" range
+                    r1 = d_ind[:, 0] <= x
+                    r2 = d_ind[:, 1] >= x
+                    d_bool = sum(np.logical_and(r1, r2)) > 0
+
+                    if e_bool and not d_bool:
+                        # accept and indicate trial index as engaged
+                        e_list[x] = True
+                    elif not e_bool and d_bool:
+                        # accept and indicate trial as dis-engaged
+                        e_list[x] = False
+                    elif e_bool and d_bool:
+                        # mark trial to be skipped
+                        print('trial index is between both the ENGAGED and DIS-ENGAGED range ...something went wrong setting to None, trial will be skipped')
+                        e_list[x] = None
+
+                self.trial_class['jb_engaged'] = e_list
+
+            else:
+                print('e_ind or d_ind not specified, not doing anything')
+
     def get_trials2analyze(self, kind='run_boolean', engaged=None):
         """
         Return a boolean array indicating whether a trial should be analyzed.
@@ -1157,7 +1207,9 @@ class NeuroAnalyzer(object):
                     trial_choice.append([list() for x in range(trials_ran)])
 
 
-        # main loops (stimulus type (outer), all trials (inner))
+        ### main loops (stimulus type (outer), all trials (inner))
+        ### main loops (stimulus type (outer), all trials (inner))
+
         for stim_ind, stim_id in enumerate(self.stim_ids):
             good_trial_ind = 0
 
@@ -2520,15 +2572,31 @@ class NeuroAnalyzer(object):
     def get_psychometric_curve(self, axis=None):
         """
         compute psychometric curve for entire behavioral experiment
+
+        learned that confidence intervals for binary data can be computed using
+        the binomial distribution!
         """
         if self.jb_behavior:
             num_cond = len(self.stim_ids)
             prob_lick = np.zeros((num_cond, ))
+            lick_error = np.zeros((2, num_cond ))
             for cond in range(num_cond ):
-                prob_lick[cond] = float(np.sum(self.lick_bool[cond]))\
-                        / self.lick_bool[cond].shape[0]
-                print(cond, prob_lick[cond])
+                licks = float(np.sum(self.lick_bool[cond]))
+                nobs  = self.lick_bool[cond].shape[0]
+                prob_lick[cond] = licks/nobs
+                # returns the ACTUAL values of the 95% CI instead of the
+                # DIFFERENCE from the mean. This is why I have to subtract off
+                # the mean to get errorbar to plot errors correctly!
+                #err = statsmodels.stats.proportion.proportion_confint(licks, nobs, method='jeffreys')
+                err = statsmodels.stats.proportion.proportion_confint(licks, nobs, method='wilson')
+                lick_error[0, cond] = err[0] # lower 95% CI
+                lick_error[1, cond] = err[1] # upper 95% CI
+                print(cond, prob_lick[cond], np.round(lick_error[:, cond], decimals=3))
 
+            # subtract off mean because errorbar will add/subtract these value
+            # from the mean INSTEAD of plotting the error bar from [a, b]
+            lick_error[0, :] = np.abs(prob_lick - lick_error[0, :])
+            lick_error[1, :] = np.abs(prob_lick - lick_error[1, :])
 
             pos = range(1, self.control_pos)
             line_color = ['k','r','b']
@@ -2543,14 +2611,28 @@ class NeuroAnalyzer(object):
             ax.set_xlabel('<--GO -- NOGO-->\npositions')
 
             for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
-                ax.plot(pos[0:self.control_pos-1],\
+#                ax.plot(pos[0:self.control_pos-1],\
+#                        prob_lick[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
+#                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                markers, caps, bars = ax.errorbar(pos[0:self.control_pos-1],\
                         prob_lick[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
-                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-                # plot control position separately from stimulus positions
-                ax.plot(self.control_pos, prob_lick[(control_pos_count+1)*self.control_pos-1],\
+                        yerr=lick_error[:, (control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
                         color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
-            return prob_lick
+                # loop through bars and caps and set the alpha value
+                [bar.set_alpha(0.25) for bar in bars]
+                [cap.set_alpha(0.25) for cap in caps]
+
+                # plot control position separately from stimulus positions
+                markers, caps, bars = ax.errorbar(self.control_pos,\
+                        prob_lick[(control_pos_count+1)*self.control_pos-1],\
+                        yerr=lick_error[:, (control_pos_count+1)*self.control_pos-1].reshape(2, 1),\
+                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+                # loop through bars and caps and set the alpha value
+                [bar.set_alpha(0.25) for bar in bars]
+                [cap.set_alpha(0.25) for cap in caps]
+
+            return prob_lick, lick_error
 
     def get_lick_rate(self):
         """
@@ -2704,7 +2786,6 @@ class NeuroAnalyzer(object):
         for k, cond in enumerate(cond2plot):
 
             trial_type = self.stim_ids[cond]
-            print(trial_type)
             if trial_type < 5:
                 ax[k].set_title('GO (position {})'.format(cond))
             if trial_type >= 5 and cond < 9:
@@ -2784,19 +2865,19 @@ class NeuroAnalyzer(object):
             if not delta:
                 for manip in range(num_manipulations):
                     if not np.where(np.isnan(mean_run[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
-                        ax[k].plot(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip + 1])
+                        ax[k].plot(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
                         ax[k].fill_between(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind],\
-                                mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip + 1], alpha=0.3)
+                                mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
 
             elif delta:
                 for manip in range(num_manipulations - 1):
                     if not np.where(np.isnan(mean_run[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
-                        mean_delta = mean_run[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind] - mean_run[cond][start_ind:stop_ind]
-                        sem_manip = sem_run[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind]
+                        mean_delta = mean_run[cond + (self.control_pos*(manip))][start_ind:stop_ind] - mean_run[cond][start_ind:stop_ind]
+                        sem_manip = sem_run[cond + (self.control_pos*(manip))][start_ind:stop_ind]
                         sem_nolight = sem_run[cond][start_ind:stop_ind]
                         sem_delta = np.sqrt(sem_manip**2 + sem_nolight**2)
-                        ax[k].plot(self.run_t[start_ind:stop_ind], mean_delta, color=line_color[manip + 1])
-                        ax[k].fill_between(self.run_t[start_ind:stop_ind], mean_delta + sem_delta, mean_delta - sem_delta, color=line_color[manip + 1], alpha=0.3)
+                        ax[k].plot(self.run_t[start_ind:stop_ind], mean_delta, color=line_color[manip])
+                        ax[k].fill_between(self.run_t[start_ind:stop_ind], mean_delta + sem_delta, mean_delta - sem_delta, color=line_color[manip], alpha=0.3)
                 ax[k].plot(t_window, [0,0],'--k')
 
         return fig, ax
