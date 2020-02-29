@@ -31,6 +31,7 @@ wtt: timestamps corresponding to each whisker tracking sample
 
 ### CREATED by "rates()"  ###
 ### list of lists [trial type][trial index] ###
+### can be filtered based on running/whisking, engaged/disengaged, all_trials ###
 
    ### spikes
 abs_rate, abs_count, evk_rate, evk_count: spike counts or rates during
@@ -50,8 +51,11 @@ licks: lick times
 lick_bool: whether mouse licked (either engaged/ran trials or all trials,
         depends on the parameters set in rates(params))
 
+run: running data for the specified trials
+
 trial_choice: did mouse make correct decision
 
+wt: whisker tracking data for the specified trials
 
 
 ### array variables ###
