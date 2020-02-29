@@ -458,6 +458,9 @@ class NeuroAnalyzer(object):
             # Sometimes mice stop licking towards the end of an experiment. This
             # finds that transition point defined as the point after which 30+
             # trials have no licking
+
+            # consider replacing with
+            #np.diff(np.where(asarray(neuro.licks_all) == 1)[0])
             low = np.where(np.diff(licks_all) == -1)[0] + 1
 
             # find when transition from not licking to licking happens, skip the first lick
@@ -3402,6 +3405,14 @@ if __name__ == "__main__":
 
     neuro = NeuroAnalyzer(f, fid)
 
+# NOTE after specifying trials as ENGAGED/DIS-ENGAGED nothing immediately
+# changes except the trial_class['jb_engaged'] labels. To see plots based on
+# either the newly labeled ENGAGED/DIS-ENGAGED trials you must run "rates()"
+# with engaged set to True/False
+
+
+
+
 ##how to get spike times: block.segments[0].spiketrains[0].tolist()
 #
 ##############!!!!!!!!!!!!!!!!!!!!!!!#########################
@@ -3431,7 +3442,10 @@ if __name__ == "__main__":
 ##### SCRATCH SPACE #####
 
 
-
+# NOTE after specifying trials as ENGAGED/DIS-ENGAGED nothing immediately
+# changes except the trial_class['jb_engaged'] labels. To see plots based on
+# either the newly labeled ENGAGED/DIS-ENGAGED trials you must run "rates()"
+# with engaged set to True/False
 
 
 
