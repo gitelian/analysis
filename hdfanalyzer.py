@@ -2608,43 +2608,24 @@ class NeuroAnalyzer(object):
             else:
                 ax = axis
 
+            self.plot_mean_err(prob_lick, lick_error, axis=ax)
             ax.set_title(self.fid + ' psychometric curve')
             ax.set_ylim(0, 1.1)
             ax.set_ylabel('P(lick)')
             ax.set_xlabel('<--GO -- NOGO-->\npositions')
 
-            for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
-#                ax.plot(pos[0:self.control_pos-1],\
-#                        prob_lick[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
-#                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-                markers, caps, bars = ax.errorbar(pos[0:self.control_pos-1],\
-                        prob_lick[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
-                        yerr=lick_error[:, (control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
-                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-
-                # loop through bars and caps and set the alpha value
-                [bar.set_alpha(0.25) for bar in bars]
-                [cap.set_alpha(0.25) for cap in caps]
-
-                # plot control position separately from stimulus positions
-                markers, caps, bars = ax.errorbar(self.control_pos,\
-                        prob_lick[(control_pos_count+1)*self.control_pos-1],\
-                        yerr=lick_error[:, (control_pos_count+1)*self.control_pos-1].reshape(2, 1),\
-                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-                # loop through bars and caps and set the alpha value
-                [bar.set_alpha(0.25) for bar in bars]
-                [cap.set_alpha(0.25) for cap in caps]
-
             return prob_lick, lick_error
 
-    def get_lick_rate(self):
+    def plot_lick_rate(self, t_start=0, t_stop=1):
         """
         compute lick rate for each condition
         """
         if self.jb_behavior:
             num_cond = len(self.stim_ids)
             lick_rate = [list() for x in range(num_cond)]
+
             for cond in range(num_cond):
+
                 for licks in self.licks[cond]:
 
                     lick_rate_temp = np.sum(np.logical_and(licks > 0, licks < 1))
@@ -2653,7 +2634,15 @@ class NeuroAnalyzer(object):
                     elif  lick_rate_temp > 0:
                         lick_rate[cond].append(lick_rate_temp)
 
-            return lick_rate
+            mean_lick_rate = [np.mean(x) for x in lick_rate]
+            sem_lick_rate = [sp.stats.sem(x) for x in lick_rate]
+
+            ax = self.plot_mean_err(mean_lick_rate, sem_lick_rate)
+            ax.set_title(self.fid + ' lick rate')
+            ax.set_ylabel('Licks / sec')
+            ax.set_xlabel('<--GO -- NOGO-->\npositions')
+
+            return mean_lick_rate, sem_lick_rate
 
     def plot_lick_raster(self):
 
@@ -2668,6 +2657,7 @@ class NeuroAnalyzer(object):
                         if not np.isnan(np.sum(licks)):
                             ax[manip][cond].vlines(licks, trial, trial+1, color=line_color[manip], linewidth=1.0)
                             trial += 1
+
             max_ylim = ax[manip][cond].get_ylim()[1]
             for manip in range(num_manipulations):
                 for cond in range(self.control_pos):
@@ -2677,10 +2667,17 @@ class NeuroAnalyzer(object):
 
             fig.suptitle(fid + ' lick raster')
 
-    def plot_time2lick(self, t_start=0):
+    def plot_time2lick(self, t_start=0, axis=None):
         """
         compute time (mean +/- sem) to first lick for all angles
         """
+
+        # check if axis was provided
+        if axis == None:
+            fig, ax = plt.subplots()
+        else:
+            ax = axis
+
         if self.jb_behavior:
             num_cond = len(self.stim_ids)
             time2lick_mean = np.zeros((num_cond, ))
@@ -2697,30 +2694,29 @@ class NeuroAnalyzer(object):
                 time2lick_mean[cond] = np.mean(lick_temp)
                 time2lick_sem[cond]  = sp.stats.sem(lick_temp)
 
-            pos = range(1, self.control_pos)
-            line_color = ['k','r','b']
-            fig, ax = plt.subplots()
-            for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
-                ax.errorbar(pos[0:self.control_pos-1],\
-                        time2lick_mean[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
-                        yerr=time2lick_sem[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)],\
-                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
-                # plot control position separately from stimulus positions
-                ax.errorbar(self.control_pos, time2lick_mean[(control_pos_count+1)*self.control_pos-1],\
-                        yerr=time2lick_sem[(control_pos_count+1)*self.control_pos-1],\
-                        color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
+            self.plot_mean_err(time2lick_mean, time2lick_sem, axis=ax)
+            ax.set_title('time to lick {} sec from response window'.format(t_start))
+            ax.set_ylabel('time (s)')
+            ax.set_xlabel('<--GO -- NOGO-->\npositions')
 
-    def performance_vs_time(self, bin=25):
+            return time2lick_mean, time2lick_sem
+
+    def performance_vs_time(self, bin=25, axis=None):
         """compute performance vs time from 0-100%"""
         pc = np.asarray(self.correct_list).astype(float)
         win = np.ones(bin)/float(bin)
         performance = np.convolve(pc, win, 'valid')
 
-        plt.figure()
-        plt.plot(performance)
-        plt.ylim(0, 1.05); plt.ylabel('Mouse performance')
-        plt.xlim(0, pc.shape[0]); plt.xlabel('Trial number')
-        plt.hlines(0.5, 0, pc.shape[0], linestyles='dashed')
+        # check if axis was provided
+        if axis == None:
+            fig, ax = plt.subplots()
+        else:
+            ax = axis
+
+        ax.plot(performance)
+        ax.hlines(0.5, 0, pc.shape[0], linestyles='dashed')
+        ax.set_ylim(0, 1.05); plt.ylabel('Mouse performance')
+        ax.set_xlim(0, pc.shape[0]); plt.xlabel('Trial number')
 
         return performance
 
@@ -2731,60 +2727,38 @@ class NeuroAnalyzer(object):
 ### ONLY ANALYZE TRIALS WHERE THE MOUSE GOT IT CORRECT ??? ###
 
 
-    def plot_mean_whisker(self, t_window=[-0.5, 0.5], kind='setpoint', cond2plot=[0, 1, 2], all_correct_trials=False, delta=False):
+    def plot_mean_whisker(self, t_window=[-0.5, 0.5], kind='setpoint',\
+            cond2plot=[0, 1, 2], correct=None, delta=False, axis=None):
+        """
+        correct variable: None, all trials filtered by "rates" will be used
+            True, only correct trials
+            False, only incorrect trials (i.e. when mouse made a mistake
+        """
 
         ### is set-point different ???
         # compute mean set-point for each correct condition and plot
         ### is the slope of the set-point after contact different?
-
-        if kind == 'setpoint':
-            whisk_ind = 1
-        elif kind == 'amplitude':
-            whisk_ind = 2
-        else:
-            print('TYPO "kind" probably misspelled')
-
-        # get window indices
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
         stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
-
-        # get all the setpoints
-        whisk_kinematic = [list() for x in range(len(self.stim_ids))]
-        mean_kin   = [list() for x in range(len(self.stim_ids))]
-        sem_kin    = [list() for x in range(len(self.stim_ids))]
-
-        for cond in range(len(self.stim_ids)):
-
-            for trial in range(len(self.lick_bool[cond])):
-
-                if not all_correct_trials:
-                    # all trials refers to all trials organized by "rates" so
-                    # if run_boolean was used this would mean all RUN trials
-                    # will be analyzed
-                    # OTHERWISE only trials where the mouse made the CORRECT
-                    # choice will be included
-                    whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
-
-                # if mouse was running
-
-                # if mouse made correct choice
-                elif self.trial_choice[cond][trial]:
-                    # get set-point
-                    whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
-
-                # if mouse was running and made correct choice
-
-        # convert to arrays
-        for index in range(len(whisk_kinematic)):
-            whisk_kinematic[index] = np.asarray(whisk_kinematic[index])
-            mean_kin[index]   = np.mean(whisk_kinematic[index], axis=0)
-            sem_kin[index]    = sp.stats.sem(whisk_kinematic[index], axis=0)
-            print('cond {} has {} trials'.format(index, len(whisk_kinematic[index])))
+        mean_kin, sem_kin, _ = self.get_wt_kinematic(t_window=t_window, kind=kind, correct=correct)
 
         # plot
         num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
         line_color = ['k','r','b']
-        fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
+
+        # if an axis is given AND only one condition is given it will plot the
+        # data in the given axis
+        if axis is None and len(cond2plot) > 1:
+            fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
+        elif axis is None and len(cond2plot) == 1:
+            print('\nVERY HACKY WAY OF PLOTTING TO ONE AXIS')
+            fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
+            ax = [ax, None]
+        elif axis is not None and len(cond2plot) == 1:
+            print('\nVERY HACKY WAY OF PLOTTING TO ONE AXIS')
+            ax = [axis, None]
+        else:
+            raise Exception('To plot to a given axis only ONE condition must be selected!')
 
         for k, cond in enumerate(cond2plot):
 
@@ -2802,23 +2776,35 @@ class NeuroAnalyzer(object):
             if not delta:
                 for manip in range(num_manipulations):
                     if not np.where(np.isnan(mean_kin[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
-                        ax[k].plot(self.wtt[start_ind:stop_ind], mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
-                        ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind],\
-                                mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
+                        x = self.wtt[start_ind:stop_ind]
+                        mean_vals = mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind]
+                        err_vals = sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind]
+
+                        self.plot_cont_mean_err(x, mean_vals, err_vals, axis=ax[k], line_color=line_color[manip])
+
             elif delta:
                 for manip in range(num_manipulations - 1):
                     if not np.where(np.isnan(mean_kin[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                        x = self.wtt[start_ind:stop_ind]
                         mean_delta = mean_kin[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind] - mean_kin[cond][start_ind:stop_ind]
-                        ax[k].plot(self.wtt[start_ind:stop_ind], mean_delta, color=line_color[manip + 1])
+
                         sem_manip = sem_kin[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind]
                         sem_nolight = sem_kin[cond][start_ind:stop_ind]
                         sem_delta = np.sqrt(sem_manip**2 + sem_nolight**2)
-                        ax[k].fill_between(self.wtt[start_ind:stop_ind], mean_delta + sem_delta, mean_delta - sem_delta, color=line_color[manip + 1], alpha=0.3)
+
+                        self.plot_cont_mean_err(x, mean_delta, err_delta, axis=ax[k], line_color=line_color[manip + 1])
+
                 ax[k].plot(t_window, [0,0],'--k')
 
-        return fig, ax
+    def plot_mean_runspeed(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], correct=None, delta=False, axis=None):
+        """
+        plot the mean and sem runspeed for given trials 
 
-    def plot_mean_runspeed(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_correct_trials=False, delta=False):
+        correct variable: None, all trials filtered by "rates" will be used
+            True, only correct trials
+            False, only incorrect trials (i.e. when mouse made a mistake
+
+        """
 
         # get window indices
         start_ind = np.argmin(np.abs(self.run_t - t_window[0]))
@@ -2833,12 +2819,15 @@ class NeuroAnalyzer(object):
 
             for trial in range(len(self.lick_bool[cond])):
 
-                if not all_correct_trials:
-                    run[cond].append(self.run[cond][:, trial])
-
                 # if mouse made correct choice
-                elif self.trial_choice[cond][trial]:
+                if  correct and self.trial_choice[cond][trial]:
                     # get set-point
+                    run[cond].append(self.run[cond][:, trial])
+                # if mouse made wrong choice
+                elif not correct and not self.trial_choice[cond][trial]:
+                    run[cond].append(self.run[cond][:, trial])
+                # all trials correct and incorrect
+                elif correct == None:
                     run[cond].append(self.run[cond][:, trial])
 
         # convert to arrays
@@ -2851,7 +2840,21 @@ class NeuroAnalyzer(object):
         # plot
         num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
         line_color = ['k','r','b']
-        fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
+
+        # if an axis is given AND only one condition is given it will plot the
+        # data in the given axis
+        if axis is None and len(cond2plot) > 1:
+            fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
+        elif axis is None and len(cond2plot) == 1:
+            print('\nVERY HACKY WAY OF PLOTTING TO ONE AXIS')
+            fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
+            ax = [ax, None]
+        elif axis is not None and len(cond2plot) == 1:
+            print('\nVERY HACKY WAY OF PLOTTING TO ONE AXIS')
+            ax = [axis, None]
+        else:
+            raise Exception('To plot to a given axis only ONE condition must be selected!')
+
 
         for k, cond in enumerate(cond2plot):
 
@@ -2868,55 +2871,82 @@ class NeuroAnalyzer(object):
             if not delta:
                 for manip in range(num_manipulations):
                     if not np.where(np.isnan(mean_run[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
-                        ax[k].plot(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind], color=line_color[manip])
-                        ax[k].fill_between(self.run_t[start_ind:stop_ind], mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] - sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind],\
-                                mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind] + sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind], facecolor=line_color[manip], alpha=0.3)
+                        x = self.run_t[start_ind:stop_ind]
+                        mean_vals = mean_run[cond + (self.control_pos*manip)][start_ind:stop_ind]
+                        err_vals = sem_run[cond + (self.control_pos*manip)][start_ind:stop_ind]
+
+                        self.plot_cont_mean_err(x, mean_vals, err_vals, axis=ax[k], line_color=line_color[manip])
 
             elif delta:
                 for manip in range(num_manipulations - 1):
                     if not np.where(np.isnan(mean_run[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                        x = self.wtt[start_ind:stop_ind]
                         mean_delta = mean_run[cond + (self.control_pos*(manip))][start_ind:stop_ind] - mean_run[cond][start_ind:stop_ind]
+
                         sem_manip = sem_run[cond + (self.control_pos*(manip))][start_ind:stop_ind]
                         sem_nolight = sem_run[cond][start_ind:stop_ind]
                         sem_delta = np.sqrt(sem_manip**2 + sem_nolight**2)
-                        ax[k].plot(self.run_t[start_ind:stop_ind], mean_delta, color=line_color[manip])
-                        ax[k].fill_between(self.run_t[start_ind:stop_ind], mean_delta + sem_delta, mean_delta - sem_delta, color=line_color[manip], alpha=0.3)
+
+                        self.plot_cont_mean_err(x, mean_delta, err_delta, axis=ax[k], line_color=line_color[manip + 1])
+
                 ax[k].plot(t_window, [0,0],'--k')
 
-        return fig, ax
-    def get_setpoint(self, t_window=[-0.5, 0.5], cond=[0, 1, 2], correct=True):
+    def get_wt_kinematic(self, kind='setpoint', t_window=[-0.5, 0.5], cond=[0, 1, 2], correct=True):
+        """
+        get the mean and sem of either setpoint or amplitude
+
+        correct variable: None, all trials filtered by "rates" will be used
+            True, only correct trials
+            False, only incorrect trials (i.e. when mouse made a mistake
+
+        Returns: mean, sem, and num_trials per condition
+        """
+
+        if kind == 'setpoint':
+            whisk_ind = 1
+        elif kind == 'amplitude':
+            whisk_ind = 2
+        else:
+            print('TYPO "kind" probably misspelled')
+
 
         # get window indices
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
         stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
 
-        # get all the setpoints
-        set_point = [list() for x in range(len(self.stim_ids))]
-        mean_sp   = [list() for x in range(len(self.stim_ids))]
-        sem_sp    = [list() for x in range(len(self.stim_ids))]
+        # make lists for data allocation
+        whisk_kinematic = [list() for x in range(len(self.stim_ids))]
+        mean_kin   = [list() for x in range(len(self.stim_ids))]
+        sem_kin    = [list() for x in range(len(self.stim_ids))]
         num_trials = np.zeros((len(self.stim_ids), 1))
 
         for cond in range(len(self.stim_ids)):
 
             for trial in range(len(self.lick_bool[cond])):
 
+                # gets trials, filtered by 'rates' and further filters by
+                # correct, incorrect, or all trials
                 # if mouse made correct choice
                 if  correct and self.trial_choice[cond][trial]:
-                    # get set-point
-                    set_point[cond].append(self.wt[cond][:, 1, trial])
+                    # get whisk kinematic values
+                    whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
+                # if mouse made wrong choice
                 elif not correct and not self.trial_choice[cond][trial]:
-                    # get set-point
-                    set_point[cond].append(self.wt[cond][:, 1, trial])
+                    # get whisk kinematic values
+                    whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
+                # all trials correct and incorrect
+                elif correct == None:
+                    # get whisk kinematic values
+                    whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
 
         # convert to arrays
-        for index in range(len(set_point)):
-            set_point[index] = np.asarray(set_point[index])
-            mean_sp[index]   = np.mean(set_point[index], axis=0)
-            sem_sp[index]    = sp.stats.sem(set_point[index], axis=0)
-            num_trials[index] = len(set_point[index])
-            print('cond {} has {} trials'.format(index, len(set_point[index])))
+        for index in range(len(whisk_kinematic)):
+            whisk_kinematic[index] = np.asarray(whisk_kinematic[index])
+            mean_kin[index]   = np.mean(whisk_kinematic[index], axis=0)
+            sem_kin[index]    = sp.stats.sem(whisk_kinematic[index], axis=0)
+            print('cond {} has {} trials'.format(index, len(whisk_kinematic[index])))
 
-        return mean_sp, sem_sp, num_trials
+        return mean_kin, sem_kin, num_trials
 
     def plot_wt_freq(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_correct_trials=False):
 
@@ -3381,6 +3411,95 @@ class NeuroAnalyzer(object):
         axis.plot(f, mean_frq, color=color)
         axis.fill_between(f, mean_frq - err, mean_frq + err, facecolor=color, alpha=0.3)
         #axis.set_yscale('log')
+
+    def plot_mean_err(self, mean_vals, err_vals, axis=None):
+        """
+        plot a simple bar plot with error for all conditions
+        Each manipulation will get a different color.
+
+        input (list or array): mean_vals, and err_vals. must be the same length
+            and one-dimensional. The code will find the "control position" and
+            how many manipulations were present in the experiment. It will plot
+            lines in different colors for each manipulation
+
+            err_vals can be 1-dimensional if the error is symmetrical
+                or it can be 2-dimensional if the error is asymmetrical
+                in the ASYMMETRICAL case make sure that the array is 2xN
+                where ROW1 is the value to be ADDED to the mean and ROW2
+                is the value to be SUBTRACTED from the mean
+
+        ax (optional): pass an axis so this plat can be easily added to an
+            existing subplot
+
+        TODO: if more than 3 manipulations this will break FIX THIS
+        """
+
+        # check err_vals is either 1dim or 2xN
+        err_vals = np.asarray(err_vals)
+        ndims = np.ndim(err_vals)
+
+        if ndims == 1:
+            asymmetrical = False
+
+        elif ndims == 2:
+            if err_vals.shape[0] != 2:
+                raise Exception('the err_value array is NOT 2xN dimensions!')
+            asymmetrical = True
+
+        # check if axis was provided
+        if axis == None:
+            fig, ax = plt.subplots()
+        else:
+            ax = axis
+
+        # make plots
+        pos = range(1, self.control_pos)
+        line_color = ['k','r','b']
+
+        for control_pos_count, first_pos in enumerate(range(0, len(self.stim_ids), self.control_pos)):
+            x  = pos[0:self.control_pos-1]
+            xc = self.control_pos
+            y  = mean_vals[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)]
+            yc = mean_vals[(control_pos_count+1)*self.control_pos-1]
+
+
+            if asymmetrical:
+                yerr  = err_vals[:, (control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)]
+                yerrc = err_vals[:, (control_pos_count+1)*self.control_pos-1].reshape(2, 1)
+
+            else:
+                yerr  = err_vals[(control_pos_count*self.control_pos):((control_pos_count+1)*self.control_pos-1)]
+                yerrc = err_vals[(control_pos_count+1)*self.control_pos-1]
+
+            # plot connected points
+            _ , caps,  bars  = ax.errorbar(x, y, yerr, color=line_color[control_pos_count],\
+                    marker='o', markersize=6.0, linewidth=2, capsize=5, markeredgewidth=1.5)
+            # plot control position
+            _ , capsc, barsc = ax.errorbar(xc, yc, yerrc, color=line_color[control_pos_count],\
+                    marker='o', markersize=6.0, linewidth=2, capsize=5, markeredgewidth=1.5)
+
+            ### CONTROL POSITION ERROR BARS ARE NOT CONNECTED ###
+
+            # loop through bars and caps and set the alpha value
+            [bar.set_alpha(0.25) for bar in bars]
+            [cap.set_alpha(0.25) for cap in caps]
+            [bar.set_alpha(0.25) for bar in barsc]
+            [cap.set_alpha(0.25) for cap in capsc]
+
+        return ax
+
+    def plot_cont_mean_err(self, x, mean_vals, err_vals, axis=None, line_color='b', alpha=0.3):
+        """ plot a continuous variable with shaded between error """
+        # check if axis was provided
+        if axis == None:
+            fig, ax = plt.subplots()
+        else:
+            ax = axis
+
+        # make plots
+        ax.plot(x, mean_vals, color=line_color)
+        ax.fill_between(x, mean_vals - err_vals, mean_vals + err_vals, facecolor=line_color, alpha=0.3)
+
 
 
 ########## MAIN CODE ##########
