@@ -504,9 +504,9 @@ class NeuroAnalyzer(object):
         self.last_engaged_trial = stop_lick_trial
 
 
-        self.behavior_ids = behavior_ids
-        self.licks_all    = licks_all
-        self.correct_list = correct_list
+        self.behavior_ids = np.asarray(behavior_ids)
+        self.licks_all    = np.asarray(licks_all)
+        self.correct_list = np.asarray(correct_list)
         #self.behavior_labels = {'hit':1, 'miss':3, 'false_alarm':2, 'correct_reject':4}
         self.behavior_labels = {1:'hit', 3:'miss', 2:'false_alarm', 4:'correct_reject'}
 
@@ -2710,6 +2710,9 @@ class NeuroAnalyzer(object):
         pc = np.asarray(self.correct_list).astype(float)
         win = np.ones(bin)/float(bin)
         performance = np.convolve(pc, win, 'valid')
+
+        # no light vs light
+        #light_inds = np.asarray(self.stim_ids_all) > 9
 
         # check if axis was provided
         if axis == None:
