@@ -375,7 +375,7 @@ class NeuroAnalyzer(object):
         for k, seg in enumerate(self.f):
             stim_ids_all.append(int(self.f[seg].attrs['trial_type']))
 
-        self.stim_ids_all = stim_ids_all
+        self.stim_ids_all = np.asarray(stim_ids_all)
 
     def __classify_behavior(self):
         print('\n-----classify_behavior----')
@@ -905,6 +905,8 @@ class NeuroAnalyzer(object):
         if reset:
             e_list = [True if x < self.last_engaged_trial else False for x in range(num_trials)]
             self.trial_class['jb_engaged'] = e_list
+            del self.engaged_trials
+            del self.disengaged_trials
 
         else:
 
@@ -913,8 +915,8 @@ class NeuroAnalyzer(object):
                 e_ind = np.asarray(e_ind)
                 d_ind = np.asarray(d_ind)
 
-                self.engaged_trial = e_ind
-                self.disengaged_trial = d_ind
+                self.engaged_trials = e_ind
+                self.disengaged_trials = d_ind
 
                 for x in range(num_trials):
 
@@ -2705,14 +2707,8 @@ class NeuroAnalyzer(object):
 
             return time2lick_mean, time2lick_sem
 
-    def performance_vs_time(self, bin=25, axis=None):
+    def performance_vs_time(self, bin=25, axis=None, split=False):
         """compute performance vs time from 0-100%"""
-        pc = np.asarray(self.correct_list).astype(float)
-        win = np.ones(bin)/float(bin)
-        performance = np.convolve(pc, win, 'valid')
-
-        # no light vs light
-        #light_inds = np.asarray(self.stim_ids_all) > 9
 
         # check if axis was provided
         if axis == None:
@@ -2720,10 +2716,52 @@ class NeuroAnalyzer(object):
         else:
             ax = axis
 
-        ax.plot(performance)
-        ax.hlines(0.5, 0, pc.shape[0], linestyles='dashed')
-        ax.set_ylim(0, 1.05); plt.ylabel('Mouse performance')
-        ax.set_xlim(0, pc.shape[0]); plt.xlabel('Trial number')
+        win = np.ones(bin)/float(bin)
+        if not split:
+            ## overall performance
+            pc = self.correct_list
+            performance = np.convolve(self.correct_list, win, 'valid')
+
+            # plot
+            ax.plot(performance, 'tab:blue')
+            ax.hlines(0.5, 0, pc.shape[0], linestyles='dashed')
+            ax.set_ylim(0, 1.05); plt.ylabel('Mouse performance')
+            ax.set_xlim(0, pc.shape[0]); plt.xlabel('Trial number')
+
+
+        elif split:
+            pc = self.correct_list
+            ## nolight vs light performance
+            # no light
+            nol_inds = np.where(self.stim_ids_all <= self.control_pos)[0]
+            nol_choice = pc[nol_inds]
+            nol_performance = np.convolve(nol_choice, win, 'same')
+
+            # light
+            light_inds = np.where(self.stim_ids_all > self.control_pos)[0]
+            light_choice = pc[light_inds]
+            light_performance = np.convolve(light_choice, win, 'same')
+
+            # plot
+            ax.plot(nol_inds, nol_performance, 'dimgrey')
+            ax.plot(light_inds, light_performance, 'tab:blue')
+            ax.hlines(0.5, 0, pc.shape[0], linestyles='dashed')
+            ax.set_ylim(0, 1.05); plt.ylabel('Mouse performance')
+            ax.set_xlim(0, pc.shape[0]); plt.xlabel('Trial number')
+            ax.legend(['light off', 'light on'], loc='lower right')
+            ax.set_title('Performance across experiment')
+
+            performance = [nol_performance, light_performance]
+
+        if hasattr(self, 'engaged_trials') is True:
+            print('engaged trials found!')
+            # python iterates row-wise
+            for row in self.engaged_trials:
+                print(row)
+                ax.hlines(1.01, row[0], row[1], colors='tab:green', linewidth=2)
+            for row in self.disengaged_trials:
+                ax.hlines(1.01, row[0], row[1], colors='tab:red', linewidth=2)
+
 
         return performance
 
@@ -3161,11 +3199,6 @@ class NeuroAnalyzer(object):
 
         ax[3].bar(bins[:-1], all_offset[0]/float(sum(all_offset[0])), width=0.05, color='tab:blue', alpha=0.35)
         ax[3].bar(bins[:-1], all_offset[1]/float(sum(all_offset[1])), width=0.05, color='tab:red', alpha=0.35)
-
-
-
-
-
 
         return deltas
 
