@@ -913,6 +913,9 @@ class NeuroAnalyzer(object):
                 e_ind = np.asarray(e_ind)
                 d_ind = np.asarray(d_ind)
 
+                self.engaged_trial = e_ind
+                self.disengaged_trial = d_ind
+
                 for x in range(num_trials):
 
                     # is trial in an "engaged" range
@@ -939,7 +942,7 @@ class NeuroAnalyzer(object):
                 self.trial_class['jb_engaged'] = e_list
 
             else:
-                print('e_ind or d_ind not specified, not doing anything')
+                print('e_ind or d_ind not specified, both  must be provided, not doing anything')
 
     def get_trials2analyze(self, kind='run_boolean', engaged=None):
         """
