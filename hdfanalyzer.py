@@ -955,6 +955,9 @@ class NeuroAnalyzer(object):
         kind can be set to either 'run_boolean' (default), 'wsk_boolean',
         or 'jb_engaged'
 
+        NOTE: THISE DOES NOT REDO THE ANALYSIS WITH THE NEW SPECIFICATIONS. TO
+            HAVE THE NEW CRITERIA APPLIED RUN RATES() WITH THE DESIRED SPECS
+
         20200226 G.T. added engaged flag.
         If jb_behavior is True then use engaged flag to filter trials
 
@@ -2592,7 +2595,10 @@ class NeuroAnalyzer(object):
             for cond in range(num_cond ):
                 licks = float(np.sum(self.lick_bool[cond]))
                 nobs  = self.lick_bool[cond].shape[0]
-                prob_lick[cond] = licks/nobs
+                if nobs != 0:
+                    prob_lick[cond] = licks/nobs
+                else:
+                    prob_lick[cond] = 0
                 # returns the ACTUAL values of the 95% CI instead of the
                 # DIFFERENCE from the mean. This is why I have to subtract off
                 # the mean to get errorbar to plot errors correctly!
@@ -2622,7 +2628,7 @@ class NeuroAnalyzer(object):
 
             return prob_lick, lick_error
 
-    def plot_lick_rate(self, t_start=0, t_stop=1):
+    def plot_lick_rate(self, t_start=0, t_stop=1, axis=None):
         """
         compute lick rate for each condition
         """
@@ -2630,11 +2636,18 @@ class NeuroAnalyzer(object):
             num_cond = len(self.stim_ids)
             lick_rate = [list() for x in range(num_cond)]
 
+            # check if axis was provided
+            if axis == None:
+                fig, ax = plt.subplots()
+            else:
+                ax = axis
+
+
             for cond in range(num_cond):
 
                 for licks in self.licks[cond]:
 
-                    lick_rate_temp = np.sum(np.logical_and(licks > 0, licks < 1))
+                    lick_rate_temp = np.sum(np.logical_and(licks > t_start, licks < t_stop))
                     if lick_rate_temp == 0 or np.isnan(lick_rate_temp):
                         lick_rate[cond].append(0)
                     elif  lick_rate_temp > 0:
@@ -2643,7 +2656,7 @@ class NeuroAnalyzer(object):
             mean_lick_rate = [np.mean(x) for x in lick_rate]
             sem_lick_rate = [sp.stats.sem(x) for x in lick_rate]
 
-            ax = self.plot_mean_err(mean_lick_rate, sem_lick_rate)
+            ax = self.plot_mean_err(mean_lick_rate, sem_lick_rate, axis=ax)
             ax.set_title(self.fid + ' lick rate')
             ax.set_ylabel('Licks / sec')
             ax.set_xlabel('<--GO -- NOGO-->\npositions')
@@ -2701,7 +2714,7 @@ class NeuroAnalyzer(object):
                 time2lick_sem[cond]  = sp.stats.sem(lick_temp)
 
             self.plot_mean_err(time2lick_mean, time2lick_sem, axis=ax)
-            ax.set_title('time to lick {} sec from response window'.format(t_start))
+            ax.set_title('time to lick')
             ax.set_ylabel('time (s)')
             ax.set_xlabel('<--GO -- NOGO-->\npositions')
 
@@ -2723,10 +2736,10 @@ class NeuroAnalyzer(object):
             performance = np.convolve(self.correct_list, win, 'valid')
 
             # plot
-            ax.plot(performance, 'tab:blue')
+            ax.plot(performance, 'tab:grey')
             ax.hlines(0.5, 0, pc.shape[0], linestyles='dashed')
-            ax.set_ylim(0, 1.05); plt.ylabel('Mouse performance')
-            ax.set_xlim(0, pc.shape[0]); plt.xlabel('Trial number')
+            ax.set_ylim(0, 1.05); ax.set_ylabel('Mouse performance')
+            ax.set_xlim(0, pc.shape[0]); ax.set_xlabel('Trial number')
 
 
         elif split:
@@ -2744,10 +2757,10 @@ class NeuroAnalyzer(object):
 
             # plot
             ax.plot(nol_inds, nol_performance, 'dimgrey')
-            ax.plot(light_inds, light_performance, 'tab:blue')
+            ax.plot(light_inds, light_performance, 'tab:red')
             ax.hlines(0.5, 0, pc.shape[0], linestyles='dashed')
-            ax.set_ylim(0, 1.05); plt.ylabel('Mouse performance')
-            ax.set_xlim(0, pc.shape[0]); plt.xlabel('Trial number')
+            ax.set_ylim(0, 1.05); ax.set_ylabel('Mouse performance')
+            ax.set_xlim(0, pc.shape[0]); ax.set_xlabel('Trial number')
             ax.legend(['light off', 'light on'], loc='lower right')
             ax.set_title('Performance across experiment')
 
@@ -2843,7 +2856,7 @@ class NeuroAnalyzer(object):
 
     def plot_mean_runspeed(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], correct=None, delta=False, axis=None):
         """
-        plot the mean and sem runspeed for given trials 
+        plot the mean and sem runspeed for given trials
 
         correct variable: None, all trials filtered by "rates" will be used
             True, only correct trials
@@ -3153,12 +3166,15 @@ class NeuroAnalyzer(object):
         return delta_inds, delta
 
 
-    def plot_trial_delta(self):
+    def get_trial_delta(self, plot=True):
         """
         Computes onset, offset, and amount change for setpoint
 
-        Returns: onset time, onset time, amount changed in degrees
-        TODO: add runspeed capability
+        Returns: onset and offset time? Does not compute change in degrees?
+
+        TODO: Get change point working
+              compute change in set-point
+              add runspeed capability
 
         """
         cond2compute = range(len(self.stim_ids))
@@ -3169,14 +3185,13 @@ class NeuroAnalyzer(object):
             delta_inds, delta = find_change_points(self, data, window_length=401, polyorder=2, deriv=2)
             deltas[k] = np.asarray((self.wtt[delta_inds[:,0]], self.wtt[delta_inds[:, 1]], delta)).T
 
-        fig, ax = plt.subplots(1, 4)
         mean_onset = [np.mean(x[:, 0]) for x in deltas]
         sem_onset  = [sp.stats.sem(x[:, 0]) for x in deltas]
-        self.plot_mean_err(mean_onset, sem_onset, axis=ax[0])
+
+
 
         mean_offset = [np.mean(x[:, 1]) for x in deltas]
         sem_offset  = [sp.stats.sem(x[:, 1]) for x in deltas]
-        self.plot_mean_err(mean_offset, sem_offset, axis=ax[1])
 
         num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
         bins = np.arange(-1.5, 1.5, 0.05)
@@ -3194,13 +3209,23 @@ class NeuroAnalyzer(object):
                 counts_offset = np.histogram(deltas[cond_ind][:, 1], bins=bins)[0]
                 all_offset[manip-1] += counts_offset
 
-        ax[2].bar(bins[:-1], all_onset[0]/float(sum(all_onset[0])), width=0.05, color='tab:blue', alpha=0.35)
-        ax[2].bar(bins[:-1], all_onset[1]/float(sum(all_onset[1])), width=0.05, color='tab:red', alpha=0.35)
+        if plot:
+            fig, ax = plt.subplots(1, 4)
+            self.plot_mean_err(mean_onset, sem_onset, axis=ax[0])
+            self.plot_mean_err(mean_offset, sem_offset, axis=ax[1])
 
-        ax[3].bar(bins[:-1], all_offset[0]/float(sum(all_offset[0])), width=0.05, color='tab:blue', alpha=0.35)
-        ax[3].bar(bins[:-1], all_offset[1]/float(sum(all_offset[1])), width=0.05, color='tab:red', alpha=0.35)
 
-        return deltas
+            ax[2].bar(bins[:-1], all_onset[0]/float(sum(all_onset[0])), width=0.05, color='tab:blue', alpha=0.35)
+            ax[2].bar(bins[:-1], all_onset[1]/float(sum(all_onset[1])), width=0.05, color='tab:red', alpha=0.35)
+
+            ax[3].bar(bins[:-1], all_offset[0]/float(sum(all_offset[0])), width=0.05, color='tab:blue', alpha=0.35)
+            ax[3].bar(bins[:-1], all_offset[1]/float(sum(all_offset[1])), width=0.05, color='tab:red', alpha=0.35)
+
+            del ax
+
+        means_and_errs = [(mean_onset, sem_onset), (mean_offset, sem_offset) ]
+
+        return deltas, means_and_errs
 
 
 
@@ -3701,81 +3726,81 @@ if __name__ == "__main__":
 
 
 
-    ## for set-point
-    stp = neuro.wt[7][:, 1, 0]
-#    msp, _, _ = neuro.get_wt_kinematic(t_window=[-2, 2], correct=None)
-#    stp = msp[7+9]
-    sg = sp.signal.savgol_filter(stp, window_length=401, polyorder=2, deriv=2)
-
-
-
-    ## for running
-    #stp = neuro.run[0][:, 3]
-    #sg = sp.signal.savgol_filter(stp, window_length=12001, polyorder=2, deriv=2)
-    onset = np.argmin(sg)
-    offset = np.argmax(sg)
-
-    fig, ax = plt.subplots()
-    ax.plot(neuro.wtt, stp, color='tab:blue')
-    ax.tick_params(axis='y', labelcolor='tab:blue')
-    ymin, ymax = ax.get_ylim()
-    ax.vlines(neuro.wtt[onset], ymin, ymax, linestyles='dashed')
-    ax.vlines(neuro.wtt[offset], ymin, ymax, linestyles='dashed')
-    ax.set_ylabel('set-point (deg)')
-    ax.set_xlabel('time (s)')
-    ax.set_title('determining single trial set-point\n retraction onset & offset times')
-
-    ax2 = ax.twinx()
-    ax2.plot(neuro.wtt, sg, color='tab:red')
-    ax2.tick_params(axis='y', labelcolor='tab:red')
-    ax2.set_ylabel('savgol-filter second derivative')
-    fig.tight_layout()
-
-def find_change_points(self, data, window_length=401, polyorder=2, deriv=2):
-    """
-    use savgol_filter to smooth and calculate derivative of input signal
-
-    data: n x l array (samples x trials)
-
-    returns: delta_inds (int)  l x 2 onset index, offset index
-             delta(float array): change from onset to offset
-
-    """
-
-    l_trials = data.shape[1]
-    delta_inds  = np.zeros((l_trials, 2), dtype=int)
-    delta = np.zeros((l_trials, ))
-    for k in range(l_trials):
-        sg = sp.signal.savgol_filter(data[:, k], window_length=window_length,\
-                polyorder=polyorder, deriv=deriv)
-        onset  = np.argmin(sg)
-        offset = np.argmax(sg)
-        delta[k]  = data[offset, k] - data[onset, k]
-
-        delta_inds[k, :] = np.asarray((onset, offset))
-
-    return delta_inds, delta
-
-
-def plot_trial_delta(self, cond2compute=[0]):
-    """
-    blah
-
-    ADD SELF ONCE THIS WORKS
-
-    """
-
-    deltas = [list() for x in range(len(cond2compute))]
-
-    for k, cond in enumerate(cond2compute):
-        data = self.wt[cond][:, 1, :]
-        delta_inds, delta = find_change_points(self, data, window_length=401, polyorder=2, deriv=2)
-        deltas[k] = np.asarray((self.wtt[delta_inds[:,0]], self.wtt[delta_inds[:, 1]], delta)).T
-
-    return deltas
-
-
-
+#    ## for set-point
+#    stp = neuro.wt[7][:, 1, 0]
+##    msp, _, _ = neuro.get_wt_kinematic(t_window=[-2, 2], correct=None)
+##    stp = msp[7+9]
+#    sg = sp.signal.savgol_filter(stp, window_length=401, polyorder=2, deriv=2)
+#
+#
+#
+#    ## for running
+#    #stp = neuro.run[0][:, 3]
+#    #sg = sp.signal.savgol_filter(stp, window_length=12001, polyorder=2, deriv=2)
+#    onset = np.argmin(sg)
+#    offset = np.argmax(sg)
+#
+#    fig, ax = plt.subplots()
+#    ax.plot(neuro.wtt, stp, color='tab:blue')
+#    ax.tick_params(axis='y', labelcolor='tab:blue')
+#    ymin, ymax = ax.get_ylim()
+#    ax.vlines(neuro.wtt[onset], ymin, ymax, linestyles='dashed')
+#    ax.vlines(neuro.wtt[offset], ymin, ymax, linestyles='dashed')
+#    ax.set_ylabel('set-point (deg)')
+#    ax.set_xlabel('time (s)')
+#    ax.set_title('determining single trial set-point\n retraction onset & offset times')
+#
+#    ax2 = ax.twinx()
+#    ax2.plot(neuro.wtt, sg, color='tab:red')
+#    ax2.tick_params(axis='y', labelcolor='tab:red')
+#    ax2.set_ylabel('savgol-filter second derivative')
+#    fig.tight_layout()
+#
+#def find_change_points(self, data, window_length=401, polyorder=2, deriv=2):
+#    """
+#    use savgol_filter to smooth and calculate derivative of input signal
+#
+#    data: n x l array (samples x trials)
+#
+#    returns: delta_inds (int)  l x 2 onset index, offset index
+#             delta(float array): change from onset to offset
+#
+#    """
+#
+#    l_trials = data.shape[1]
+#    delta_inds  = np.zeros((l_trials, 2), dtype=int)
+#    delta = np.zeros((l_trials, ))
+#    for k in range(l_trials):
+#        sg = sp.signal.savgol_filter(data[:, k], window_length=window_length,\
+#                polyorder=polyorder, deriv=deriv)
+#        onset  = np.argmin(sg)
+#        offset = np.argmax(sg)
+#        delta[k]  = data[offset, k] - data[onset, k]
+#
+#        delta_inds[k, :] = np.asarray((onset, offset))
+#
+#    return delta_inds, delta
+#
+#
+#def plot_trial_delta(self, cond2compute=[0]):
+#    """
+#    blah
+#
+#    ADD SELF ONCE THIS WORKS
+#
+#    """
+#
+#    deltas = [list() for x in range(len(cond2compute))]
+#
+#    for k, cond in enumerate(cond2compute):
+#        data = self.wt[cond][:, 1, :]
+#        delta_inds, delta = find_change_points(self, data, window_length=401, polyorder=2, deriv=2)
+#        deltas[k] = np.asarray((self.wtt[delta_inds[:,0]], self.wtt[delta_inds[:, 1]], delta)).T
+#
+#    return deltas
+#
+#
+#
 
 
 
