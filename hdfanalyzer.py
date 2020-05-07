@@ -900,7 +900,7 @@ class NeuroAnalyzer(object):
             after are disengaged (False)
         """
 
-        num_trials = len(self.f)
+        num_trials = len(self.f) # this is an int
 
         if reset:
             e_list = [True if x < self.last_engaged_trial else False for x in range(num_trials)]
@@ -1058,6 +1058,7 @@ class NeuroAnalyzer(object):
             print('\n-----classify_whisking_trials-----')
             wsk_dist = list()
 
+                    # self.wt_data.shape[2] is int
             for k in range(self.wt_data.shape[2]):
                 wsk_dist.extend(self.wt_data[:, 5, k].ravel()) # reshape(-1, 1) changes array to a 2d array (e.g. (1978,) --> (1978, 1)
 
@@ -1441,7 +1442,8 @@ class NeuroAnalyzer(object):
         kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
         rates          = kind_of_tuning[kind_dict[kind]]
 
-        num_manipulations = self.stim_ids.shape[0]/self.control_pos
+        # int / int == float in python3
+        num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
         mean_tc = np.zeros((self.num_units, num_manipulations, 2))
 
         for manip in range(num_manipulations):
@@ -1877,7 +1879,7 @@ class NeuroAnalyzer(object):
         if hasattr(self, 'abs_rate') is False:
             self.rates()
         control_pos = self.control_pos
-        num_manipulations = self.stim_ids.shape[0]/control_pos
+        num_manipulations = int(self.stim_ids.shape[0]/control_pos)
         sel_mat = np.zeros((self.num_units, num_manipulations))
 
         for manip in range(num_manipulations):
@@ -1900,7 +1902,7 @@ class NeuroAnalyzer(object):
             self.get_selectivity()
 
         control_pos = self.control_pos
-        num_manip   = self.stim_ids.shape[0]/control_pos
+        num_manip   = int(self.stim_ids.shape[0]/control_pos)
         num_pos     = control_pos - 1
         num_units   = self.num_units
 
@@ -1966,7 +1968,7 @@ class NeuroAnalyzer(object):
         if hasattr(self, 'abs_rate') is False:
             self.rates()
         control_pos = self.control_pos
-        num_manipulations = self.stim_ids.shape[0]/control_pos
+        num_manipulations = int(self.stim_ids.shape[0]/control_pos)
         omi_mat = np.zeros((self.num_units, num_manipulations-1))
 
         for manip in range(num_manipulations - 1):
@@ -1991,7 +1993,7 @@ class NeuroAnalyzer(object):
         if hasattr(self, 'abs_rate') is False:
             self.rates()
         control_pos = self.control_pos
-        num_manipulations = self.stim_ids.shape[0]/control_pos
+        num_manipulations = int(self.stim_ids.shape[0]/control_pos)
         pref_mat = np.zeros((self.num_units, num_manipulations))
         positions = range(control_pos-1)
 
@@ -2136,7 +2138,7 @@ class NeuroAnalyzer(object):
 
         control_pos = self.control_pos
         num_cond = self.stim_ids.shape[0]
-        num_manipulations = num_cond/control_pos
+        num_manipulations = int(num_cond/control_pos)
         meanr_sorted = np.zeros((self.num_units, control_pos, num_manipulations))
         semr_sorted = np.zeros((self.num_units, control_pos, num_manipulations))
 
@@ -2185,7 +2187,7 @@ class NeuroAnalyzer(object):
         """
         control_pos = self.control_pos
         num_cond    = self.stim_ids.shape[0]
-        num_manip   = num_cond/control_pos
+        num_manip   = int(num_cond/control_pos)
         num_units   = self.num_units
         n           = control_pos - 1
 
@@ -2666,7 +2668,7 @@ class NeuroAnalyzer(object):
     def plot_lick_raster(self):
 
         if self.jb_behavior:
-            num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+            num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions
             line_color = ['k','r','b']
             fig, ax = plt.subplots(num_manipulations, self.control_pos, figsize=(12, 6), sharex=True, sharey=True)
             for manip in range(num_manipulations):
@@ -2720,7 +2722,7 @@ class NeuroAnalyzer(object):
 
             return time2lick_mean, time2lick_sem
 
-    def performance_vs_time(self, bin=25, axis=None, split=False):
+    def performance_vs_time(self, bins=25, axis=None, split=False):
         """compute performance vs time from 0-100%"""
 
         # check if axis was provided
@@ -2729,7 +2731,7 @@ class NeuroAnalyzer(object):
         else:
             ax = axis
 
-        win = np.ones(bin)/float(bin)
+        win = np.ones(bins)/float(bins)
         if not split:
             ## overall performance
             pc = self.correct_list
@@ -2801,7 +2803,7 @@ class NeuroAnalyzer(object):
         mean_kin, sem_kin, _ = self.get_wt_kinematic(t_window=t_window, kind=kind, correct=correct)
 
         # plot
-        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+        num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions
         line_color = ['k','r','b']
 
         # if an axis is given AND only one condition is given it will plot the
@@ -2896,7 +2898,7 @@ class NeuroAnalyzer(object):
             print('cond {} has {} trials'.format(index, len(run[index])))
 
         # plot
-        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+        num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions
         line_color = ['k','r','b']
 
         # if an axis is given AND only one condition is given it will plot the
@@ -3050,7 +3052,7 @@ class NeuroAnalyzer(object):
 
         # plot
         f = np.linspace(0, 250, mean_psd[0].shape[0])
-        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+        num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions
         line_color = ['k','r','b']
         fig, ax = plt.subplots(1, len(cond2plot), sharey=True)
 
@@ -3094,8 +3096,8 @@ class NeuroAnalyzer(object):
         elif kind == 'amplitude':
             kind_ind = 2
 
-        min_trials2plot = np.min(np.reshape(self.num_good_trials, [2,9]), axis=0)
-        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+        min_trials2plot = int(np.min(np.reshape(self.num_good_trials, [2,9]), axis=0))
+        num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions
 
         with PdfPages(os.path.expanduser('~/Desktop/' + fid + '_wt_{}.pdf'.format(kind))) as pdf:
             for manip in range(num_manipulations):
@@ -3193,7 +3195,7 @@ class NeuroAnalyzer(object):
         mean_offset = [np.mean(x[:, 1]) for x in deltas]
         sem_offset  = [sp.stats.sem(x[:, 1]) for x in deltas]
 
-        num_manipulations = len(self.stim_ids)/self.control_pos # no light, light 1 region, light 2 regions
+        num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions)
         bins = np.arange(-1.5, 1.5, 0.05)
         all_onset  = [np.zeros((len(bins)-1, ), dtype=int) for x in range(num_manipulations)]
         all_offset = [np.zeros((len(bins)-1, ), dtype=int) for x in range(num_manipulations)]
@@ -3268,7 +3270,7 @@ class NeuroAnalyzer(object):
             xlabel = 'Bar Position'
         #line_color = ['k','r','b']
 
-        num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
+        num_manipulations = int(len(self.stim_ids)/control_pos) # no light, light 1 region, light 2 regions
 
         if num_manipulations <= 3:
             # use my default color choices
@@ -3308,7 +3310,7 @@ class NeuroAnalyzer(object):
             unit_ind = range(self.num_units)
             num_rows, num_cols = 3, 3
 
-            #num_manipulations = len(self.stim_ids)/control_pos # no light, light 1 region, light 2 regions
+            #num_manipulations = int(len(self.stim_ids)/control_pos) # no light, light 1 region, light 2 regions
 
             unit_count, plot_count = 0, 0
             fig, ax = plt.subplots(num_rows, num_cols, figsize=(14, 10))
