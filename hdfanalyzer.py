@@ -232,7 +232,7 @@ class NeuroAnalyzer(object):
 
     def __get_depths(self):
         """Get depths for all units"""
-        seg_iter = f.iterkeys()
+        seg_iter = self.f.iterkeys()
         for i, seg in enumerate(f):
             fid, shank, depth = list(), list(), list()
 
@@ -559,7 +559,7 @@ class NeuroAnalyzer(object):
                                 min_trial_length = len(good_inds)
                                 # pre-allocate array for all whisker tracking data
                                 # this way the original file/data is left untouched
-                                wt_data = np.zeros((min_trial_length, 7, len(f)))
+                                wt_data = np.zeros((min_trial_length, 7, len(self.f)))
                             elif min_trial_length > len(good_inds):
                                 warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
                                         LINE 208 __trim_wt')
@@ -636,7 +636,7 @@ class NeuroAnalyzer(object):
 
 
                 wtt = np.linspace(start_time, stop_time, num_samples)
-                wt_data = np.zeros((num_samples, 7, len(f)))
+                wt_data = np.zeros((num_samples, 7, len(self.f)))
 
                 for i, seg in enumerate(self.f):
                     if self.good_trials[i]:
@@ -731,7 +731,7 @@ class NeuroAnalyzer(object):
 
             if i == 0:
                 min_trial_length = len(good_inds)
-                run_data = np.zeros((min_trial_length, len(f)))
+                run_data = np.zeros((min_trial_length, len(self.f)))
             elif min_trial_length > len(good_inds):
                 warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
                         LINE 356 __trim_run')
@@ -797,7 +797,7 @@ class NeuroAnalyzer(object):
 
                         if i == 0 and shank_ind == 0:
                             min_trial_length = len(good_inds)
-                            lfp_data = [np.zeros((min_trial_length, x, len(f)), 'int16') for x in chan_per_shank]
+                            lfp_data = [np.zeros((min_trial_length, x, len(self.f)), 'int16') for x in chan_per_shank]
                         elif min_trial_length > len(good_inds):
                             warnings.warn('**** MINIMUM TRIAL LENGTH IS NOT THE SAME ****\n\
                                     LINE 208 __trim_lfp')
