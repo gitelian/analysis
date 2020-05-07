@@ -174,31 +174,30 @@ if __name__ == "__main__":
     ### FID2143 ###
     ### two single units firing rates during illumination of two spatially distinct light gratingsu
 
-    # matching units/stims Black lines: (2, 1), (2, 2), Green lines: (6, 1), (6, 2)
-    # stims 1 and 2 are 0.85V and 0.65V respectively
-    compare_units(neuro, units=[2,6], stims=[1,2])
+    # matching units/stims Black lines: (2, 4), (2, 8), Green lines: (3, 4), (3, 8)
+    compare_units(neuro, units=[2,3], stims=[4,8])
 
-    # unit 2, stim 1 (0.85V)
-    u2s1 = neuro.binned_spikes[1][stim_inds, :, 2].sum(axis=0)
-    u2s2 = neuro.binned_spikes[2][stim_inds, :, 2].sum(axis=0)
+    # unit 2, stim 4
+    u2s4 = neuro.binned_spikes[4][stim_inds, :, 2].sum(axis=0)
+    u2s8 = neuro.binned_spikes[8][stim_inds, :, 2].sum(axis=0)
 
-    u6s1 = neuro.binned_spikes[1][stim_inds, :, 6].sum(axis=0)
-    u6s2 = neuro.binned_spikes[2][stim_inds, :, 6].sum(axis=0)
+    u3s4 = neuro.binned_spikes[4][stim_inds, :, 3].sum(axis=0)
+    u3s8 = neuro.binned_spikes[8][stim_inds, :, 3].sum(axis=0)
 
-    groups = [u2s1, u6s1, u2s2, u6s2]
+    groups = [u2s4, u3s4, u2s8, u3s8]
     to_compare = [(0, 1), (0, 2), (1, 3), (2, 3)]
     H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='bonf') # or 'bonf' for bonferoni OR 'simes-hochberg'
 
     ## overall
-    # Kruskal-Wallis H-statistic: 299.0670019531058
+    # Kruskal-Wallis H-statistic: 145.56093585983717
     # p-value corresponding to the global null hypothesis that the medians of the
-    # groups are all equal: 1.5837802632107045e-64
+    # groups are all equal: 2.3892429165167848e-31
 
     ## within groups
     # comparisons: grating #1: black FR vs green FR, black FR: grating #1 vs #2,
     #             green FR: grating #1 vs #1, grating #2: black FR vs green FR
-    # pvalues corrected: [3.55814762e-05, 2.66849855e-31, 8.43766834e-25, 2.95551809e-08]
-    # reject null-hypothesis: [ True,  True,  True,  True]
+    # pvalues corrected: [1.41743094e-13, 4.63092202e-02, 2.32187044e-24, 8.73034566e-02]
+    # reject null-hypothesis: [ True,  True,  True,  False]
 
 
 
