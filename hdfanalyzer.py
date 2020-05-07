@@ -19,7 +19,7 @@ import statsmodels.stats.proportion
 import ranksurprise
 import dunn
 # for python circular statistics
-import pycircstat as pycirc
+#import pycircstat as pycirc
 
 from IPython.core.debugger import Tracer
 
