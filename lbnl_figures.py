@@ -1,7 +1,11 @@
 import matplotlib.pyplot as plt
-def cu_test():
-    fig, ax = plt.subplots()
+import statsmodels.stats.multitest as smm
 
+# load data
+fid_name = '2142' # 4 digit number corresponding to the experiment hdf5 file you want to analyze
+get_ipython().magic(u"run hdfanalyzer.py {}".format(fid_name))
+
+# create plotting functions
 def fr_vs_light(neuro, unit=1, stims=[1, 2, 3]):
     fig, ax = plt.subplots()
     neuro.plot_psth(unit_ind=unit, trial_type=stims[0], color='k', error='sem')
@@ -36,13 +40,12 @@ def compare_units(neuro, units=[0, 1], stims=[0, 1]):
     return fig, ax
 
 
-
 ##### LBNL figures for Nature Communications
 ##### data from FID2142
 
 ### single unit FR vs time at three light levels (unit 5, stim 1, 2, 3)
 
-#fr_vs_light(neuro, unit=5, stims=[1, 2, 3])
+fr_vs_light(neuro, unit=5, stims=[1, 2, 3])
 
 ## compute statistical tests on firing rate (stim period vs baseline)
 ## i.e. which light condition modulated the firing rate from baseline?
@@ -137,7 +140,7 @@ H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_
 
 # matching units/stims Black lines: (2, 1), (2, 2), Green lines: (6, 1), (6, 2)
 # stims 1 and 2 are 0.85V and 0.65V respectively
-# compare_units(neuro, units=[2,6], stims=[1,2])
+compare_units(neuro, units=[2,6], stims=[1,2])
 
 # unit 2, stim 1 (0.85V)
 u2s1 = neuro.binned_spikes[1][stim_inds, :, 2].sum(axis=0)

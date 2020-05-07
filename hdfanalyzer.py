@@ -3668,6 +3668,8 @@ if __name__ == "__main__":
         data_dir = '/Users/Greg/Dropbox/A1Thesis/data/hdf5/'
     elif os.path.isdir('/media/greg/data/neuro/hdf5/'):
         data_dir = '/media/greg/data/neuro/hdf5/'
+    else:
+        data_dir = os.path.join(os.getcwd() os.sep)
 
     #manager = NeoHdf5IO(os.path.join(data_dir + 'FID1295_neo_object.h5'))
     print(sys.argv)
