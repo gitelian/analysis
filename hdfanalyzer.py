@@ -233,7 +233,6 @@ class NeuroAnalyzer(object):
     def __get_depths(self):
         """Get depths for all units"""
 #        seg_iter = self.f.iterkeys() # python2 only
-        seg_iter = iter(self.f.keys()) # new python3 way
         for i, seg in enumerate(f):
             fid, shank, depth = list(), list(), list()
 
@@ -567,6 +566,10 @@ class NeuroAnalyzer(object):
 
 
                             anlg_name = self.f[anlg_path].attrs['name']
+                            # python3 strings stored as bytes???
+                            if type(anlg_name) == bytes:
+                                anlg_name = anlg_name.decode()
+
                             if num_samp > len(good_inds):
                                 if  anlg_name == 'angle':
                                     wt_data[:, 0, i] = self.f[anlg_path][good_inds]
@@ -672,6 +675,11 @@ class NeuroAnalyzer(object):
                             anlg_path = seg + '/analog-signals/' + anlg
                             anlg_name = self.f[anlg_path].attrs['name']
 
+                            # python3 strings stored as bytes???
+                            if type(anlg_name) == bytes:
+                                anlg_name = anlg_name.decode()
+
+
                             if  anlg_name == 'angle':
                                 wt_data[:, 0, i] = self.f[anlg_path][start_index:stop_index]
                             elif anlg_name == 'set-point':
@@ -686,6 +694,7 @@ class NeuroAnalyzer(object):
                                 wt_data[:, 5, i] = self.f[anlg_path][start_index:stop_index]
                             elif anlg_name == 'curvature':
                                 wt_data[:, 6, i] = self.f[anlg_path][start_index:stop_index]
+
 
 
             #TODO: deal with ONLY tracking data (e.g. when I do a stimulation experiment
