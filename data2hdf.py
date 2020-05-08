@@ -300,7 +300,7 @@ def make_gauss_window(length,std,Fs,make_plot=False):
 def plot_running_subset(trtime_list, vel_list, stim_time_mat, conversion=False):
     num_rows = 5
     num_cols = 6
-    step = len(vel_list)/30
+    step = int(len(vel_list)/30)
     time_vec_plot = trtime_list[0] - stim_time_mat[0, 0]
 
     if conversion:
@@ -655,7 +655,7 @@ def make_hdf_object(f, **kwargs):
         sig2.attrs["sampling_rate"] = 30000
 
     if jb_behavior:
-        key_iter = f.iterkeys() # iterates through keys (in order)
+        key_iter = iter(f.keys()) # iterates through keys (in order)
         for trial_ind in np.arange(stim.shape[0]):
             licks = f.create_dataset("/" + key_iter.next() + "/analog-signals/lick-timestamps", data=lick_list[trial_ind])
             licks.attrs["name"]  = 'lick-timestamps'
@@ -673,7 +673,7 @@ def make_hdf_object(f, **kwargs):
             lfp             = load_v73_mat_file(lfp_path, variable_name='lfp')
 
             # for each trial add LFPs for every channel on the electrode
-            key_iter = f.iterkeys() # iterates through keys (in order)
+            key_iter = iter(f.keys()) # iterates through keys (in order)
             for trial_ind in np.arange(stim.shape[0]):
                 lfps = f.create_dataset("/" + key_iter.next() + "/lfps" + "-" + e_name, data=lfp[trial_ind])
                 lfps.attrs["name"]          = 'LFPs'+'-'+e_name
@@ -694,7 +694,7 @@ def make_hdf_object(f, **kwargs):
             f.attrs["object_crossing"]  = frm_present
             f.attrs["led_signal"]       = led_present
 
-            key_iter = f.iterkeys() # iterates through keys (in order)
+            key_iter = iter(f.keys()) # iterates through keys (in order)
             for trial_ind in np.arange(stim.shape[0]):
 
                 key = key_iter.next() # gets key name
@@ -789,7 +789,7 @@ def make_hdf_object(f, **kwargs):
             labels, assigns, trials, spiketimes, _, _,\
                     _, ids, nunit, unit_type, trial_times = load_spike_file(spike_path)
 
-            key_iter = f.iterkeys() # iterates through keys (in order)
+            key_iter = iter(f.keys()) # iterates through keys (in order)
             for trial_ind in np.arange(stim.shape[0]):
 
                 key = key_iter.next() # gets key name

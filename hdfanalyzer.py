@@ -232,7 +232,8 @@ class NeuroAnalyzer(object):
 
     def __get_depths(self):
         """Get depths for all units"""
-        seg_iter = self.f.iterkeys()
+#        seg_iter = self.f.iterkeys() # python2 only
+        seg_iter = iter(self.f.keys()) # new python3 way
         for i, seg in enumerate(f):
             fid, shank, depth = list(), list(), list()
 
