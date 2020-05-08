@@ -13,6 +13,7 @@ import matplotlib as mpl
 import h5py
 from scipy.signal import butter, lfilter
 import statsmodels.stats.proportion
+import pickle
 
 #import 3rd party code found on github
 #import icsd
@@ -3152,93 +3153,90 @@ class NeuroAnalyzer(object):
                         plt.close()
 
 
-    def find_change_points(self, data, window_length=401, polyorder=2, deriv=2):
-        """
-        use savgol_filter to smooth and calculate derivative of input signal
+    ### Remove this?? ###
 
-        data: n x l array (samples x trials)
-
-        returns: delta_inds (int)  l x 2 onset index, offset index
-                delta(float array): change from onset to offset
-
-        """
-
-        l_trials = data.shape[1]
-        delta_inds  = np.zeros((l_trials, 2), dtype=int)
-        delta = np.zeros((l_trials, ))
-        for k in range(l_trials):
-            sg = sp.signal.savgol_filter(data[:, k], window_length=window_length,\
-                    polyorder=polyorder, deriv=deriv)
-            onset  = np.argmin(sg)
-            offset = np.argmax(sg)
-            delta[k]  = data[offset, k] - data[onset, k]
-
-            delta_inds[k, :] = np.asarray((onset, offset))
-
-        return delta_inds, delta
+##    def find_change_points(self, data, window_length=401, polyorder=2, deriv=2):
+##        """
+##        use savgol_filter to smooth and calculate derivative of input signal
+##
+##        data: n x l array (samples x trials)
+##
+##        returns: delta_inds (int)  l x 2 onset index, offset index
+##                delta(float array): change from onset to offset
+##
+##        """
+##
+##        l_trials = data.shape[1]
+##        delta_inds  = np.zeros((l_trials, 2), dtype=int)
+##        delta = np.zeros((l_trials, ))
+##        for k in range(l_trials):
+##            sg = sp.signal.savgol_filter(data[:, k], window_length=window_length,\
+##                    polyorder=polyorder, deriv=deriv)
+##            onset  = np.argmin(sg)
+##            offset = np.argmax(sg)
+##            delta[k]  = data[offset, k] - data[onset, k]
+##
+##            delta_inds[k, :] = np.asarray((onset, offset))
+##
+##        return delta_inds, delta
 
 
     def get_trial_delta(self, plot=True):
         """
-        Computes onset, offset, and amount change for setpoint
-
-        Returns: onset and offset time? Does not compute change in degrees?
-
-        TODO: Get change point working
-              compute change in set-point
-              add runspeed capability
-
+        Compute changes in set-point and runspeed
+        Input: change points calculated with py3 library
         """
-        cond2compute = range(len(self.stim_ids))
-        deltas = [list() for x in cond2compute]
 
-        for k, cond in enumerate(cond2compute):
-            data = self.wt[cond][:, 1, :]
-            delta_inds, delta = find_change_points(self, data, window_length=401, polyorder=2, deriv=2)
-            deltas[k] = np.asarray((self.wtt[delta_inds[:,0]], self.wtt[delta_inds[:, 1]], delta)).T
-
-        mean_onset = [np.mean(x[:, 0]) for x in deltas]
-        sem_onset  = [sp.stats.sem(x[:, 0]) for x in deltas]
-
-
-
-        mean_offset = [np.mean(x[:, 1]) for x in deltas]
-        sem_offset  = [sp.stats.sem(x[:, 1]) for x in deltas]
-
-        num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions)
-        bins = np.arange(-1.5, 1.5, 0.05)
-        all_onset  = [np.zeros((len(bins)-1, ), dtype=int) for x in range(num_manipulations)]
-        all_offset = [np.zeros((len(bins)-1, ), dtype=int) for x in range(num_manipulations)]
-
-        for manip in range(num_manipulations):
-            for cond in range(self.control_pos):
-                cond_ind = cond + (manip *self.control_pos)
-                # onset
-                counts_onset = np.histogram(deltas[cond_ind][:, 0], bins=bins)[0]
-                all_onset[manip-1] += counts_onset
-
-                # offset
-                counts_offset = np.histogram(deltas[cond_ind][:, 1], bins=bins)[0]
-                all_offset[manip-1] += counts_offset
-
-        if plot:
-            fig, ax = plt.subplots(1, 4)
-            self.plot_mean_err(mean_onset, sem_onset, axis=ax[0])
-            self.plot_mean_err(mean_offset, sem_offset, axis=ax[1])
-
-
-            ax[2].bar(bins[:-1], all_onset[0]/float(sum(all_onset[0])), width=0.05, color='tab:blue', alpha=0.35)
-            ax[2].bar(bins[:-1], all_onset[1]/float(sum(all_onset[1])), width=0.05, color='tab:red', alpha=0.35)
-
-            ax[3].bar(bins[:-1], all_offset[0]/float(sum(all_offset[0])), width=0.05, color='tab:blue', alpha=0.35)
-            ax[3].bar(bins[:-1], all_offset[1]/float(sum(all_offset[1])), width=0.05, color='tab:red', alpha=0.35)
-
-            del ax
-
-        means_and_errs = [(mean_onset, sem_onset), (mean_offset, sem_offset) ]
-
-        return deltas, means_and_errs
-
+#        cond2compute = range(len(self.stim_ids))
+#        deltas = [list() for x in cond2compute]
+#
+#        for k, cond in enumerate(cond2compute):
+#            data = self.wt[cond][:, 1, :]
+#            delta_inds, delta = find_change_points(self, data, window_length=401, polyorder=2, deriv=2)
+#            deltas[k] = np.asarray((self.wtt[delta_inds[:,0]], self.wtt[delta_inds[:, 1]], delta)).T
+#
+#        mean_onset = [np.mean(x[:, 0]) for x in deltas]
+#        sem_onset  = [sp.stats.sem(x[:, 0]) for x in deltas]
+#
+#
+#
+#        mean_offset = [np.mean(x[:, 1]) for x in deltas]
+#        sem_offset  = [sp.stats.sem(x[:, 1]) for x in deltas]
+#
+#        num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions)
+#        bins = np.arange(-1.5, 1.5, 0.05)
+#        all_onset  = [np.zeros((len(bins)-1, ), dtype=int) for x in range(num_manipulations)]
+#        all_offset = [np.zeros((len(bins)-1, ), dtype=int) for x in range(num_manipulations)]
+#
+#        for manip in range(num_manipulations):
+#            for cond in range(self.control_pos):
+#                cond_ind = cond + (manip *self.control_pos)
+#                # onset
+#                counts_onset = np.histogram(deltas[cond_ind][:, 0], bins=bins)[0]
+#                all_onset[manip-1] += counts_onset
+#
+#                # offset
+#                counts_offset = np.histogram(deltas[cond_ind][:, 1], bins=bins)[0]
+#                all_offset[manip-1] += counts_offset
+#
+#        if plot:
+#            fig, ax = plt.subplots(1, 4)
+#            self.plot_mean_err(mean_onset, sem_onset, axis=ax[0])
+#            self.plot_mean_err(mean_offset, sem_offset, axis=ax[1])
+#
+#
+#            ax[2].bar(bins[:-1], all_onset[0]/float(sum(all_onset[0])), width=0.05, color='tab:blue', alpha=0.35)
+#            ax[2].bar(bins[:-1], all_onset[1]/float(sum(all_onset[1])), width=0.05, color='tab:red', alpha=0.35)
+#
+#            ax[3].bar(bins[:-1], all_offset[0]/float(sum(all_offset[0])), width=0.05, color='tab:blue', alpha=0.35)
+#            ax[3].bar(bins[:-1], all_offset[1]/float(sum(all_offset[1])), width=0.05, color='tab:red', alpha=0.35)
+#
+#            del ax
+#
+#        means_and_errs = [(mean_onset, sem_onset), (mean_offset, sem_offset) ]
+#
+#        return deltas, means_and_errs
+#
 
 
 
@@ -3738,85 +3736,13 @@ if __name__ == "__main__":
 
 
 
-#    ## for set-point
-#    stp = neuro.wt[7][:, 1, 0]
-##    msp, _, _ = neuro.get_wt_kinematic(t_window=[-2, 2], correct=None)
-##    stp = msp[7+9]
-#    sg = sp.signal.savgol_filter(stp, window_length=401, polyorder=2, deriv=2)
-#
-#
-#
-#    ## for running
-#    #stp = neuro.run[0][:, 3]
-#    #sg = sp.signal.savgol_filter(stp, window_length=12001, polyorder=2, deriv=2)
-#    onset = np.argmin(sg)
-#    offset = np.argmax(sg)
-#
-#    fig, ax = plt.subplots()
-#    ax.plot(neuro.wtt, stp, color='tab:blue')
-#    ax.tick_params(axis='y', labelcolor='tab:blue')
-#    ymin, ymax = ax.get_ylim()
-#    ax.vlines(neuro.wtt[onset], ymin, ymax, linestyles='dashed')
-#    ax.vlines(neuro.wtt[offset], ymin, ymax, linestyles='dashed')
-#    ax.set_ylabel('set-point (deg)')
-#    ax.set_xlabel('time (s)')
-#    ax.set_title('determining single trial set-point\n retraction onset & offset times')
-#
-#    ax2 = ax.twinx()
-#    ax2.plot(neuro.wtt, sg, color='tab:red')
-#    ax2.tick_params(axis='y', labelcolor='tab:red')
-#    ax2.set_ylabel('savgol-filter second derivative')
-#    fig.tight_layout()
-#
-#def find_change_points(self, data, window_length=401, polyorder=2, deriv=2):
-#    """
-#    use savgol_filter to smooth and calculate derivative of input signal
-#
-#    data: n x l array (samples x trials)
-#
-#    returns: delta_inds (int)  l x 2 onset index, offset index
-#             delta(float array): change from onset to offset
-#
-#    """
-#
-#    l_trials = data.shape[1]
-#    delta_inds  = np.zeros((l_trials, 2), dtype=int)
-#    delta = np.zeros((l_trials, ))
-#    for k in range(l_trials):
-#        sg = sp.signal.savgol_filter(data[:, k], window_length=window_length,\
-#                polyorder=polyorder, deriv=deriv)
-#        onset  = np.argmin(sg)
-#        offset = np.argmax(sg)
-#        delta[k]  = data[offset, k] - data[onset, k]
-#
-#        delta_inds[k, :] = np.asarray((onset, offset))
-#
-#    return delta_inds, delta
-#
-#
-#def plot_trial_delta(self, cond2compute=[0]):
-#    """
-#    blah
-#
-#    ADD SELF ONCE THIS WORKS
-#
-#    """
-#
-#    deltas = [list() for x in range(len(cond2compute))]
-#
-#    for k, cond in enumerate(cond2compute):
-#        data = self.wt[cond][:, 1, :]
-#        delta_inds, delta = find_change_points(self, data, window_length=401, polyorder=2, deriv=2)
-#        deltas[k] = np.asarray((self.wtt[delta_inds[:,0]], self.wtt[delta_inds[:, 1]], delta)).T
-#
-#    return deltas
-#
-#
-#
+#def run_change_point(self):
+#    """ save/pickle wt data and run py3 change point detector script """
 
-
-
-
+# Python2 save pickle
+    # pickle.dump(variable, open('name.p', 'wb')
+# Python 2 load pickle
+    # pickle.load( open('name.p', 'rb') ) # for python3
 
 
 
