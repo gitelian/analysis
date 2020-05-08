@@ -20,7 +20,7 @@ def load_spike_file(path):
     """
     Loads spikes file from specified path
     """
-    mat  = h5py.File(path)
+    mat  = h5py.File(path, 'r')
     spks = mat['spikes']
     assigns     = np.ravel(np.asarray(spks['assigns']))        # ndarray shape(n) n: num of spike times for all units
     trials      = np.ravel(np.asarray(spks['trials']))         # ndarray shape(n) n: num of spike times for all units
@@ -55,7 +55,7 @@ def load_v73_mat_file(file_path, variable_name='spike_measures'):
 
     print('\n----- load_v73_mat_file -----')
     print('Loading data from: ' + file_path + '\nvariable: ' + variable_name)
-    mat = h5py.File(file_path)
+    mat = h5py.File(file_path, 'r')
 
     if variable_name == 'run_cell':
         try:
@@ -132,7 +132,7 @@ def load_v73_wtr_file(file_path, variable_name='wt_cell'):
 
     print('\n----- load_v73_wtr_file -----')
     print('Loading data from: ' + file_path + '\nvariable: ' + variable_name)
-    mat = h5py.File(file_path)
+    mat = h5py.File(file_path, 'r')
 
     if variable_name == 'wt_cell':
         data = list()
@@ -213,14 +213,14 @@ def calculate_runspeed(run_list,Fs=30000.0):
     return vel_list, trtime_list
 
 def calculate_runspeed_derivative(x_t,gauss_window,window_len,down_samp_fs,order):
-	# calculate slope of last 500 samples (last 83ms), use it to extrapolate x(t) signal. assumes mouse runs at
-	# that constant velocity. Prevents convolution from producing a huge drop in velocity due to repeating last values
-	xx_t = np.append(x_t,np.linspace(x_t[-1],(x_t[-1]-x_t[-500])/500.0*window_len+ x_t[-1],window_len))
-	xx_t = np.append(np.linspace(x_t[0] - (x_t[500]-x_t[0])/500.0*window_len, x_t[1], window_len), xx_t)
-	dx_dt_gauss_window = np.append(0,np.diff(gauss_window))/(1.0/down_samp_fs)
-	dx_dt = np.convolve(xx_t,dx_dt_gauss_window,mode='same')
-	dx_dt = dx_dt[window_len:-window_len]
-        return order,dx_dt
+    # calculate slope of last 500 samples (last 83ms), use it to extrapolate x(t) signal. assumes mouse runs at
+    # that constant velocity. Prevents convolution from producing a huge drop in velocity due to repeating last values
+    xx_t = np.append(x_t,np.linspace(x_t[-1],(x_t[-1]-x_t[-500])/500.0*window_len+ x_t[-1],window_len))
+    xx_t = np.append(np.linspace(x_t[0] - (x_t[500]-x_t[0])/500.0*window_len, x_t[1], window_len), xx_t)
+    dx_dt_gauss_window = np.append(0,np.diff(gauss_window))/(1.0/down_samp_fs)
+    dx_dt = np.convolve(xx_t,dx_dt_gauss_window,mode='same')
+    dx_dt = dx_dt[window_len:-window_len]
+    return order, dx_dt
 
 def fwhm(x,y):
     '''
@@ -292,8 +292,8 @@ def make_gauss_window(length,std,Fs,make_plot=False):
         fig = plt.subplots()
         plt.plot(np.arange(length)/Fs,window)
 
-	FWHM = fwhm(np.arange(length)/Fs,window)
-	print('Full width at half max for Gauss Kernel is ' + str(FWHM*1000) + ' ms')
+        FWHM = fwhm(np.arange(length)/Fs,window)
+        print('Full width at half max for Gauss Kernel is ' + str(FWHM*1000) + ' ms')
 
     return window
 
@@ -549,9 +549,9 @@ def make_hdf_object(f, **kwargs):
         elif usr_input == 'custom':
             try:
                 rparam = list()
-                rparam.append(float(raw_input('mean_thresh: ')))
-                rparam.append(float(raw_input('sigma_thresh: ')))
-                rparam.append(float(raw_input('low_thresh: ')))
+                rparam.append(float(input('mean_thresh: ')))
+                rparam.append(float(input('sigma_thresh: ')))
+                rparam.append(float(input('low_thresh: ')))
                 valid_input = True
             except:
                 warn('\nInvalid response, try again!')
@@ -873,7 +873,7 @@ if __name__ == "__main__":
     run_param_dict = {\
             'fast':   [250, 150, 135],\
             'medium': [150, 200, 100],\
-            'slow':   [100, 150, 050]}
+            'slow':   [100, 150,  50]}
 
     data_dir = '/media/greg/data/neuro/'
 
