@@ -42,20 +42,61 @@ if __name__ == "__main__":
     wt  = p[0]
     wtt = p[1]
 
-#    # good trial example
-#    data = wt[0][:, 0, 0]
-#
-#    # Pelt search method
-#    model = "rbf"
-#    algo = rpt.Pelt(model=model).fit(data)
-#    result = algo.predict(pen=5)
-#    rpt.display(data, result)
+    # good trial example
+    data = wt[11][:, 0, 0]
+
+    # Pelt search method
+    model = "rbf"
+    algo = rpt.Pelt(model=model).fit(data)
+    result = algo.predict(pen=10)
+    rpt.display(data, result)
+
+    # Binary segmentation search method
+    model = "l2"
+    algo = rpt.Binseg(model=model).fit(data)
+    my_bkps = algo.predict(n_bkps=3, pen=10)
+    rpt.display(data, my_bkps)
+
+    # Window method (width=285 SO FAR BEST WITH M1LIGHT DATA)
+    model= "l2"
+    #algo = rpt.Window(width=285, model=model).fit(data)
+    algo = rpt.Window(width=100, model=model).fit(data)
+    my_bkps = algo.predict(n_bkps=2)
+    rpt.display(data, my_bkps)
+
+    # Dynamic programming
+    # so far the best for both nolight and m1light
+    model = "l2"
+    algo =  rpt.Dynp(model=model, min_size=100, jump=5).fit(data)
+    my_bkps = algo.predict(n_bkps=2)
+    rpt.display(data, my_bkps)
+
+
+    ### run model to predict breakpoints on all data ###
+    bkps = [list() for x in range(18)]
+
+    for condi, trial_data in enumerate(wt):
+        num_trials = trial_data.shape[2]
+        temp_bkps = np.zeros((num_trials, 2))
+
+        for k in range(num_trials):
+            model = "l2"
+            algo =  rpt.Dynp(model=model, min_size=100, jump=5).fit(trial_data[:, 0, k])
+            my_bkps = algo.predict(n_bkps=2)
+
+            temp_bkps[k, :] = np.asarray(my_bkps[0:2])
+
+        bkps[condi] = temp_bkps
+        del temp_bkps
+
+
 
 
 
 ###    ### manually mark change points to get ground truth ###
 ###    ### manually mark change points to get ground truth ###
 ###
+###    ground_truth = [list() for x in range(18)]
 ###    fig, ax = plt.subplots(1,1, figsize=[18.4, 6.47])
 ###
 ###    #for condi, trial_data in zip(range(8,18), wt_temp):
@@ -85,6 +126,13 @@ if __name__ == "__main__":
     ### make summary plots of ground truth ###
     ### make summary plots of ground truth ###
     gt = pickle.load(open(temp_dir + 'fid2147_ground_truth.p', 'rb'))
+
+    ### convert indices to timestamps
+    temp = [list() for x in range(18)]
+    for k in range(18):
+        temp[k] = np.asarray([wtt[bkps[k][:, 0].astype(int)], wtt[bkps[k][:, 1].astype(int)]]).T
+
+    gt = temp
 
 
     cmap_nolight = plt.cm.coolwarm(np.linspace(0, 1, 8))
@@ -151,11 +199,22 @@ if __name__ == "__main__":
 
 
 
+    ### correlations ###
+    fig, ax = plt.subplots(1, 2)
+    ax[0].scatter(all_nolight[:, 0], rp_nolight[:, 0])
+    ax[0].axis('equal')
+    ax[0].set(xlim=(-1, 1), ylim=(-1, 1))
+    ax[0].set_aspect('equal', 'box')
+
+    ax[1].scatter(all_nolight[:, 1], rp_nolight[:, 1])
+    ax[1].axis('equal')
+    ax[1].set(xlim=(-1, 1), ylim=(-1, 1))
+    ax[1].set_aspect('equal', 'box')
 
 
 
-
-
+#    sns.jointplot(x=all_nolight[:, 0], y=rp_nolight[:, 0])
+#    sns.regplot(x=all_nolight[:, 0], y=rp_nolight[:, 0], fit_reg=True)
 
 
 
