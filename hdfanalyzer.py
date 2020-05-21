@@ -487,9 +487,10 @@ class NeuroAnalyzer(object):
                 stop_lick_trial = None
                 print('\nMouse did not lick at all!\nIncluding all trials for analysis')
         else:
-            print('\n\n#!#!#! hack used to ignore no to very low lick experiments #!#!#!\n\n')
+            print('\n\n#!#!#! hack used to ignore no to very low lick experiments #!#!#!')
+            print('#!#!#! hack used to ignore no to very low lick experiments #!#!#!')
             stop_lick_trial = None
-            print('\nMouse did not lick at all!\nIncluding all trials for analysis')
+            print('Mouse did not lick at all!\nIncluding all trials for analysis\n\n')
 
         jb_engaged = list()
         for k, seg in enumerate(self.f):
@@ -1189,7 +1190,8 @@ class NeuroAnalyzer(object):
             print('using whisking to find good trials')
             trials2analyze = self.get_trials2analyze(kind='wsk_boolean')
 
-        else:
+        elif kind == 'run_boolean':
+            print('using running to find good trials')
             trials2analyze = self.get_trials2analyze(kind=kind, engaged=engaged)
 
         num_trials = self.num_good_trials
@@ -3735,9 +3737,11 @@ if __name__ == "__main__":
 
 
 
+# change neuro to self
 
-#def run_change_point(self):
-#    """ save/pickle wt data and run py3 change point detector script """
+def run_change_point(neuro):
+    """ save/pickle wt data and run py3 change point detector script """
+    pickle.dump([neuro.wt, neuro.wtt], open("temp/fid2147_wt_data.p", "wb"))
 
 # Python2 save pickle
     # pickle.dump(variable, open('name.p', 'wb')
@@ -3756,8 +3760,10 @@ if __name__ == "__main__":
 
 
 
-
-
+# Note about specifiying whether to analyze engaged or disengaged trials
+# set_engaged_disengaged_trials, manually specify which trials the mouse was
+# engaged/disengaged. get_trials2analyze will look for these if engaged is set
+# to True/False.
 
 
 
