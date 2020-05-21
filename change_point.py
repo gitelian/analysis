@@ -32,18 +32,32 @@ if __name__ == "__main__":
     # output: list of nx2 matrices. row corresponds to trial and col1 and col2
     # correspond to the time of the first and second changepoint
 
+    # fid2144 disengaged...very difficult to ID changepoints...need higher
+    # running threshold
+
     # how to grap inputs
     #sys.argv[1]
 
     temp_dir = '/home/greg/code/analysis/temp/'
 
-    # load data
-    p = pickle.load( open(temp_dir + 'fid2147_wt_data.p', 'rb'), encoding='latin1')
+    ## load wt data
+    p = pickle.load( open(temp_dir + 'fid2144_wt_data_disengaged.p', 'rb'), encoding='latin1')
+    p = pickle.load( open(temp_dir + 'fid2158_gt32ce_engaged.p', 'rb'))#, encoding='latin1')
     wt  = p[0]
     wtt = p[1]
+    rn  = p[2]
+    rt = p[3]
 
-    # good trial example
-    data = wt[11][:, 0, 0]
+    ## load ground truth data
+    gt = pickle.load( open(temp_dir + 'fid2147_ground_truth.p', 'rb'), encoding='latin1')
+
+
+##### scratch space for ruptures change point detection #####
+##### scratch space for ruptures change point detection #####
+
+    ### single trial
+    ### good single trial example
+    data = wt[0][:, 0, 0]
 
     # Pelt search method
     model = "rbf"
@@ -71,8 +85,25 @@ if __name__ == "__main__":
     my_bkps = algo.predict(n_bkps=2)
     rpt.display(data, my_bkps)
 
+### comparison metrics need the last index to match, it must equal the number of samples in the segment
 
-    ### run model to predict breakpoints on all data ###
+    ### helper function for comparing automated to ground truth
+    # take ground truth change point, convert to indices, and append last ind
+    # use this to compare to automated method with precision_recal
+    gt_temp_trial = gt[0][0,:]
+    gt_bkps = [np.argmin(np.abs(x - wtt)) for x in gt_temp_trial]
+    gt_bkps.append(len(wtt))
+
+#    from ruptures.metrics import hausdorff
+#    hausdorff returns the worst prediction error (max(delta_1, delta_2...))
+#    from ruptures.metrics import randindex
+#    randindex returns a value from 0 to 1. where 0 is nothing alike and 1 is
+#    exactly the same segmentation (lowest I could get it was around 0.45)
+
+
+### All Data ###
+### run model to predict breakpoints on all data ###
+### run model to predict breakpoints on all data ###
     bkps = [list() for x in range(18)]
 
     for condi, trial_data in enumerate(wt):
@@ -91,40 +122,70 @@ if __name__ == "__main__":
 
 
 
+##### whisking only #####
+### manually mark change points to get ground truth ###
+### manually mark change points to get ground truth ###
+
+    ground_truth = [list() for x in range(18)]
+    fig, ax = plt.subplots(1,1, figsize=[18.4, 6.47])
+
+    #for condi, trial_data in zip(range(8,18), wt_temp):
+    for condi, trial_data in enumerate(wt):
+        num_trials = trial_data.shape[2]
+        temp_data = np.zeros((num_trials, 2))
+        for k in range(num_trials):
+            ax.set_title('condition {}, trial {}'.format(condi, k))
+            ax.plot(wtt, trial_data[:, 0, k])
+            ax.set_ylim(70, 150)
+            fig.canvas.draw_idle()
+            pts = fig.ginput(n=2, timeout=0, show_clicks=True, mouse_add=1, mouse_pop=3, mouse_stop=2)
+            ax.clear()
+
+            temp_data[k, :] = np.asarray([pts[0][0], pts[1][0]])
+
+        ground_truth[condi] = temp_data
+        del temp_data
+        # save after each iteration
+        pickle.dump(ground_truth, open(temp_dir + 'fid2144_ground_truth.p', 'wb'), 2)
 
 
-###    ### manually mark change points to get ground truth ###
-###    ### manually mark change points to get ground truth ###
-###
-###    ground_truth = [list() for x in range(18)]
-###    fig, ax = plt.subplots(1,1, figsize=[18.4, 6.47])
-###
-###    #for condi, trial_data in zip(range(8,18), wt_temp):
-###    for condi, trial_data in enumerate(wt):
-###        num_trials = trial_data.shape[2]
-###        temp_data = np.zeros((num_trials, 2))
-###        for k in range(num_trials):
-###            ax.set_title('condition {}, trial {}'.format(condi, k))
-###            ax.plot(wtt, trial_data[:, 0, k])
-###            ax.set_ylim(70, 150)
-###            fig.canvas.draw_idle()
-###            pts = fig.ginput(n=2, timeout=0, show_clicks=True, mouse_add=1, mouse_pop=3, mouse_stop=2)
-###            ax.clear()
-###
-###            temp_data[k, :] = np.asarray([pts[0][0], pts[1][0]])
-###
-###        ground_truth[condi] = temp_data
-###        del temp_data
-###        # save after each iteration
-###        pickle.dump(ground_truth, open(temp_dir + 'fid2147_ground_truth.p', 'wb'), 2)
+##### whisking and running #####
+### manually mark change points to get ground truth ###
+### manually mark change points to get ground truth ###
+
+    ground_truth = [list() for x in range(18)]
+    fig, ax = plt.subplots(2,1, figsize=[18.4, 12.47])
+
+    #for condi, trial_data in zip(range(8,18), wt_temp):
+    for condi in range(18):
+        num_trials = wt[condi].shape[2]
+        temp_data = np.zeros((num_trials, 4))
+        for k in range(num_trials):
+
+            # whisking
+            ax[0].set_title('condition {}, trial {}'.format(condi, k))
+            ax[0].plot(wtt, wt[condi][:, 0, k])
+            ax[0].set_ylim(70, 150)
+
+            # running
+            ax[1].plot(rtt, rn[condi][:, k])
+            ax[1].set_ylim(0, 100)
+
+            fig.canvas.draw_idle()
+            pts = fig.ginput(n=4, timeout=0, show_clicks=True, mouse_add=1, mouse_pop=3, mouse_stop=2)
+            ax[0].clear()
+            ax[1].clear()
+
+            temp_data[k, :] = np.asarray([pts[0][0], pts[1][0], pts[2][0], pts[3][0]])
+
+        ground_truth[condi] = temp_data
+        del temp_data
+        # save after each iteration
+        pickle.dump(ground_truth, open(temp_dir + 'fid2144_ground_truth.p', 'wb'), 2)
 
 
-
-
-
-
-    ### make summary plots of ground truth ###
-    ### make summary plots of ground truth ###
+### make summary plots of ground truth OR automated change points ###
+### make summary plots of ground truth OR automated change points ###
     gt = pickle.load(open(temp_dir + 'fid2147_ground_truth.p', 'rb'))
 
     ### convert indices to timestamps
@@ -198,8 +259,9 @@ if __name__ == "__main__":
 
 
 
+### correlations ###
+### correlations ###
 
-    ### correlations ###
     fig, ax = plt.subplots(1, 2)
     ax[0].scatter(all_nolight[:, 0], rp_nolight[:, 0])
     ax[0].axis('equal')
