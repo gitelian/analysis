@@ -111,8 +111,59 @@ neuro.plot_lick_rate(t_start=-0.5, t_stop=1.5, axis=ax[4][1])
 
 
 
-## for loading in other experiments if necessary
-#get_ipython().magic(u"run hdfanalyzer.py {}".format(fid_name))
+
+
+
+###############################################################################
+###############################################################################
+############### original mice that performed well on task #####################
+############## notes about good experiment FIDs and original plots ############
+###############################################################################
+###############################################################################
+
+
+# 8-bar-position experiments
+# good neural data and good whisker tracking
+# fids = ['1336', '1338', '1339', '1340', '1343', '1345']
+
+
+### JB_behavior Notes
+
+####### GT015_LT #####
+## # GT015_LT vM1 silencing with GOOD behavior but NO WHISKER TRACKING
+##
+## # THERE was tracking recorded...but I couldn't get it to work...maybe there is
+## # something I can do now to recover it??
+## # fids = ['1855', '1874', '1882', '1891', '1892']
+## #experiments that may be good: 1861
+##
+## ##### Gt015_LT vS1 silencing + tracking #####
+## # fids = ['1895', '1898', '1904']
+##
+## ##### GT017_NT vM1 silencing + tracking #####
+## # fids = ['1911', '1912', '1913', '1923', '1924', '1929']
+## # experiments that may be good: [1896, 1916, [1919 and 1920 are of same day...dropped frames]
+
+
+### original plots ####
+
+#### whisker angle and setpoint plots ####
+## vM1 silencing + whisking
+## FID1911 vM1 silencing, FID1895 vS1 silencing
+# control + NoLight
+# vM1 light
+## FID1911 vM1 silencing
+# trial index in control position (no contact) used to make figures
+# 3, 9 huge decrease with STEADY quick running, (5,7,8, set-point decreases while runspeed increases!!!)
+
+# vS1 light
+## FID1895 and 1898 with vS1 silencing
+# trial index in control position (no contact) used to make figures
+# (5, 2), (9, 9) (setpoint light on, vs light off) very good examples
+# fid1895(0, 0), fid1898(0, 0), fid1898(3 , 2) (vS1 silencing plots)
+
+#### vS1 silencing psychometric curve ####
+#### FID1895 ####
 
 
 
