@@ -6,6 +6,11 @@ import matplotlib as mpl
 from matplotlib.backends.backend_pdf import PdfPages
 import scipy.io as sio
 
+
+### !!! gode code for making spikes figures !!! ###
+### !!! gode code for making spikes figures !!! ###
+### should be looked over and maybe cleaned up ###
+
 # change default figure type to PDF
 mpl.rcParams['savefig.format'] = 'pdf'
 plt.rc('font',family='Arial')
