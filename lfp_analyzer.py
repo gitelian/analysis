@@ -6,6 +6,11 @@ from matplotlib.backends.backend_pdf import PdfPages
 import icsd
 import quantities as pq
 
+### !!! proper lfp analysis !!! ###
+### !!! proper lfp analysis !!! ###
+### uses chronux in MATLAB to do Julia's recommended LFP analysis ###
+
+
 # import and start MATLAB
 import matlab.engine
 eng = matlab.engine.start_matlab()
