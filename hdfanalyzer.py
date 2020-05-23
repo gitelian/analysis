@@ -2816,7 +2816,7 @@ class NeuroAnalyzer(object):
         ### is the slope of the set-point after contact different?
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
         stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
-        mean_kin, sem_kin, _ = self.get_wt_kinematic(t_window=t_window, kind=kind, correct=correct)
+        mean_kin, sem_kin, _, _ = self.get_wt_kinematic(t_window=t_window, kind=kind, correct=correct)
 
         # plot
         num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions
@@ -2968,6 +2968,7 @@ class NeuroAnalyzer(object):
                 ax[k].plot(t_window, [0,0],'--k')
 
     def get_wt_kinematic(self, kind='setpoint', t_window=[-0.5, 0.5], cond=[0, 1, 2], correct=True):
+        #TODO COND and T_WINDOW not used!!! it calculates all conditions for entire trial
         """
         get the mean and sem of either setpoint or amplitude
 
@@ -3006,14 +3007,17 @@ class NeuroAnalyzer(object):
                 if  correct and self.trial_choice[cond][trial]:
                     # get whisk kinematic values
                     whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
+                    num_trials[cond] += 1
                 # if mouse made wrong choice
                 elif not correct and not self.trial_choice[cond][trial]:
                     # get whisk kinematic values
                     whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
+                    num_trials[cond] += 1
                 # all trials correct and incorrect
                 elif correct == None:
                     # get whisk kinematic values
                     whisk_kinematic[cond].append(self.wt[cond][:, whisk_ind, trial])
+                    num_trials[cond] += 1
 
         # convert to arrays
         for index in range(len(whisk_kinematic)):
@@ -3022,7 +3026,9 @@ class NeuroAnalyzer(object):
             sem_kin[index]    = sp.stats.sem(whisk_kinematic[index], axis=0)
             print('cond {} has {} trials'.format(index, len(whisk_kinematic[index])))
 
-        return mean_kin, sem_kin, num_trials
+        t_inds = np.asarray([start_ind, stop_ind])
+
+        return mean_kin, sem_kin, num_trials, t_inds
 
     def plot_wt_freq(self, t_window=[-0.5, 0.5], cond2plot=[0, 1, 2], all_correct_trials=False):
 

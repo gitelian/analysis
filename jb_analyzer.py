@@ -25,6 +25,9 @@ neuro.set_engaged_disengaged_trials(e_ind=[[1, 290]], d_ind=[[440, 670],[800, 10
 
 neuro.rates(kind='run_boolean', engaged=None)
 
+##############################################################################
+                          ##### Figure #####
+##############################################################################
 ##### make summary figure for entire experiment ###
 ##### make summary figure for entire experiment ###
 fig, ax = plt.subplots(5, 2, figsize=(10, 14))
@@ -114,6 +117,8 @@ neuro.plot_lick_rate(t_start=-0.5, t_stop=1.5, axis=ax[4][1])
 
 
 ##############################################################################
+                          ##### Figure #####
+##############################################################################
 ## plot ver nice single trial example (whisker movement and runspeed) with
 ## light on & object idicator bars
 
@@ -132,8 +137,44 @@ ax.set_xlabel('time (s)')
 ax.set_title('Example GO trial ({})'.format(neuro.fid))
 
 
+##############################################################################
+                          ##### Figure #####
+##############################################################################
+## 4-panel, mean set-point vs time
+#  correct vs incorrect, light off vs light on, all conditions
+
+neuro.rates(engaged=True)
+sp_mean, sp_err, _, t_inds = neuro.get_wt_kinematic(t_window=[-1.5, 2.0], cond=range(9), correct=True)
+#sp_mean, sp_err, _, t_inds = neuro.get_wt_kinematic(t_window=[-1.5, 2.0], cond=range(9), correct=False)
+
+
+fig, ax = plt.subplots(2, 2)
+sp_mean, sp_err, _, t_inds = neuro.get_wt_kinematic(t_window=[-1.5, 2.0], cond=range(9), correct=True)
+for k in range(9):
+    neuro.plot_cont_mean_err(neuro.wtt, sp_mean[k], sp_err[k], axis=ax[0][0])
+
+
+
+
+
+
+
+
 
 ##############################################################################
+##############################################################################
+##### code that works but needs cleaning up or a quick review to make
+##### sure it does what it is supposed to do
+##############################################################################
+##############################################################################
+
+
+
+##############################################################################
+                          ##### Figure #####
+##############################################################################
+
+                    ##### Review and revise this #####
                     ##### Review and revise this #####
 
 ##### compute setpoint and runspeed correlation #####
@@ -246,7 +287,10 @@ ax.set_ylim(-1, 1)
 
 
 ##############################################################################
-#### working code ####
+                          ##### Figure #####
+##############################################################################
+
+#### OLD working code for ORIGINAL behaving mice ####
 ##### make psychometric curves with errors for each mouse
 
 ### GT015_LT vM1 silencing
