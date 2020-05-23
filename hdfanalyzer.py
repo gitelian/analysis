@@ -380,6 +380,7 @@ class NeuroAnalyzer(object):
 
     def __classify_behavior(self):
         print('\n-----classify_behavior----')
+        print('assumes control position is position 9')
         behavior_ids = list()
         licks_all    = list()
         correct_list = list() # if mouse correctly IDs GO or NOGO mark as True
@@ -422,17 +423,17 @@ class NeuroAnalyzer(object):
                 go = True
 
                 if lick:
-                    correct_list.append(True)
+                    correct_list.append(1)
                 else:
-                    correct_list.append(False)
+                    correct_list.append(0)
 
             elif trial_type >= 5 and trial_type < 9:
                 go = False
 
                 if not lick:
-                    correct_list.append(True)
+                    correct_list.append(1)
                 else:
-                    correct_list.append(False)
+                    correct_list.append(0)
 
             elif trial_type == 9:
                 # control position
@@ -1229,7 +1230,7 @@ class NeuroAnalyzer(object):
                     licks.append([list() for x in range(trials_ran)])
                     lick_bool.append(np.zeros((trials_ran,)))
                     bids.append([list() for x in range(trials_ran)])
-                    trial_choice.append([list() for x in range(trials_ran)])
+                    trial_choice.append(np.zeros((trials_ran,)))
 
 
         ### main loops (stimulus type (outer), all trials (inner))
@@ -1333,6 +1334,8 @@ class NeuroAnalyzer(object):
         if self.jb_behavior:
             self.licks = licks
             self.lick_bool = lick_bool
+            print('\n\ntrial_choice is equivalen to choice made: 1= correct, 0= incorrect\
+                    \ncontrol positions are always "True" since there is no correct/incorrect choice')
             self.binds = [np.asarray(x) for x in bids]
             self.trial_choice = trial_choice
 
@@ -2793,9 +2796,9 @@ class NeuroAnalyzer(object):
 
         return performance
 
-###########################
+################################################################################
 #### whisker analysis for jb_behavior experiments ####
-###########################
+################################################################################
 
 ### ONLY ANALYZE TRIALS WHERE THE MOUSE GOT IT CORRECT ??? ###
 
