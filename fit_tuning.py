@@ -5,6 +5,12 @@ from lmfit import Model
 from scipy.interpolate import UnivariateSpline
 
 
+##### !!! used to compare my selectivity metric to full-width half-max !!! ###
+##### !!! used to compare my selectivity metric to full-width half-max !!! ###
+
+##### good code, keep for possible inclusion in paper methods section #####
+
+
 def gaussian(x, amp, cen, wid):
     """1-d gaussian: gaussian(x, amp, cen, wid)"""
     return (amp / (sqrt(2*pi) * wid)) * exp(-(x-cen)**2 / (2*wid**2))
