@@ -2816,7 +2816,7 @@ class NeuroAnalyzer(object):
         ### is the slope of the set-point after contact different?
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
         stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
-        mean_kin, sem_kin, _, _ = self.get_wt_kinematic(kind=kind, correct=correct)
+        mean_kin, sem_kin, _ = self.get_wt_kinematic(kind=kind, correct=correct)
 
         # plot
         num_manipulations = int(len(self.stim_ids)/self.control_pos) # no light, light 1 region, light 2 regions
@@ -2886,7 +2886,7 @@ class NeuroAnalyzer(object):
         start_ind = np.argmin(np.abs(self.run_t - t_window[0]))
         stop_ind  = np.argmin(np.abs(self.run_t - t_window[1]))
 
-        # get all the setpoints
+        # get all the runspeed data from all conditions
         run = [list() for x in range(len(self.stim_ids))]
         mean_run = [list() for x in range(len(self.stim_ids))]
         sem_run = [list() for x in range(len(self.stim_ids))]
@@ -2967,10 +2967,9 @@ class NeuroAnalyzer(object):
 
                 ax[k].plot(t_window, [0,0],'--k')
 
-    def get_wt_kinematic(self, kind='setpoint', cond=[0, 1, 2], correct=True):
-        #TODO COND not used!!! it calculates all conditions for entire trial
+    def get_wt_kinematic(self, kind='setpoint', correct=True):
         """
-        get the mean and sem of either setpoint or amplitude
+        get the mean and sem of either setpoint or amplitude for all conditions
 
         correct variable: None, all trials filtered by "rates" will be used
             True, only correct trials
@@ -2992,6 +2991,7 @@ class NeuroAnalyzer(object):
         sem_kin    = [list() for x in range(len(self.stim_ids))]
         num_trials = np.zeros((len(self.stim_ids), 1))
 
+        # get all setpoint data from all conditions
         for cond in range(len(self.stim_ids)):
 
             for trial in range(len(self.lick_bool[cond])):
@@ -3033,7 +3033,7 @@ class NeuroAnalyzer(object):
         start_ind = np.argmin(np.abs(self.wtt - t_window[0]))
         stop_ind  = np.argmin(np.abs(self.wtt - t_window[1]))
 
-        # get all the angles
+        # get all the angles from all conditions
         wt_angle      = [list() for x in range(len(self.stim_ids))]
         mean_psd = [list() for x in range(len(self.stim_ids))]
         sem_psd  = [list() for x in range(len(self.stim_ids))]
