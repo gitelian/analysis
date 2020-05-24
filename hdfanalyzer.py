@@ -2851,22 +2851,22 @@ class NeuroAnalyzer(object):
 
             if not delta:
                 for manip in range(num_manipulations):
-                    if not np.where(np.isnan(mean_kin[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                    if not np.where(np.isnan(mean_kin[:, cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
                         x = self.wtt[start_ind:stop_ind]
-                        mean_vals = mean_kin[cond + (self.control_pos*manip)][start_ind:stop_ind]
-                        err_vals = sem_kin[cond + (self.control_pos*manip)][start_ind:stop_ind]
+                        mean_vals = mean_kin[start_ind:stop_ind, cond + (self.control_pos*manip)]
+                        err_vals = sem_kin[start_ind:stop_ind, cond + (self.control_pos*manip)]
 
                         self.plot_cont_mean_err(x, mean_vals, err_vals, axis=ax[k], line_color=line_color[manip])
 
             elif delta:
                 for manip in range(num_manipulations - 1):
-                    if not np.where(np.isnan(mean_kin[cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
+                    if not np.where(np.isnan(mean_kin[:, cond + (self.control_pos*manip)]) == True)[0].shape[0] >= 1:
                         x = self.wtt[start_ind:stop_ind]
-                        mean_delta = mean_kin[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind] - mean_kin[cond][start_ind:stop_ind]
+                        mean_delta = mean_kin[start_ind:stop_ind, cond + (self.control_pos*(manip + 1))] - mean_kin[start_ind:stop_ind, cond]
 
-                        sem_manip = sem_kin[cond + (self.control_pos*(manip + 1))][start_ind:stop_ind]
-                        sem_nolight = sem_kin[cond][start_ind:stop_ind]
-                        sem_delta = np.sqrt(sem_manip**2 + sem_nolight**2)
+                        err_manip = sem_kin[start_ind:stop_ind, cond + (self.control_pos*(manip + 1))]
+                        err_nolight = sem_kin[start_ind:stop_ind, cond]
+                        err_delta = np.sqrt(err_manip**2 + err_nolight**2)
 
                         self.plot_cont_mean_err(x, mean_delta, err_delta, axis=ax[k], line_color=line_color[manip + 1])
 
@@ -2975,7 +2975,7 @@ class NeuroAnalyzer(object):
             True, only correct trials
             False, only incorrect trials (i.e. when mouse made a mistake
 
-        Returns: mean, sem, and num_trials per condition
+        Returns: mean, sem, and num_trials per condition asarrays
         """
 
         if kind == 'setpoint':
@@ -2989,7 +2989,7 @@ class NeuroAnalyzer(object):
         whisk_kinematic = [list() for x in range(len(self.stim_ids))]
         mean_kin   = [list() for x in range(len(self.stim_ids))]
         sem_kin    = [list() for x in range(len(self.stim_ids))]
-        num_trials = np.zeros((len(self.stim_ids), 1))
+        num_trials = np.zeros((len(self.stim_ids), ))
 
         # get all setpoint data from all conditions
         for cond in range(len(self.stim_ids)):
@@ -3016,10 +3016,20 @@ class NeuroAnalyzer(object):
 
         # convert to arrays
         for index in range(len(whisk_kinematic)):
-            whisk_kinematic[index] = np.asarray(whisk_kinematic[index])
-            mean_kin[index]   = np.mean(whisk_kinematic[index], axis=0)
-            sem_kin[index]    = sp.stats.sem(whisk_kinematic[index], axis=0)
-            print('cond {} has {} trials'.format(index, len(whisk_kinematic[index])))
+            if len(whisk_kinematic[index]) == 0:
+                whisk_kinematic[index] = np.empty((self.wtt.shape[0], ))*np.nan
+                mean_kin[index] = whisk_kinematic[index]
+                sem_kin[index] = whisk_kinematic[index]
+                print('cond {} has 0 trials replacing with NaNs'.format(index))
+            else:
+                whisk_kinematic[index] = np.asarray(whisk_kinematic[index])
+                mean_kin[index]   = np.mean(whisk_kinematic[index], axis=0)
+                sem_kin[index]    = sp.stats.sem(whisk_kinematic[index], axis=0)
+                print('cond {} has {} trials'.format(index, len(whisk_kinematic[index])))
+
+        # convert everything to an array
+        mean_kin = np.asarray(mean_kin).T
+        sem_kin  = np.asarray(sem_kin).T
 
 
         return mean_kin, sem_kin, num_trials
@@ -3649,17 +3659,75 @@ class NeuroAnalyzer(object):
 
         return ax
 
-    def plot_cont_mean_err(self, x, mean_vals, err_vals, axis=None, line_color='b', alpha=0.3):
-        """ plot a continuous variable with shaded between error """
+    def plot_cont_mean_err(self, x, mean_vals, err_vals, axis=None, cmap=None, line_color='b', alpha=0.3):
+        """
+        plot a continuous variable with shaded between error
+
+        Parameters
+        ----------
+        x : list/array Nx1, x-axis values
+        mean_vals : list/array NxM, y-axis mean values. If M > 1 then each
+            column will be plotted as a new variable.
+        err_vals : list/array NxM, y-axis error values.
+        axis (optional) : provide an axis where plots should be made, if one
+            does not exist one will be created
+        cmap (optional): string, provide the name of a colormap, each column
+            will be colored sequentially from the colormap
+        line_color (optional): color name, each column will be this color
+        NOTE: eithe cmap OR line_color should be entered NOT both, if both are
+            entered cmap will be used
+        alpha (optional): transparency to be used
+
+        Returns
+        -------
+        axis
+
+        """
+
         # check if axis was provided
         if axis == None:
             fig, ax = plt.subplots()
         else:
             ax = axis
 
+        # check data type of mean_vals, if a list of arrays we have to plot
+        # them differently than if a NxM array
+        if type(mean_vals) is list:
+            is_array = False
+            n_trials = len(mean_vals)
+        elif type(mean_vals) is np.ndarray:
+            is_array = True
+            if len(mean_vals.shape) == 2:
+                n_trials = mean_vals.shape[1]
+            else:
+                n_trials = 1
+        else:
+            raise ValueError('input neither a list or an array')
+
+        # check if cmap will be used
+        if cmap is not None:
+            use_cmap = True
+            custom_cmap = plt.get_cmap(cmap)
+            custom_cmap = custom_cmap(np.linspace(0, 1, n_trials))
+        else:
+            use_cmap = False
+
         # make plots
-        ax.plot(x, mean_vals, color=line_color)
-        ax.fill_between(x, mean_vals - err_vals, mean_vals + err_vals, facecolor=line_color, alpha=0.3)
+        if n_trials == 1:
+            ax.plot(x, mean_vals, color=line_color)
+            ax.fill_between(x, mean_vals - err_vals, mean_vals + err_vals, facecolor=line_color, alpha=alpha)
+        else:
+            for k in range(n_trials):
+                # iterate through trials
+                if use_cmap:
+                    ax.plot(x, mean_vals[:, k], c=custom_cmap[k])
+                    ax.fill_between(x, mean_vals[:, k] - err_vals[:, k], mean_vals[:, k] + err_vals[:, k], facecolor=custom_cmap[k], alpha=alpha)
+                else:
+                    ax.plot(x, mean_vals[:, k], color=line_color)
+                    ax.fill_between(x, mean_vals[:, k] - err_vals[:, k], mean_vals[:, k] + err_vals[:, k], facecolor=line_color, alpha=alpha)
+
+        return ax
+
 
     def plot_yyaxis(self, x, y1, y2):
         fig, ax1 = plt.subplots()
