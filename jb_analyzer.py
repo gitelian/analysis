@@ -144,12 +144,12 @@ ax.set_title('Example GO trial ({})'.format(neuro.fid))
 #  correct vs incorrect, light off vs light on, all conditions
 
 neuro.rates(engaged=True)
-sp_mean, sp_err, _, t_inds = neuro.get_wt_kinematic(t_window=[-1.5, 2.0], cond=range(9), correct=True)
-#sp_mean, sp_err, _, t_inds = neuro.get_wt_kinematic(t_window=[-1.5, 2.0], cond=range(9), correct=False)
+sp_mean, sp_err, _ = neuro.get_wt_kinematic(cond=range(9), correct=True)
+#sp_mean, sp_err, _ = neuro.get_wt_kinematic(cond=range(9), correct=False)
 
 
 fig, ax = plt.subplots(2, 2)
-sp_mean, sp_err, _, t_inds = neuro.get_wt_kinematic(t_window=[-1.5, 2.0], cond=range(9), correct=True)
+sp_mean, sp_err, _ = neuro.get_wt_kinematic(cond=range(9), correct=True)
 for k in range(9):
     neuro.plot_cont_mean_err(neuro.wtt, sp_mean[k], sp_err[k], axis=ax[0][0])
 
