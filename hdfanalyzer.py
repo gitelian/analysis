@@ -3659,7 +3659,7 @@ class NeuroAnalyzer(object):
 
         return ax
 
-    def plot_cont_mean_err(self, x, mean_vals, err_vals, axis=None, cmap=None, line_color='b', alpha=0.3):
+    def plot_cont_mean_err(self, x, mean_vals, err_vals, axis=None, cmap=None, line_color='b', alpha=0.3, flipud=None):
         """
         plot a continuous variable with shaded between error
 
@@ -3677,6 +3677,7 @@ class NeuroAnalyzer(object):
         NOTE: eithe cmap OR line_color should be entered NOT both, if both are
             entered cmap will be used
         alpha (optional): transparency to be used
+        flipud (optional): flip order of colormap
 
         Returns
         -------
@@ -3709,6 +3710,8 @@ class NeuroAnalyzer(object):
             use_cmap = True
             custom_cmap = plt.get_cmap(cmap)
             custom_cmap = custom_cmap(np.linspace(0, 1, n_trials))
+            if flipud:
+                custom_cmap = np.flipud(custom_cmap)
         else:
             use_cmap = False
 
@@ -3721,10 +3724,12 @@ class NeuroAnalyzer(object):
                 # iterate through trials
                 if use_cmap:
                     ax.plot(x, mean_vals[:, k], c=custom_cmap[k])
-                    ax.fill_between(x, mean_vals[:, k] - err_vals[:, k], mean_vals[:, k] + err_vals[:, k], facecolor=custom_cmap[k], alpha=alpha)
+                    ax.fill_between(x, mean_vals[:, k] - err_vals[:, k], \
+                            mean_vals[:, k] + err_vals[:, k], facecolor=custom_cmap[k], alpha=alpha, edgecolor='none')
                 else:
                     ax.plot(x, mean_vals[:, k], color=line_color)
-                    ax.fill_between(x, mean_vals[:, k] - err_vals[:, k], mean_vals[:, k] + err_vals[:, k], facecolor=line_color, alpha=alpha)
+                    ax.fill_between(x, mean_vals[:, k] - err_vals[:, k], \
+                            mean_vals[:, k] + err_vals[:, k], facecolor=line_color, alpha=alpha, edgecolor='none')
 
         return ax
 

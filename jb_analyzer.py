@@ -143,18 +143,40 @@ ax.set_title('Example GO trial ({})'.format(neuro.fid))
 ## 4-panel, mean set-point vs time
 #  correct vs incorrect, light off vs light on, all conditions
 
-neuro.rates(engaged=True)
-sp_mean, sp_err, _ = neuro.get_wt_kinematic(cond=range(9), correct=True)
-#sp_mean, sp_err, _ = neuro.get_wt_kinematic(cond=range(9), correct=False)
-
-
 fig, ax = plt.subplots(2, 2)
-sp_mean, sp_err, _ = neuro.get_wt_kinematic(cond=range(9), correct=True)
-for k in range(9):
-    neuro.plot_cont_mean_err(neuro.wtt, sp_mean[k], sp_err[k], axis=ax[0][0])
+cmap = 'coolwarm'
+alpha = 0.4
+flipud = False
+sp_mean, sp_err, _ = neuro.get_wt_kinematic(correct=True)
+neuro.plot_cont_mean_err(neuro.wtt, sp_mean[:, 0:9], sp_err[:, 0:9], axis=ax[0][0], cmap=cmap, alpha=alpha, flipud=flipud)
+neuro.plot_cont_mean_err(neuro.wtt, sp_mean[:, 9:18], sp_err[:, 9:18], axis=ax[0][1], cmap=cmap, alpha=alpha, flipud=flipud)
 
+sp_mean, sp_err, _ = neuro.get_wt_kinematic(correct=False)
+neuro.plot_cont_mean_err(neuro.wtt, sp_mean[:, 0:9], sp_err[:, 0:9], axis=ax[1][0], cmap=cmap, alpha=alpha, flipud=flipud)
+neuro.plot_cont_mean_err(neuro.wtt, sp_mean[:, 9:18], sp_err[:, 9:18], axis=ax[1][1], cmap=cmap, alpha=alpha, flipud=flipud)
 
+ax[0][0].set_title('Light Off\nCorrect Choices');   ax[0][0].set_ylim(70, 140)
+ax[1][0].set_title('Light Off\nIncorrect Choices'); ax[1][0].set_ylim(70, 140)
+ax[0][1].set_title('Light On\nCorrect Choices');    ax[0][1].set_ylim(70, 140)
+ax[1][1].set_title('Light On\nIncorrect Choices');  ax[1][1].set_ylim(70, 140)
 
+ax[1][0].set_xlabel('Time from response window (s)')
+ax[1][1].set_xlabel('Time from response window (s)')
+
+ax[0][0].set_ylabel('set-point (deg)')
+ax[1][0].set_ylabel('set-point (deg)')
+
+ax[0][0].hlines(137, 0, 1, colors='tab:grey', linewidth=2); ax[0][1].hlines(137, 0, 1, colors='tab:grey', linewidth=2)
+ax[1][0].hlines(137, 0, 1, colors='tab:grey', linewidth=2); ax[1][1].hlines(137, 0, 1, colors='tab:grey', linewidth=2)
+ax[0][0].text(0, 134, 'Response Window'); ax[0][1].text(0, 134, 'Response Window')
+ax[1][0].text(0, 134, 'Response Window'); ax[1][1].text(0, 134, 'Response Window')
+ax[0][1].text(-1, 136, 'Light On'); ax[1][1].text(-1, 136, 'Light On')
+
+ax[0][1].hlines(139, -1, 1, colors='tab:blue', linewidth=2)
+ax[1][1].hlines(139, -1, 1, colors='tab:blue', linewidth=2)
+
+ax[0][0].legend(['GO 1', 'GO 2', 'GO 3', 'GO4', 'NOGO 5', 'NOGO 6', 'NOGO 7', 'NOGO 8', 'CATCH'])
+ax[1][0].legend(['GO 1', 'GO 2', 'GO 3', 'GO4', 'NOGO 5', 'NOGO 6', 'NOGO 7', 'NOGO 8', 'NO CATCH'])
 
 
 
