@@ -208,7 +208,7 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
                 spike_inds     = np.where(assigns == unit_id)[0]
                 wave_temp      = np.float32(waves[spike_inds, :, :])
                 mean_wave_temp = np.mean(wave_temp,axis=0)
-                std_wave_temp  = np.std(wave_temp,axis=0)
+                std_wave_temp  = np.std(wave_temp,axis=0) # NOT USED
                 wave_min       = np.min(mean_wave_temp,axis=0)
                 best_chan      = np.argmin(wave_min) # biggest negative deflection is peak of waveform
 
@@ -359,7 +359,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
     #'FID1295'
-    update_spikes_measures_mat(fid_list=['FID2143'], data_dir_path='/media/greg/data/neuro/')
+    update_spikes_measures_mat(fid_list=['FID2204'], data_dir_path='/media/greg/data/neuro/')
 #    update_spikes_measures_mat(fid_list=[sys.argv[1]], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/')
 

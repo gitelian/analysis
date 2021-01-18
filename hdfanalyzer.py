@@ -165,7 +165,7 @@ class NeuroAnalyzer(object):
                 self.rates(psth_t_start= -1.000, psth_t_stop=2.500, kind='run_boolean', engaged=True, all_trials=False)
             if self.jb_behavior:
                 self.__classify_behavior()
-                self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='jb_engaged', engaged=True, all_trials=False)
+                self.rates(psth_t_start= -1.500, psth_t_stop=2.500, kind='run_boolean', engaged=None, all_trials=True)
 
             # reclassify units using their mean OMI (assuming ChR2 is in PV
             # cells). This is dependent on everything above!
@@ -180,18 +180,19 @@ class NeuroAnalyzer(object):
 #            print('REMOVE HARD CODED RATES: ALL_TRIALS SET TO TRUE')
 
             ## TODO uncomment below this ##
+            ## TODO when using spike data
 
             # get selectivity for all units
-#            self.get_selectivity()
-#
-#            # get preferred position for all units
-#            self.get_preferred_position()
-#
-#            # get best contact for each unit
-#            self.get_best_contact()
+            self.get_selectivity()
 
-            # kruskal wallis and dunn's test to ID sensory driven units
-#            self.get_sensory_drive()
+            # get preferred position for all units
+            self.get_preferred_position()
+
+            # get best contact for each unit
+            self.get_best_contact()
+
+            #  kruskal wallis and dunn's test to ID sensory driven units
+            self.get_sensory_drive()
 
         if not self.jb_behavior and not self.spikes_bool:
             self.rates(psth_t_start= -1.500, psth_t_stop=2.500, all_trials=False)
