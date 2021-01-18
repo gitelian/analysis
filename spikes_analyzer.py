@@ -1050,8 +1050,10 @@ for row in ax:
 ##### Absolute firing rate analysis #####
 
 
+#### NOTE THIS IS THE MAIN RESULT FIGURE NOTE ####
 ##### plot absolute firing rates best position #####
 ##### plot absolute firing rates best position #####
+#### NOTE THIS IS THE MAIN RESULT FIGURE NOTE ####
 
 ## RS top left
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
@@ -1196,6 +1198,7 @@ for row in ax:
 
 ##### plot change in mean absolute rates histogram best position #####
 ##### plot change in mean absolute rates histogram best position #####
+#### NOTE THIS MAY BE AN IMPORTANT IDEA TO REVISIT NOTE ####
 
 fig, ax = plt.subplots(2, 2)
 fig.suptitle('Change in firing rate (best pos)', fontsize=16)
