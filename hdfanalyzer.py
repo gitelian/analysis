@@ -1139,7 +1139,11 @@ class NeuroAnalyzer(object):
 
         elif kind == 'square':
             dt = 1.0/resolution
+            # i think this is the entire kernal size, units are number of 1
+            # msec samples to use (NOTE: the psth bin size is always set to
+            # 0.001 sec / 1 msec, which this is going to be convolved with)
             num_samples_total = int(resolution/0.001*10)
+            # this is the number of samples or 1mesc bins that will be non-zero
             num_samples_high  = int(resolution/0.001)
             kernel = np.zeros((num_samples_total,))
             kernel[0:num_samples_high] = dt
@@ -1210,8 +1214,11 @@ class NeuroAnalyzer(object):
         # make bins for rasters and PSTHs
 #        bins = np.arange(-self.min_tbefore_stim, self.min_tafter_stim, 0.001)
         bins = np.arange(psth_t_start, psth_t_stop, 0.001)
-        kernel = self.__make_kernel(kind='square', resolution=0.100)
+#        kernel = self.__make_kernel(kind='square', resolution=0.100)
+#        kernel = self.__make_kernel(kind='square', resolution=0.200)
 #        kernel = self.__make_kernel(kind='alpha', resolution=0.025)
+        kernel = self.__make_kernel(kind='alpha', resolution=0.050)
+#        kernel = self.__make_kernel(kind='alpha', resolution=0.075)
         self._bins = bins
         self.bins_t = bins[0:-1]
 
@@ -3476,7 +3483,7 @@ class NeuroAnalyzer(object):
             for trial in range(min_trials):
                 trial_inds = np.where(count_mat[:, trial] > 0)[0]
                 spike_times = self._bins[trial_inds]
-                ax.vlines(spike_times, trial+shift, trial+1+shift, color='k', linewidth=1.0)
+                ax.vlines(spike_times, trial+shift, trial+1+shift, color='k', linewidth=1)
 
                 if burst:
                     burst_times = list()
