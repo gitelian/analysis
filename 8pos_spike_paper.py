@@ -6,9 +6,39 @@ import matplotlib as mpl
 from matplotlib.backends.backend_pdf import PdfPages
 import scipy.io as sio
 
+# This is the main place where I will explore and prepare figures for the
+# 8-pos-ephys experiment. Much of the population code will be copied over from
+# previous scripts and cleaned up so they are easy to read and reliably
+# recreate any figure at a moments notice. The first half of the script will be
+# dedicated to single unit examples and possibly single trial whisker tracking
+# figures as well. The second half will be the population analysis, unless this
+# script gets out of hand, then the population analysis code will be moved to
+# its own file.
+#
+# As of now the standard figure size will be 6in wide x 4in height
+# Font will be Arial
+# Font size for figure titles, axis labels, and tick markers will be 16pt,
+# 12pt, and 10pt respectively.
+#
+# G.Telian 01/18/2021
 
-##### population analysis #####
-##### population analysis #####
+
+##### ##### ##### NOTE single unit analysis NOTE ##### ##### #####
+##### ##### ##### NOTE single unit analysis NOTE ##### ##### #####
+
+#### FIGURE 2 classic single unit spike analysis ####
+#### FIGURE 2 classic single unit spike analysis ####
+
+# FID1345 will be used as a source of example figures
+# currently:
+#   M1 units 22, 8 (classic shape) 1 (oddity/ non-classic)
+#   S1 units 44, 33 (classic), 35 (peaky in center), 32 (offset with center
+#   near back
+
+
+
+##### ##### ##### NOTE population analysis NOTE ##### ##### #####
+##### ##### ##### NOTE population analysis NOTE ##### ##### #####
 
 # selectivity, center of mass, burstiness, OMI, decoder!!!
 # do this for best position and no contact position. Plot things overall and
