@@ -85,7 +85,8 @@ class NeuroAnalyzer(object):
 
         # are there LFPs
         self.lfp_bool = f.attrs['lfp_bool']
-        #self.lfp_bool = False
+        print('\n### LFPs ANALYSIS IS TURNED OFF TO INCREASE SPEED ###')
+        self.lfp_bool = False
 
         # is there whisker tracking
         self.wt_bool = f.attrs['wt_bool']
@@ -356,11 +357,14 @@ class NeuroAnalyzer(object):
 #        min_tafter_stim  = self.__get_exp_details_info('duration') - self.__get_exp_details_info('latency')
 
         self.min_tbefore_stim = self.time_before
-        self.min_tafter_stim  = self.stim_duration + self.time_after
+        self.min_tafter_stim  = self.time_after
+        # not sure why this (below) was the way I computed this. doesn't make
+        # sense. This (above) should set the min trial lengths to those
+        # specified in the spkgad2flatarray.m script.
+        #self.min_tafter_stim  = self.stim_duration + self.time_after
         print('using stim_duration + time_after as min_tafter_stim')
         #self.min_tafter_stim  = self.stim_duration
-        print('smallest baseline period (time before stimulus): {0}\nsmallest \
-                trial length (time after stimulus): {1}'.format(str(self.min_tbefore_stim), \
+        print('smallest baseline period (time before stimulus): {0}\nsmallest trial length (time after stimulus): {1}'.format(str(self.min_tbefore_stim), \
                 str(self.min_tafter_stim)))
 
     def __get_run_bool(self):
