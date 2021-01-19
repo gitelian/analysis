@@ -18,7 +18,7 @@ import scipy.io as sio
 # As of now the standard figure size will be 6in wide x 4in height
 # Font will be Arial
 # Font size for figure titles, axis labels, and tick markers will be 16pt,
-# 12pt, and 10pt respectively.
+# 14pt, and 12pt respectively.
 #
 # G.Telian 01/18/2021
 
@@ -31,11 +31,74 @@ import scipy.io as sio
 
 # FID1345 will be used as a source of example figures
 # currently:
-#   M1 units 22, 8 (classic shape) 1 (oddity/ non-classic)
-#   S1 units 44, 33 (classic), 35 (peaky in center), 32 (offset with center
-#   near back
+#   M1 units /21, /8, /0 (classic shape). /21 and /1 (oddity / S1 light increase FR)
+#   S1 units /44, /33 (classic), /32 (offset with center near back object
+#   positions), 35 (peaky in center and it increases FR with M1 silencig at all
+#   positions??? near back)
+
+# NOTE: The figure size is limited by my monitor size. If I need larger figures
+# I can switch to a non-interactive matplotlib backend such as Agg. This will
+# allow me to make any kind of plot I want and save it using fig.savefig(...)
+# This may be good for itteratively remaking figures without having to manually
+# save them. It would also be benificial if I need to make a plot with a height
+# greater than 7ish-inches (limite of my screen right now).
+
+save_dir = '/home/greg/Desktop/desktop2dropbox/8pos_figures/fig2_basic_spike_data/'
+uind = 32
+cell_type = neuro.cell_type[uind].lower()
+region    = neuro.region_dict[neuro.shank_ids[uind]].lower()
+trial_ind = 3 # change this after looking at the Raster and Tuning Curve plots
+
+# RASTER all conditions
+fig1, ax1 = plt.subplots(1, figsize=(6,4))
+neuro.plot_raster_all_conditions(unit_ind=uind, num_trials=20, offset=7)
+ax1.set_xlabel('Time (s)'); ax1.set_ylabel('Subset of all trials')
+ax1.set_title('{} RS Raster: subset of all trials'.format(region))
+
+# Tuning curve
+fig2, ax2 = plt.subplots(1, figsize=(6,4))
+neuro.plot_tuning_curve(unit_ind=uind, axis=ax2)
+ax2.set_xlabel('Bar position'); ax2.set_ylabel('Firing rate (Hz)')
+ax2.set_title('{} RS Tuning curve'.format(region))
+
+# PSTH + RASTER ?
+fig3, ax3 = plt.subplots(1, figsize=(6,4))
+neuro.plot_psth(unit_ind=uind, trial_type=trial_ind, color='k',error='sem')
+neuro.plot_psth(unit_ind=uind, trial_type=trial_ind+9, color='r',error='sem')
+neuro.plot_psth(unit_ind=uind, trial_type=trial_ind+9+9, color='b',error='sem')
+ax3.set_xlabel('Time (s)'); ax3.set_ylabel('Firing rate (Hz)')
+ax3.set_title('{} RS PSTH for position {}'.format(region, trial_ind))
+
+fig4, ax4 = plt.subplots(3, figsize=(6, 6.85))
+fig4.subplots_adjust(top=0.88, bottom=0.08, left=0.125, right=0.9, hspace=0.4, wspace=0.2)
+neuro.plot_raster(unit_ind=uind, trial_type=trial_ind,     axis=ax4 [2], stim_choice=False)
+neuro.plot_raster(unit_ind=uind, trial_type=trial_ind+9,   axis=ax4 [1], stim_choice=True)
+neuro.plot_raster(unit_ind=uind, trial_type=trial_ind+9+9, axis=ax4 [0], stim_choice=True)
+
+ax4 [2].set_xlabel('Time (s)'); ax4 [2].set_title('No light')
+ax4 [2].set_ylabel('Trials'); ax4 [1].set_ylabel('Trials'); ax4 [0].set_ylabel('Trials')
+ax4 [1].set_title('vS1 silencing')
+ax4 [0].set_title('vM1 silencing')
+fig4.suptitle('{} RS Rasters for position {}'.format(region, trial_ind), size=18)
 
 
+## save all figures as PDFs
+# file names should use this standard naming scheme
+# {fid###} _ u{uind} _ {region} _ {cell type} _ {figure_type} _ {maybe stim number} .pdf
+
+fname1 = '{}_u{:02d}_{}_{}_rasterALL.pdf'.format(fid.lower(), uind, region, cell_type)
+fraster = os.path.join(save_dir, fname1)
+fname2 = '{}_u{:02d}_{}_{}_tuning_curve.pdf'.format(fid.lower(), uind, region, cell_type)
+ftuning = os.path.join(save_dir, fname2)
+fname3 = '{}_u{:02d}_{}_{}_psth_stim{:02d}.pdf'.format(fid.lower(), uind, region, cell_type, trial_ind)
+fpsth = os.path.join(save_dir, fname3)
+fname4 = '{}_u{:02d}_{}_{}_psthRasters_stim{:02d}.pdf'.format(fid.lower(), uind, region, cell_type, trial_ind)
+fpsthRaster = os.path.join(save_dir, fname4)
+
+fig1.savefig(fraster, format='pdf')
+fig2.savefig(ftuning, format='pdf')
+fig3.savefig(fpsth, format='pdf')
+fig4.savefig(fpsthRaster, format='pdf')
 
 ##### ##### ##### NOTE population analysis NOTE ##### ##### #####
 ##### ##### ##### NOTE population analysis NOTE ##### ##### #####
