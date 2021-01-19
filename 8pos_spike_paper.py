@@ -44,22 +44,22 @@ import scipy.io as sio
 # greater than 7ish-inches (limite of my screen right now).
 
 save_dir = '/home/greg/Desktop/desktop2dropbox/8pos_figures/fig2_basic_spike_data/'
-uind = 32
+uind = 10
 cell_type = neuro.cell_type[uind].lower()
 region    = neuro.region_dict[neuro.shank_ids[uind]].lower()
-trial_ind = 3 # change this after looking at the Raster and Tuning Curve plots
+trial_ind = 2 # change this after looking at the Raster and Tuning Curve plots
 
 # RASTER all conditions
 fig1, ax1 = plt.subplots(1, figsize=(6,4))
 neuro.plot_raster_all_conditions(unit_ind=uind, num_trials=20, offset=7)
 ax1.set_xlabel('Time (s)'); ax1.set_ylabel('Subset of all trials')
-ax1.set_title('{} RS Raster: subset of all trials'.format(region))
+ax1.set_title('{} {} Raster: subset of all trials'.format(region, cell_type.upper()))
 
 # Tuning curve
 fig2, ax2 = plt.subplots(1, figsize=(6,4))
 neuro.plot_tuning_curve(unit_ind=uind, axis=ax2)
 ax2.set_xlabel('Bar position'); ax2.set_ylabel('Firing rate (Hz)')
-ax2.set_title('{} RS Tuning curve'.format(region))
+ax2.set_title('{} {} Tuning curve'.format(region, cell_type.upper()))
 
 # PSTH + RASTER ?
 fig3, ax3 = plt.subplots(1, figsize=(6,4))
@@ -67,7 +67,7 @@ neuro.plot_psth(unit_ind=uind, trial_type=trial_ind, color='k',error='sem')
 neuro.plot_psth(unit_ind=uind, trial_type=trial_ind+9, color='r',error='sem')
 neuro.plot_psth(unit_ind=uind, trial_type=trial_ind+9+9, color='b',error='sem')
 ax3.set_xlabel('Time (s)'); ax3.set_ylabel('Firing rate (Hz)')
-ax3.set_title('{} RS PSTH for position {}'.format(region, trial_ind))
+ax3.set_title('{} {} PSTH for position {}'.format(region, cell_type.upper(), trial_ind))
 
 fig4, ax4 = plt.subplots(3, figsize=(6, 6.85))
 fig4.subplots_adjust(top=0.88, bottom=0.08, left=0.125, right=0.9, hspace=0.4, wspace=0.2)
@@ -79,20 +79,23 @@ ax4 [2].set_xlabel('Time (s)'); ax4 [2].set_title('No light')
 ax4 [2].set_ylabel('Trials'); ax4 [1].set_ylabel('Trials'); ax4 [0].set_ylabel('Trials')
 ax4 [1].set_title('vS1 silencing')
 ax4 [0].set_title('vM1 silencing')
-fig4.suptitle('{} RS Rasters for position {}'.format(region, trial_ind), size=18)
+fig4.suptitle('{} {} Rasters for position {}'.format(region, cell_type.upper(), trial_ind), size=18)
 
 
 ## save all figures as PDFs
 # file names should use this standard naming scheme
+# I messed up, want M1 and S1 units to be enar each other
 # {fid###} _ u{uind} _ {region} _ {cell type} _ {figure_type} _ {maybe stim number} .pdf
+# New naming scheme
+# {fid###} _ {region} _ {cell type} _ u{uind} _ {figure_type} _ {maybe stim number} .pdf
 
-fname1 = '{}_u{:02d}_{}_{}_rasterALL.pdf'.format(fid.lower(), uind, region, cell_type)
+fname1 = '{}_{}_{}_u{:02d}_rasterALL.pdf'.format(fid.lower(), region, cell_type, uind)
 fraster = os.path.join(save_dir, fname1)
-fname2 = '{}_u{:02d}_{}_{}_tuning_curve.pdf'.format(fid.lower(), uind, region, cell_type)
+fname2 = '{}_{}_{}_u{:02d}_tuning_curve.pdf'.format(fid.lower(), region, cell_type, uind)
 ftuning = os.path.join(save_dir, fname2)
-fname3 = '{}_u{:02d}_{}_{}_psth_stim{:02d}.pdf'.format(fid.lower(), uind, region, cell_type, trial_ind)
+fname3 = '{}_{}_{}_u{:02d}_psth_stim{:02d}.pdf'.format(fid.lower(), region, cell_type, uind, trial_ind)
 fpsth = os.path.join(save_dir, fname3)
-fname4 = '{}_u{:02d}_{}_{}_psthRasters_stim{:02d}.pdf'.format(fid.lower(), uind, region, cell_type, trial_ind)
+fname4 = '{}_{}_{}_u{:02d}_psthRasters_stim{:02d}.pdf'.format(fid.lower(), region, cell_type, uind, trial_ind)
 fpsthRaster = os.path.join(save_dir, fname4)
 
 fig1.savefig(fraster, format='pdf')

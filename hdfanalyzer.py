@@ -2710,7 +2710,7 @@ class NeuroAnalyzer(object):
             max_ylim = ax[manip][cond].get_ylim()[1]
             for manip in range(num_manipulations):
                 for cond in range(self.control_pos):
-                    ax[manip][cond].axvspan(0, 1, alpha=0.3, color='green')
+                    ax[manip][cond].axvspan(0, 1, alpha=0.3, color='tab:green')
                     ax[manip][cond].set_ylim(0, max_ylim)
                     ax[manip][cond].set_title('n = {}'.format(len(self.licks[cond + (manip * self.control_pos)])))
 
@@ -3448,10 +3448,28 @@ class NeuroAnalyzer(object):
                         ax.vlines(burst_times, trial, trial+1, 'r', linestyles='dashed', linewidth=0.5)
 
         #ax.hlines(trial+1, 0, 1.5, color='k')
-        if stim_choice:
-            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='green')
+        if self.jb_behavior and stim_choice:
+            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='tab:green')
+        elif not self.jb_behavior and stim_choice:
+            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='tab:blue')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+1)
+
+        return ax
+
+    def plot_raster_all_subplots(self, unit_ind=0, burst=False, stim_choice=True):
+        """
+        Plots all rasters for a given unit with subplots.
+        Each positions is a row and each manipulation is a column.
+        """
+        num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
+        subplt_indices    = np.arange(self.control_pos*num_manipulations).reshape(self.control_pos, num_manipulations)
+        fig, ax = plt.subplots(self.control_pos, num_manipulations, figsize=(6*num_manipulations, 12))
+
+        for manip in range(num_manipulations):
+            for trial in range(self.control_pos):
+                plt.subplot(self.control_pos, num_manipulations, subplt_indices[trial, manip]+1)
+                self.plot_raster(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip), burst=burst, stim_choice=stim_choice)
 
         return ax
 
@@ -3499,7 +3517,9 @@ class NeuroAnalyzer(object):
                             ax.vlines(burst_times, trial+shift, trial+1+shift, 'r', linestyles='dashed', linewidth=0.5)
 
 #                ax.hlines(trial+1, 0, 1.5, color='k')
-        if stim_choice:
+        if self.jb_behavior and stim_choice:
+            ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='tab:green')
+        elif not self.jb_behavior and stim_choice:
             ax.axvspan(self.t_after_stim, self.stim_duration, alpha=0.2, color='tab:blue')
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, trial+shift+1)
@@ -3538,22 +3558,6 @@ class NeuroAnalyzer(object):
         ax.plot(self._bins[0:-1], mean_psth, color)
         ax.fill_between(self._bins[0:-1], mean_psth - err, mean_psth + err, facecolor=color, alpha=0.3)
         plt.xlim(self._bins[0], self._bins[-1])
-
-        return ax
-
-    def plot_all_rasters(self, unit_ind=0, burst=False, stim_choice=True):
-        """
-        Plots all rasters for a given unit with subplots.
-        Each positions is a row and each manipulation is a column.
-        """
-        num_manipulations = int(self.stim_ids.shape[0]/self.control_pos)
-        subplt_indices    = np.arange(self.control_pos*num_manipulations).reshape(self.control_pos, num_manipulations)
-        fig, ax = plt.subplots(self.control_pos, num_manipulations, figsize=(6*num_manipulations, 12))
-
-        for manip in range(num_manipulations):
-            for trial in range(self.control_pos):
-                plt.subplot(self.control_pos, num_manipulations, subplt_indices[trial, manip]+1)
-                self.plot_raster(unit_ind=unit_ind, trial_type=(trial + self.control_pos*manip), burst=burst, stim_choice=stim_choice)
 
         return ax
 
