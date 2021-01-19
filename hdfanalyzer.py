@@ -3336,7 +3336,9 @@ class NeuroAnalyzer(object):
                 ax.errorbar(control_pos, meanr[(control_pos_count+1)*control_pos-1], yerr=stder[(control_pos_count+1)*control_pos-1],\
                         color=line_color[control_pos_count], marker='o', markersize=6.0, linewidth=2)
 
-            ax.set_xlabel(xlabel, fontsize=8)
+            ax.set_xticks(x_vals)
+            ax.set_xticklabels(labels)
+            ax.set_xlabel(xlabel)
             ax.plot([0, control_pos+1],[0,0],'--k')
 
         # if all tuning curves from all units are to be plotted
