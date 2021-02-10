@@ -655,7 +655,7 @@ def make_hdf_object(f, **kwargs):
         sig2.attrs["sampling_rate"] = 30000
 
     if jb_behavior:
-        key_iter = iter(f.keys()) # iterates through keys (in order)
+        key_iter = iter(f.keys()) # iterates through keys (in order) / all trials
         for trial_ind in np.arange(stim.shape[0]):
             licks = f.create_dataset("/" + key_iter.next() + "/analog-signals/lick-timestamps", data=lick_list[trial_ind])
             licks.attrs["name"]  = 'lick-timestamps'
@@ -673,7 +673,7 @@ def make_hdf_object(f, **kwargs):
             lfp             = load_v73_mat_file(lfp_path, variable_name='lfp')
 
             # for each trial add LFPs for every channel on the electrode
-            key_iter = iter(f.keys()) # iterates through keys (in order)
+            key_iter = iter(f.keys()) # iterates through keys (in order) / all trials
             for trial_ind in np.arange(stim.shape[0]):
                 lfps = f.create_dataset("/" + key_iter.next() + "/lfps" + "-" + e_name, data=lfp[trial_ind])
                 lfps.attrs["name"]          = 'LFPs'+'-'+e_name
@@ -694,7 +694,7 @@ def make_hdf_object(f, **kwargs):
             f.attrs["object_crossing"]  = frm_present
             f.attrs["led_signal"]       = led_present
 
-            key_iter = iter(f.keys()) # iterates through keys (in order)
+            key_iter = iter(f.keys()) # iterates through keys (in order) / all trials
             for trial_ind in np.arange(stim.shape[0]):
 
                 key = key_iter.next() # gets key name
@@ -771,6 +771,7 @@ def make_hdf_object(f, **kwargs):
 
     print('\nLooking for spike files')
     if spikes_files:
+        f.attrs["num_shanks"]  = len(spikes_files)
         for e, spike_path in enumerate(spikes_files):
             spike_fname       = os.path.split(spike_path)[1]
             electrode_match = re.search(r'e\d{0,2}', spike_fname)
@@ -782,82 +783,137 @@ def make_hdf_object(f, **kwargs):
             fid_inds        = np.where(spk_msrs[:, 0] == fid_num)[0]
             e_inds          = np.where(spk_msrs[:, 1] == e_num)[0]
             exp_inds        = np.intersect1d(fid_inds, e_inds)
+            unit_ids        = spk_msrs[exp_inds, 2]
+
             shank_region    = get_exp_details_info(data_dir, fid_num, '{}_location'.format(e_name))
             probe_type      = get_exp_details_info(data_dir, fid_num, '{}_probe'.format(e_name))
+            shank_depth     = get_exp_details_info(data_dir, fid_num, '{}_depth'.format(e_name))
+#                        spiketrain.attrs["shank"]         = e_name
+#                        spiketrain.attrs["unit_id"]       = unit
+#                        spiketrain.attrs["region"]        = shank_region
+#                        spiketrain.attrs["probe"]         = probe_type
+#                        spiketrain.attrs["shank_depth"]   = shank_depth
+            f.attrs[e_name + '_probe_type']  = probe_type
+            f.attrs[e_name + '_shank_depth'] = shank_depth
 
             print('\nloading spikes from: {}\nREGION: {}'.format(spike_fname, shank_region))
             labels, assigns, trials, spiketimes, _, _,\
                     _, ids, nunit, unit_type, trial_times = load_spike_file(spike_path)
 
-            key_iter = iter(f.keys()) # iterates through keys (in order)
+            # Iterate through all trials in order
+            key_iter = iter(f.keys()) # iterates through keys (in order) / all trials
             for trial_ind in np.arange(stim.shape[0]):
 
                 key = key_iter.next() # gets key name
                 uind = 0
 
-                for k, unit in enumerate(ids): # iterate through ALL UNITS FROM ONE SPIKE FILE
+                # get unitIDs for MUA and SUs from spike file. Verify they are all
+                # present in the spike_msr_mat
+                spike_file_uinds = np.where(np.logical_and(unit_type>0, unit_type<3))[0]
+                spike_file_unit_ids = ids[spike_file_uinds]
+                unit_IDs_not_in_spk_msrs = np.where(np.isin(spike_file_unit_ids, unit_ids)==False)[0]
+
+                if len(unit_IDs_not_in_spk_msrs) > 0:
+                    warn("\n#-#-#-#-# MISMATCH good units in the spikes file and the spikes_msr_mat DON'T MATCH #-#-#-#-#")
+                    unit_ids = np.concatenate(unit_ids, unit_IDs_not_in_spk_msrs)
+
+#                for k, unit in enumerate(ids): # iterate through ALL UNITS FROM ONE SPIKE FILE
+#                variable k is an index to access information about its associated unit ids
+#                spit out from the spikes file loading function
+                for unit_ind, unit in zip(exp_inds, unit_ids):
+                    # find k-index to be able to access information associated
+                    # wth unit# whatever i.e. unit X is where in the list
+                    # produced by load_spike_file?
+                    k = np.where(ids == unit)[0]
 
                     ## GETS SPIKE TIMES FOR ONE UNIT FOR ONE TRIAL ##
                     spk_times_bool = sp.logical_and(trials == trial_ind + 1, assigns == unit) # trial_ind + 1 since trials are 1 based
-#                    spk_times_bool = sp.logical_and(trials == trial_ind + 1, assigns[0] == unit) # trial_ind + 1 since trials are 1 based
-                    if unit_type[k] > 0 and unit_type[k] < 3: # get multi-unit and single-units
 
-                        # look for unit in spike_measures matrix
-                        unit_inds = np.where(spk_msrs[:, 2] == unit)[0]
-                        unit_ind = np.intersect1d(exp_inds, unit_inds)
+                    # look for unit in spike_measures matrix
+                    unit_inds_in_spk_msr = np.where(spk_msrs[:, 2] == unit)[0]
+                    unit_in_spk_msr = np.intersect1d(exp_inds, unit_inds_in_spk_msr)
 
-                        # if unit is in spike_measures file add appropriate data
-                        if unit_ind:
-                            # round t_stop because sometimes a spiketime would
-                            # be slightly longer than it (by about 0.0001 s)
+                    # if unit is in spike_measures file add appropriate data
+                    if unit_in_spk_msr:
+                        # round t_stop because sometimes a spiketime would
+                        # be slightly longer than it (by about 0.0001 s)
 
-                            # spike_measures columns order: fid [0], electrode [1], unit_id [2],
-                            # depth [3], unit_id [4] (MU=1, SU=2), duration [5], ratio [6],
-                            # MU/RS/FS/UC [7], mean waveform [8:240]
-                            #print('duration:!!! {}'.format(spk_msrs[unit_ind, 5]))
+                        # spike_measures columns order: fid [0], electrode [1], unit_id [2],
+                        # depth [3], unit_id [4] (MU=1, SU=2), duration [5], ratio [6],
+                        # MU/RS/FS/UC [7], mean waveform [8:240]
+                        #print('duration:!!! {}'.format(spk_msrs[unit_ind, 5]))
 
-                            spiketrain = f.create_dataset("/" + key + "/spiketrains" + \
-                                    "/{1}-unit-{0:02}".format(uind, e_name), data=spiketimes[spk_times_bool])
-                            spiketrain.attrs["t_start"]       = trial_times[trial_ind, 0]
-                            spiketrain.attrs["t_stop"]        = trial_times[trial_ind, 1]
-                            spiketrain.attrs["sampling_rate"] = 30000
-                            spiketrain.attrs["trial"]         = trial_ind
-                            spiketrain.attrs["units"]         = 's'
-                            spiketrain.attrs["name"]          ='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit))
-                            spiketrain.attrs["description"]   = "Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit))
-                            spiketrain.attrs["depth"]         = spk_msrs[unit_ind, 3]
-                            spiketrain.attrs["cell_type"]     = spk_msrs[unit_ind, 7],
-                            spiketrain.attrs["duration"]      = spk_msrs[unit_ind, 5],
-                            spiketrain.attrs["ratio"]         = spk_msrs[unit_ind, 6],
-                            spiketrain.attrs["waveform"]      = spk_msrs[unit_ind, 8::],
-                            spiketrain.attrs["fid"]           = fid_name
-                            spiketrain.attrs["shank"]         = e_name
-                            spiketrain.attrs["unit_id"]       = unit
-                            spiketrain.attrs["region"]        = shank_region
-                            spiketrain.attrs["probe"]         = probe_type
+## ORIGINAL METHOD -- loop through ALL unit clusters, ID MUA/SU, verify it is in spike_msr_mat
+## NEW METHOD -- loop through good units in spikes_msr_mat for this experiment and electrode shank
+## Add good unit to hdf5 file
+##
+##
+##                for k, unit in enumerate(ids): # iterate through ALL UNITS FROM ONE SPIKE FILE
+##
+##                    ## GETS SPIKE TIMES FOR ONE UNIT FOR ONE TRIAL ##
+##                    spk_times_bool = sp.logical_and(trials == trial_ind + 1, assigns == unit) # trial_ind + 1 since trials are 1 based
+##    #                    spk_times_bool = sp.logical_and(trials == trial_ind + 1, assigns[0] == unit) # trial_ind + 1 since trials are 1 based
+##                    if unit_type[k] > 0 and unit_type[k] < 3: # get multi-unit and single-units
+##
+##                        # look for unit in spike_measures matrix
+##                        unit_inds = np.where(spk_msrs[:, 2] == unit)[0]
+##                        unit_ind = np.intersect1d(exp_inds, unit_inds)
+##
+##                        # if unit is in spike_measures file add appropriate data
+##                        if unit_ind:
+##                            # round t_stop because sometimes a spiketime would
+##                            # be slightly longer than it (by about 0.0001 s)
+##
+##                            # spike_measures columns order: fid [0], electrode [1], unit_id [2],
+##                            # depth [3], unit_id [4] (MU=1, SU=2), duration [5], ratio [6],
+##                            # MU/RS/FS/UC [7], mean waveform [8:240]
+##                            #print('duration:!!! {}'.format(spk_msrs[unit_ind, 5]))
+
+                        spiketrain = f.create_dataset("/" + key + "/spiketrains" + \
+                                "/{1}-unit-{0:02}".format(uind, e_name), data=spiketimes[spk_times_bool])
+                        spiketrain.attrs["t_start"]       = trial_times[trial_ind, 0]
+                        spiketrain.attrs["t_stop"]        = trial_times[trial_ind, 1]
+                        spiketrain.attrs["sampling_rate"] = 30000
+                        spiketrain.attrs["trial"]         = trial_ind
+                        spiketrain.attrs["units"]         = 's'
+                        spiketrain.attrs["name"]          ='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit))
+                        spiketrain.attrs["description"]   = "Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit))
+                        spiketrain.attrs["depth"]         = spk_msrs[unit_ind, 3]
+                        spiketrain.attrs["cell_type"]     = spk_msrs[unit_ind, 7].ravel(),
+                        spiketrain.attrs["duration"]      = spk_msrs[unit_ind, 5].ravel(),
+                        spiketrain.attrs["ratio"]         = spk_msrs[unit_ind, 6].ravel(),
+                        spiketrain.attrs["waveform"]      = spk_msrs[unit_ind, 8::].ravel(),
+                        spiketrain.attrs["fid"]           = fid_name
+                        spiketrain.attrs["shank"]         = e_name
+                        spiketrain.attrs["unit_id"]       = unit
+                        spiketrain.attrs["region"]        = shank_region
+                        spiketrain.attrs["probe"]         = probe_type
+                        spiketrain.attrs["shank_depth"]   = shank_depth
 
 
-                        # if unit isn't in spike_measures file add spike times
-                        # and which experiment and shank it came from and label
-                        # it as an unclassified cell type with an unknown depth
-                        else:
-                            spiketrain = f.create_dataset("/" + key + "/spiketrains" + \
-                                    "/{1}-unit-{0:02}".format(uind, e_name), data=spiketimes[spk_times_bool])
-                            spiketrain.attrs["t_start"]       = trial_times[trial_ind, 0]
-                            spiketrain.attrs["t_stop"]        = trial_times[trial_ind, 1]
-                            spiketrain.attrs["sampling_rate"] = 30000
-                            spiketrain.attrs["trial"]         = trial_ind
-                            spiketrain.attrs["units"]         = 's'
-                            spiketrain.attrs["name"]          ='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit))
-                            spiketrain.attrs["description"]   = "Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit))
-                            spiketrain.attrs["depth"]         = np.nan
-                            spiketrain.attrs["cell_type"]     = 3
-                            spiketrain.attrs["fid"]           = fid_name
-                            spiketrain.attrs["shank"]         = e_name
-                            spiketrain.attrs["unit_id"]       = unit
-                            spiketrain.attrs["region"]        = 'none'
+                    # if unit isn't in spike_measures file add spike times
+                    # and which experiment and shank it came from and label
+                    # it as an unclassified cell type with an unknown depth
+                    else:
+                        spiketrain = f.create_dataset("/" + key + "/spiketrains" + \
+                                "/{1}-unit-{0:02}".format(uind, e_name), data=spiketimes[spk_times_bool])
+                        spiketrain.attrs["t_start"]       = trial_times[trial_ind, 0]
+                        spiketrain.attrs["t_stop"]        = trial_times[trial_ind, 1]
+                        spiketrain.attrs["sampling_rate"] = 30000
+                        spiketrain.attrs["trial"]         = trial_ind
+                        spiketrain.attrs["units"]         = 's'
+                        spiketrain.attrs["name"]          ='fid_name'+ '-' +  e_name + '-unit' +  str(int(unit))
+                        spiketrain.attrs["description"]   = "Spike train for: " + fid_name + '-' +  e_name + '-unit' +  str(int(unit))
+                        spiketrain.attrs["depth"]         = np.nan
+                        spiketrain.attrs["cell_type"]     = 3
+                        spiketrain.attrs["fid"]           = fid_name
+                        spiketrain.attrs["shank"]         = e_name
+                        spiketrain.attrs["unit_id"]       = unit
+                        spiketrain.attrs["region"]        = 'none'
+                        spiketrain.attrs["probe"]         = probe_type
+                        spiketrain.attrs["shank_depth"]   = shank_depth
 
-                        uind += 1
+                    uind += 1
     else:
         print('\nNO SPIKE FILES FOUND')
 
