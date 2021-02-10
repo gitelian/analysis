@@ -50,10 +50,10 @@ def load_mat_file(file_path, variable_name='spike_msr_mat'):
     mat = sio.loadmat(file_path, struct_as_record=False, squeeze_me=True)
     return mat[variable_name]
 
-def get_depth(best_chan, exp_info):
+def get_depth(best_chan, exp_info, e_num):
 
-    tip_depth = float(exp_info['e1_depth'])
-    probe     = exp_info['e1_probe']
+    tip_depth = float(exp_info['e{}_depth'.format(e_num)])
+    probe     = exp_info['e{}_probe'.format(e_num)]
 
     if probe == 'a1x16':
         depth_vec = np.abs(np.arange(0,400,25) - tip_depth)
@@ -69,6 +69,8 @@ def get_depth(best_chan, exp_info):
         print('WARNING: depths may be off!')
 
     depth = depth_vec[best_chan]
+    print('tip_depth: {}, probe ID: {}, unit depth: {}'.format(tip_depth, probe, depth))
+
     return depth
 
 def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neuro/'):
@@ -204,7 +206,7 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
                 # if unit is in spikes measure file and overwrite is False don't
                 # do anything
 
-                print('Working on: ' + 'FID' + str(fid) + ' unit: ' + str(unit_id))
+                print('\nWorking on: ' + 'FID' + str(fid) + ' unit: ' + str(unit_id))
                 spike_inds     = np.where(assigns == unit_id)[0]
                 wave_temp      = np.float32(waves[spike_inds, :, :])
                 mean_wave_temp = np.mean(wave_temp,axis=0)
@@ -220,8 +222,8 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
                 f = interp1d(range(nsamp), mean_wave_temp[:,best_chan], kind='cubic')
                 ynew = f(xnew)
                 min_index  = np.argmin(ynew)
-                max_index1 = np.argmax(ynew[min_index:-1])+min_index+1
-                max_index0 = np.argmax(ynew[0:(min_index)])
+                max_index1 = np.argmax(ynew[min_index:-1])+min_index+1 # measure peak after min sample
+                max_index0 = np.argmax(ynew[0:(min_index)]) # measure peak before min sample
                 min_value  = ynew[min_index]
                 max_value1 = ynew[max_index1]
                 max_value0 = ynew[max_index0]
@@ -242,7 +244,7 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
 #                plt.close()
 
                 # Append depth, wave duration, and wave ratio to respective lists
-                depth = get_depth(best_chan,exp_info)
+                depth = get_depth(best_chan, exp_info, e_num)
                 dur   = duration
                 ratio = wave_ratio
                 #print('duration:!!! {}'.format(duration))
@@ -282,7 +284,13 @@ def update_spikes_measures_mat(fid_list=[], data_dir_path='/media/greg/data/neur
     a['spike_msr_mat'] = spike_msr_mat
     sio.savemat(spike_measures_path, a)
 
-def classify_units(data_dir_path='/media/greg/data/neuro/'):
+def classify_units(data_dir_path='/media/greg/data/neuro/', fid=None):
+    """
+    Load in spike measures matrix and use all the data to classify any new
+    spikes that were added.
+
+    Use GMM clustering to ID Fast Spiking, Regular Spiking, or Unclassified units
+    """
 
     print('\n----- classify_units function -----')
     ##### Load in spike measures .mat file #####
@@ -321,7 +329,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
         pv_index = 1
         rs_index = 0
 
-    ## Assign PV or RS label to a unit if it has a 0.90 probability of belonging
+    ## Assign PV or RS label to a unit if it has a 0.80 probability of belonging
     ## to a group otherwise label it as UC for unclassified
     for ind, val in enumerate(pred_prob):
         if val[rs_index] >= 0.80:
@@ -345,22 +353,36 @@ def classify_units(data_dir_path='/media/greg/data/neuro/'):
     uc_bool = np.where(spike_msr_mat[good_unit_inds, 7] == 3)[0]
 
     fig = plt.subplots()
-    plt.scatter(dur_ratio_array[rs_bool,0],dur_ratio_array[rs_bool,1],color='g',label='RS')
-    plt.scatter(dur_ratio_array[pv_bool,0],dur_ratio_array[pv_bool,1],color='r',label='PV')
-    plt.scatter(dur_ratio_array[uc_bool,0],dur_ratio_array[uc_bool,1],color='k',label='UC')
+    plt.scatter(dur_ratio_array[rs_bool,0],dur_ratio_array[rs_bool,1],edgecolors='tab:blue',facecolors='none',label='RS', s=20)
+    plt.scatter(dur_ratio_array[pv_bool,0],dur_ratio_array[pv_bool,1],edgecolors='tab:red',facecolors='none',label='PV', s=20)
+    plt.scatter(dur_ratio_array[uc_bool,0],dur_ratio_array[uc_bool,1],edgecolors='tab:grey',facecolors='none',label='UC', s=20)
+    if fid is not None:
+        fid_inds  = np.where(spike_msr_mat[:, 0] == int(fid[3:]))[0]
+        fid_good_unit_inds  = np.intersect1d(good_unit_inds, fid_inds)
+        plt.scatter(dur_ratio_array[fid_good_unit_inds,0],dur_ratio_array[fid_good_unit_inds,1],\
+                edgecolors='none',facecolors='black',label='Recent Units', s=20)
+
     plt.xlabel('duration (ms)')
     plt.ylabel('ratio')
     plt.legend(loc='upper right')
     plt.show()
+
+#    ## Create a heat map of all units duration and wave ratio
+#    x_bins = np.linspace(0, 1, 40)
+#    y_bins = np.linspace(-1, 1, 80)
+#    fig, ax = plt.subplots()
+#    ax.hist2d(dur_ratio_array[:, 0], dur_ratio_array[:, 1], bins =[x_bins, y_bins])
+#    plt.show()
+
 
 ########## MAIN CODE ##########
 ########## MAIN CODE ##########
 
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
-    #'FID1295'
-    update_spikes_measures_mat(fid_list=['FID2204'], data_dir_path='/media/greg/data/neuro/')
+    fid = 'FID1336' #fid = 'FID1295'
+    update_spikes_measures_mat(fid_list=[fid], data_dir_path='/media/greg/data/neuro/')
 #    update_spikes_measures_mat(fid_list=[sys.argv[1]], data_dir_path='/media/greg/data/neuro/')
-    classify_units(data_dir_path='/media/greg/data/neuro/')
+    classify_units(data_dir_path='/media/greg/data/neuro/', fid=fid)
 
 
