@@ -149,7 +149,10 @@ class NeuroAnalyzer(object):
                     for k in self.f['segment-0000/spiketrains']]))
 
             # Find depths of each shank and add it to self.shank_depths
-            self.shank_depths = self.__get_shank_depths()
+            try:
+                self.shank_depths = [self.f.attrs['{}_shank_depth'.format(shank_name)] for shank_name in self.shank_names]
+            except:
+                self.shank_depths = [self.__get_exp_details_info('{}_depth'.format(shank_name)) for shank_name in self.shank_names]
 
             # find shank IDs for each unit (e.g. [0, 0, 1, 1, 1])
             self.shank_ids = self.__get_shank_ids()
@@ -262,20 +265,6 @@ class NeuroAnalyzer(object):
                     shank_ids[j] = k
         shank_ids = shank_ids.astype(int)
         return shank_ids
-
-    def __get_shank_depths(self):
-        """Find depths of each shank and add it to self.shank_depths"""
-        depth = list()
-        for shank in self.shank_names:
-            depth_temp0 = 0
-            for spikes in self.f['/segment-0000/spiketrains/']:
-                spike_path = '/segment-0000/spiketrains/' + spikes
-                if self.f[spike_path].attrs['shank'] == shank:
-                    depth_temp1 = self.f[spike_path].attrs['depth']
-                    if depth_temp0 < depth_temp1:
-                        depth_temp0 = depth_temp1
-            depth.append(depth_temp0)
-        return np.asarray(depth)
 
     def __get_waveinfo(self):
         """gets waveform duration, ratio, and mean waveform for each unit"""
