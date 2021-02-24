@@ -380,7 +380,7 @@ def classify_units(data_dir_path='/media/greg/data/neuro/', fid=None):
 
 if __name__ == "__main__":
     #TODO replace file path seps with filesep equivalent
-    fid = 'FID1336' #fid = 'FID1295'
+    fid = 'FID1345' #fid = 'FID1295'
     update_spikes_measures_mat(fid_list=[fid], data_dir_path='/media/greg/data/neuro/')
 #    update_spikes_measures_mat(fid_list=[sys.argv[1]], data_dir_path='/media/greg/data/neuro/')
     classify_units(data_dir_path='/media/greg/data/neuro/', fid=fid)
