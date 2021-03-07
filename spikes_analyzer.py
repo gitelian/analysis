@@ -316,6 +316,7 @@ sp.stats.wilcoxon(s1s1_nolight, s1s1_light)
 
 ##### firing rate vs run speed no contact position #####
 ##### firing rate vs run speed no contact position #####
+### NOT IMPLEMENTED ###
 
 
 # there was either no or a very weak correlation
@@ -327,33 +328,6 @@ s1_inds = npand(npand(neuro.shank_ids == 1, neuro.driven_units ==True), neuro.ce
 
 S_mean, S_all = neuro.get_sparseness(kind='lifetime')
 
-
-
-# plot paired scatter plot for M1
-# TODO write function to make a paired scatter plot when given two 1-d vectors
-# of equivalent length
-plt.figure()
-S_m1_nolight = S_all[m1_inds, 0]
-S_m1_s1light = S_all[m1_inds, 1]
-num_points = S_m1_nolight.shape[0]
-for k in range(num_points):
-    plt.scatter(0, S_m1_nolight[k], color='k')
-    plt.scatter(1, S_m1_s1light[k], color='b')
-    plt.plot([0, 1], [S_m1_nolight[k], S_m1_s1light[k]], 'k')
-
-plt.figure()
-S_s1_nolight = S_all[s1_inds, 0]
-S_s1_m1light = S_all[s1_inds, 2]
-# plot paired scatter plot for S1
-num_points = S_s1_nolight.shape[0]
-for k in range(num_points):
-    plt.scatter(0, S_s1_nolight[k], color='k')
-    plt.scatter(1, S_s1_m1light[k], color='b')
-    plt.plot([0, 1], [S_s1_nolight[k], S_s1_m1light[k]], 'k')
-
-plt.figure()
-hist(S_m1_nolight, bins=np.arange(0, 1, 0.1), alpha=0.5)
-hist(S_s1_nolight, bins=np.arange(0, 1, 0.1), alpha=0.5)
 
 ##### Sparsity analysis #####
 ##### Sparsity analysis #####
