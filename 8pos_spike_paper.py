@@ -261,6 +261,51 @@ for k, ctype in enumerate(['RS', 'FS']):
     ax[k].set_ylabel('Prob density')
 
 
+### Driven positions evoked rate ###
+### Driven positions evoked rate ###
+# m1_driven_inds : which units are driven; driven_inds: indices of positions
+# that are driven per unit
+
+# RS units evoked rate the same between M1 and S1
+# FS units evoked rate higher in S1
+
+fig, ax = plt.subplots(1,2)
+for k, ctype in enumerate(['RS', 'FS']):
+    m1_driven_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+    m1_total_driven_pos = int(sum(num_driven[m1_driven_inds]))
+    m1_evk_rate = np.zeros((m1_total_driven_pos, ))
+    count = 0
+    for m1_unit_ind in m1_driven_inds:
+        for pos_ind in driven_inds[m1_unit_ind]:
+            m1_evk_rate[count] = np.abs(evk_rate[m1_unit_ind, pos_ind, 0])
+            count += 1
+
+    s1_driven_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
+    s1_total_driven_pos = int(sum(num_driven[s1_driven_inds]))
+    s1_evk_rate = np.zeros((s1_total_driven_pos, ))
+    count = 0
+    low_val = list()
+    for s1_unit_ind in s1_driven_inds:
+        for pos_ind in driven_inds[s1_unit_ind]:
+            s1_evk_rate[count] = np.abs(evk_rate[s1_unit_ind, pos_ind, 0])
+            if s1_evk_rate[count] < 1:
+                low_val.append((s1_unit_ind, pos_ind))
+            count += 1
+
+    bins = np.arange(-55, 55, 1)
+    ax[k].hist(m1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left')
+    ax[k].hist(s1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:red', align='left')
+
+
+
+
+
+
+
+
+
+
+
 
 
 ##### Selectivity analysis #####
