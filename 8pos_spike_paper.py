@@ -106,57 +106,17 @@ fig4.savefig(fpsthRaster, format='pdf')
 ##### ##### ##### NOTE population analysis NOTE ##### ##### #####
 ##### ##### ##### NOTE population analysis NOTE ##### ##### #####
 
-# selectivity, center of mass, burstiness, OMI, decoder!!!
-# do this for best position and no contact position. Plot things overall and
-# then look at things as a function of depth.
-
-# 1302 and 1318 gave errors while loading...investigate this
 fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336', '1338', '1340', '1343', '1345']
 # FID1330 and beyond has episodic HSV
 fids = ['1336', '1338', '1339', '1340', '1343', '1345']
-#fids = ['1336','1338', '1340', '1343', '1345']
 # fid with good whisker tracking
 #fids = ['1330', '1336', '1338', '1339', '1340']
+
+### collect individual experiments and store in a list ###
 experiments = list()
 for fid_name in fids:
     get_ipython().magic(u"run hdfanalyzer.py {}".format(fid_name))
     experiments.append(neuro)
-
-##### multiple experiment optogenetic analysis #####
-##### multiple experiment optogenetic analysis #####
-
-change = list()
-cell_type= list()
-fid_list = list()
-
-# m1 analysis
-for k, neuro in enumerate(experiments):
-    # calculate measures that weren't calculated at init
-    neuro.reclassify_units()
-
-    for uind in range(neuro.num_units):
-        if neuro.shank_ids[uind] == 1:
-            best_contact = neuro.best_contact[uind]
-            abs_rate_light   = neuro.abs_rate[best_contact+9+9][:, uind].mean()
-            abs_rate_nolight = neuro.abs_rate[best_contact][:, uind].mean()
-
-            temp = (abs_rate_light - abs_rate_nolight) / (abs_rate_light + abs_rate_nolight)
-            change.append(temp)
-            #change.append(abs_rate_light/abs_rate_nolight*100)
-            cell_type.append(neuro.cell_type[uind])
-            fid_list.append(fids[k])
-
-
-
-df = pd.DataFrame({'fid': fid_list, 'cell_type': cell_type, 'change': change})
-#df = df.set_index('fid')
-sns.set_color_codes()
-plt.figure()
-#sns.boxplot(x="fid", y="change", hue="cell_type", data=df, palette=['b', 'r'])
-sns.boxplot(x="fid", y="change", hue="cell_type", data=df, palette={"RS":'b', "FS":'r'})
-plt.hlines(0, plt.xlim()[0], plt.xlim()[1], linestyles='dashed')
-plt.ylim(-1, 1)
-
 
 ##### create arrays and lists for concatenating specified data from all experiments #####
 ##### create arrays and lists for concatenating specified data from all experiments #####
@@ -178,10 +138,13 @@ adapt_ratio = np.empty((1, 27, 2))
 meanr       = np.empty((1, 9, 3))
 S_all       = np.empty((1, 3))
 
+num_driven  = np.empty((1, ))
+driven_inds = np.empty((1, ))
+
 for neuro in experiments:
     # calculate measures that weren't calculated at init
     neuro.get_best_contact()
-    neuro.get_sensory_drive()
+    neuro.get_sensory_drive(num_sig_pos=True)
 
     # concatenate measures
     cell_type.extend(neuro.cell_type)
@@ -194,6 +157,9 @@ for neuro in experiments:
     best_pos    = np.append(best_pos, neuro.best_contact)
     meanr       = np.append(meanr, neuro.get_rates_vs_strength(normed=True)[0], axis=0)
     S_all       = np.append(S_all, neuro.get_sparseness(kind='lifetime')[1], axis=0)
+
+    num_driven  = np.append(num_driven, neuro.num_driven_pos, axis=0)
+    driven_inds = np.append(driven_inds, neuro.driven_indices, axis=0)
 
     # compute mean tuning curve
     abs_tc = np.append(abs_tc, neuro.get_mean_tc(kind='abs_rate'), axis=0)
@@ -237,6 +203,9 @@ depths = depths[1:,]
 driven = driven[1:,]
 driven = driven.astype(int)
 
+num_driven = np.asarray(num_driven[1:,])
+driven_inds = np.asarray(driven_inds[1:,])
+
 omi    = omi[1:,]
 omi    = np.nan_to_num(omi)
 selectivity = selectivity[1:, :]
@@ -253,15 +222,53 @@ burst_rate  = burst_rate[1:, :]
 adapt_ratio = adapt_ratio[1:, :]
 S_all       = S_all[1:, :]
 
-##### select units #####
 npand   = np.logical_and
 
+##### Num driven units per region / num driven positions per driven unit #####
+##### Num driven units per region / num driven positions per driven unit #####
+
+### can use chi test to see if ration of driven units / total units is different
+
+### !!! statistically significant difference in the mean number of driven pos / unit
+#   sp.stats.ranksums
+
+fig, ax = plt.subplots(1,2)
+for k, ctype in enumerate(['RS', 'FS']):
+    m1_driven_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+
+    m1_total_units = sum(npand(region == 0, cell_type == ctype))
+    m1_total_driven_units = len(m1_driven_inds)
+    m1_driven_pos_per_driven_units = num_driven[m1_driven_inds]
+
+    s1_driven_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
+
+    s1_total_units = sum(npand(region == 1, cell_type == ctype))
+    s1_total_driven_units = len(s1_driven_inds)
+    s1_driven_pos_per_driven_units = num_driven[s1_driven_inds]
+
+    ## what percentage of units where sensory driven??
+    m1_percent = float(m1_total_driven_units) / m1_total_units * 100
+    s1_percent = float(s1_total_driven_units) / s1_total_units * 100
+
+    ## of those driven units how many bar positions elicited a sensory response?
+    # "density" produces a probability density, allows one to compare m1 and s1
+    # directly even though they have different numbers of units
+    bins = np.arange(1, 10)
+    ax[k].hist(m1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left')
+    ax[k].hist(s1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:red', align='left')
+    ax[k].legend(['M1 {}'.format(ctype), 'S1 {}'.format(ctype)])
+    ax[k].set_xlabel('Number of driven positions')
+    ax[k].set_ylabel('Prob density')
+
+
+
+
 ##### Selectivity analysis #####
 ##### Selectivity analysis #####
 
 
-###### Plot selectivity histogram #####
-###### Plot selectivity histogram #####
+###### Plot selectivity histogram with opto #####
+###### Plot selectivity histogram with opto #####
 
 ## RS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
@@ -317,8 +324,8 @@ for row in ax:
         col.set_ylim(0, ylim_max)
 
 
-##### plot selectivity histogram M1 vs S1 #####
-##### plot selectivity histogram M1 vs S1 #####
+##### plot selectivity histogram M1 vs S1 overlaid no opto #####
+##### plot selectivity histogram M1 vs S1 overlaid no opto #####
 
 bins = np.arange(0, 1, 0.05)
 fig, ax = plt.subplots(1, 2)
@@ -345,8 +352,8 @@ ax[1].set_title('FS units M1: {} units, S1: {} units\nno light'.format(sum(m1_in
 ax[1].legend(['M1', 'S1'])
 
 
-###### Plot selectivity Scatter #####
-###### Plot selectivity Scatter #####
+###### Plot selectivity Scatter for all driven units #####
+###### Plot selectivity Scatter for all driven units  #####
 
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
@@ -389,8 +396,8 @@ ax[1][1].set_ylabel('M1 Silencing')
 ax[1][1].plot([0, 1], [0, 1], 'k')
 
 
-###### Plot selectivity histogram #####
-###### Plot selectivity histogram #####
+###### Plot change in selectivity histogram #####
+###### Plot change in selectivity histogram #####
 
 fig, ax = plt.subplots(2, 2, sharex=True, sharey=True)
 bins = np.arange(-1, 1, 0.04)
@@ -754,56 +761,6 @@ for row in ax:
         col.set_ylim(0, ylim_max)
         col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
 
-
-##### plot change in mean absolute rates histogram #####
-##### plot change in mean absolute rates histogram #####
-
-fig, ax = plt.subplots(2, 2, sharex=True)
-fig.suptitle('Change in firing rate (mean tc)', fontsize=16)
-
-bins = np.arange(-20, 20, 1)
-
-# RS units
-m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-
-m1_diff = abs_tc[m1_inds, 1, 0] - abs_tc[m1_inds, 0, 0]
-s1_diff = abs_tc[s1_inds, 2, 0] - abs_tc[s1_inds, 0, 0]
-
-ax[0][0].hist(m1_diff, bins=bins)
-ax[0][0].set_title('M1 RS units')
-ax[0][0].set_xlabel('Change in mean rate')
-
-ax[0][1].hist(s1_diff, bins=bins)
-ax[0][1].set_title('S1 RS units')
-ax[0][1].set_xlabel('Change in mean rate')
-
-# FS units
-m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
-
-m1_diff = abs_tc[m1_inds, 1, 0] - abs_tc[m1_inds, 0, 0]
-s1_diff = abs_tc[s1_inds, 2, 0] - abs_tc[s1_inds, 0, 0]
-
-ax[1][0].hist(m1_diff, bins=bins)
-ax[1][0].set_title('M1 FS units')
-ax[1][0].set_xlabel('Change in mean rate')
-
-ax[1][1].hist(s1_diff, bins=bins)
-ax[1][1].set_title('S1 FS units')
-ax[1][1].set_xlabel('Change in mean rate')
-
-## set ylim to the max ylim of all subplots
-ylim_max = 0
-for row in ax:
-    for col in row:
-        ylim_temp = col.get_ylim()[1]
-        if ylim_temp > ylim_max:
-            ylim_max = ylim_temp
-for row in ax:
-    for col in row:
-        col.set_ylim(0, ylim_max)
-        col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
 
 
 ##### Spontaneous/baseline rate analysis #####
