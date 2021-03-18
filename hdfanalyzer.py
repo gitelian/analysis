@@ -14,6 +14,11 @@ import h5py
 from scipy.signal import butter, lfilter
 import statsmodels.stats.proportion
 import pickle
+import statsmodels.stats.multitest as smm
+
+import pdb
+# how to do multiple comparisons
+#rej_s1, pval_corr = smm.multipletests(raw_p_vals, alpha=0.05, method='sh')[:2]
 
 #import 3rd party code found on github
 #import icsd
@@ -1165,6 +1170,7 @@ class NeuroAnalyzer(object):
         print('\n-----computing rates----')
         absolute_rate   = list()
         evoked_rate     = list()
+        baseline_counts = list()
         absolute_counts = list()
         evoked_counts   = list()
         binned_spikes   = list()
@@ -1219,6 +1225,7 @@ class NeuroAnalyzer(object):
                 if self.spikes_bool:
                     absolute_rate.append(np.zeros((trials_ran, self.num_units)))
                     evoked_rate.append(np.zeros((trials_ran, self.num_units)))
+                    baseline_counts.append(np.zeros((trials_ran, self.num_units)))
                     absolute_counts.append(np.zeros((trials_ran, self.num_units)))
                     evoked_counts.append(np.zeros((trials_ran, self.num_units)))
                     binned_spikes.append(np.zeros((bins.shape[0]-1, trials_ran, self.num_units)))
@@ -1304,9 +1311,11 @@ class NeuroAnalyzer(object):
                                     np.convolve(counts, kernel)[:-kernel.shape[0]+1]
 
                             # calculate absolute and evoked counts
+                            baseline_count = np.logical_and(spk_times > base_start, spk_times < base_stop).sum()
                             abs_count = np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()
                             evk_count   = (np.logical_and(spk_times > stim_start, spk_times < stim_stop).sum()) - \
                                     (np.logical_and(spk_times > base_start, spk_times < base_stop).sum())
+                            baseline_counts[stim_ind][good_trial_ind, unit] = baseline_count
                             absolute_counts[stim_ind][good_trial_ind, unit] = abs_count
                             evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
 
@@ -1322,6 +1331,7 @@ class NeuroAnalyzer(object):
 
         if self.spikes_bool:
             self.abs_rate      = absolute_rate
+            self.baseline_count = baseline_counts
             self.abs_count     = absolute_counts
             self.evk_rate      = evoked_rate
             self.evk_count     = evoked_counts
@@ -2004,8 +2014,10 @@ class NeuroAnalyzer(object):
 
     def get_preferred_position(self):
         """
-        calculated the preferred position. Returns a
+        calculated the preferred CHANGE from the MEAN TC position. Returns a
         unit X number of manipulations
+
+        UPDATE This to work off of evoked rates instead of absolute rates
         """
         if hasattr(self, 'abs_rate') is False:
             self.rates()
@@ -2033,7 +2045,7 @@ class NeuroAnalyzer(object):
             best_contact[unit_index,] = np.argmax(meanr[:self.control_pos])
         self.best_contact = best_contact.astype(int)
 
-    def get_sensory_drive(self):
+    def get_sensory_drive(self, num_sig_pos=False):
         """determine which units are sensory driven"""
         if hasattr(self, 'abs_count') is False:
             self.rates()
@@ -2042,18 +2054,41 @@ class NeuroAnalyzer(object):
         # compare only no light positions with control/no contact position
         to_compare = [ (k, control_pos) for k in range(control_pos)]
 
+        if num_sig_pos:
+            num_driven_pos = list()
+            driven_indices = list()
+
         for unit in range(self.num_units):
             groups = list()
-            for k in range(control_pos + 1):
+            raw_p_vals = list()
+            #for k in range(control_pos + 1):
+            for k in range(control_pos):
                 # append all rates
-                groups.append(self.abs_count[k][:, unit])
-            # test for sensory drive
-            H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
+                #groups.append(self.abs_count[k][:, unit])
+                 _, pval_temp = sp.stats.wilcoxon(self.baseline_count[k][:, unit], self.abs_count[k][:, unit])
+                 raw_p_vals.append(pval_temp)
+
+            # test for sensory drive (pos 1-8 vs control)
+            #H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
+            reject, p_corrected = smm.multipletests(raw_p_vals, alpha=0.05, method='sh')[:2]
+
+#            pdb.set_trace()
 
             if reject.any():
                 driven.append(True)
             else:
                 driven.append(False)
+
+            if num_sig_pos:
+                num_driven_pos.append(sum(reject))
+                inds = np.where(reject == True)[0]
+                if inds.shape[0] == 0:
+                    inds = None
+                driven_indices.append(inds)
+
+        if num_sig_pos:
+            self.num_driven_pos = np.asarray(num_driven_pos)
+            self.driven_indices = np.asarray(driven_indices)
 
         self.driven_units = np.asarray(driven)
 
