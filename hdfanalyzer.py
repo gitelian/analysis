@@ -1168,6 +1168,7 @@ class NeuroAnalyzer(object):
         """
 
         print('\n-----computing rates----')
+        baseline_rate   = list()
         absolute_rate   = list()
         evoked_rate     = list()
         baseline_counts = list()
@@ -1223,6 +1224,7 @@ class NeuroAnalyzer(object):
                 running.append(np.zeros((self.run_t.shape[0], trials_ran)))
 
                 if self.spikes_bool:
+                    baseline_rate.append(np.zeros((trials_ran, self.num_units)))
                     absolute_rate.append(np.zeros((trials_ran, self.num_units)))
                     evoked_rate.append(np.zeros((trials_ran, self.num_units)))
                     baseline_counts.append(np.zeros((trials_ran, self.num_units)))
@@ -1320,8 +1322,10 @@ class NeuroAnalyzer(object):
                             evoked_counts[stim_ind][good_trial_ind, unit]   = evk_count
 
                             # calculate absolute and evoked rate
+                            base_rate = float(baseline_count)/float((base_stop - base_start))
                             abs_rate = float(abs_count)/float((stim_stop - stim_start))
                             evk_rate = float(evk_count)/float((stim_stop - stim_start))
+                            baseline_rate[stim_ind][good_trial_ind, unit] = base_rate
                             absolute_rate[stim_ind][good_trial_ind, unit] = abs_rate
                             evoked_rate[stim_ind][good_trial_ind, unit]   = evk_rate
 
@@ -1330,6 +1334,7 @@ class NeuroAnalyzer(object):
         self.run           = running
 
         if self.spikes_bool:
+            self.baseline_rate = baseline_rate
             self.abs_rate      = absolute_rate
             self.baseline_count = baseline_counts
             self.abs_count     = absolute_counts
@@ -2070,7 +2075,7 @@ class NeuroAnalyzer(object):
 
             # test for sensory drive (pos 1-8 vs control)
             #H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
-            reject, p_corrected = smm.multipletests(raw_p_vals, alpha=0.05, method='sh')[:2]
+            reject, p_corrected = smm.multipletests(raw_p_vals, alpha=0.01, method='sh')[:2]
 
 #            pdb.set_trace()
 
@@ -3550,6 +3555,44 @@ class NeuroAnalyzer(object):
 
         return ax
 
+        def plot_population_raster(self, unit_indices, cond_ind=0, num_trials=10, offset=1, axis=None):
+            """
+            Plots spike rasters for multiple units per trial
+
+            Parameters
+            ----------
+            unit_indices: array_like
+                1-d array or list that contains unit indices to be plotted
+            """
+        num_units = len(unit_indices)
+
+        if axis == None:
+            ax = plt.gca()
+        else:
+            ax = axis
+
+        cm_subsection = linspace(0, 1, num_units)
+        colors = [cm.jet(x) for x in cm_subsection]
+
+        min_trials = np.min(self.num_good_trials[cond_ind])
+        if num_trials != None and num_trials < min_trials:
+            min_trials = num_trials
+
+        for trial in range(min_trials):
+            shift = offset + trial + num_units*trial
+            #shift = offset*trial_type+min_trials*trial_type
+            for unit_count, unit in enumerate(unit_indices):
+                spike_indices = np.where(self.binned_spikes[cond_ind][:, trial, unit] > 0)[0]
+                spike_times = self._bins[spike_indices]
+
+                ax.vlines(spike_times, unit_count+shift, unit_count+1+shift, color=colors[unit_count], linewidth=1.0)
+
+        ax.set_xlim(self._bins[0], self._bins[-1])
+        ax.set_ylim(0, shift+offset)
+
+#### #### END POPULATION RASTER
+
+        return ax
     def plot_psth(self, axis=None, unit_ind=0, trial_type=0, error='ci', color='k'):
         """
         Makes a PSTH plot for the given unit index and trial type.

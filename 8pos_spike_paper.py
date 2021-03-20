@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.backends.backend_pdf import PdfPages
 import scipy.io as sio
+import statsmodels.stats.multitest as smm
 
 # This is the main place where I will explore and prepare figures for the
 # 8-pos-ephys experiment. Much of the population code will be copied over from
@@ -22,6 +23,8 @@ import scipy.io as sio
 #
 # G.Telian 01/18/2021
 
+# how to do multiple comparisons
+#rej_s1, pval_corr = smm.multipletests(raw_p_vals, alpha=0.05, method='sh')[:2]
 
 ##### ##### ##### NOTE single unit analysis NOTE ##### ##### #####
 ##### ##### ##### NOTE single unit analysis NOTE ##### ##### #####
@@ -121,6 +124,7 @@ for fid_name in fids:
 ##### create arrays and lists for concatenating specified data from all experiments #####
 ##### create arrays and lists for concatenating specified data from all experiments #####
 region      = np.empty((1, ))
+exp_ind     = np.empty((1, ))
 depths      = np.empty((1, ))
 cell_type   = list()
 driven      = np.empty((1, ))
@@ -128,6 +132,7 @@ omi         = np.empty((1, 2))
 selectivity = np.empty((1, 3))
 preference  = np.empty((1, 3))
 best_pos    = np.empty((1, ))
+base_rate    = np.empty((1, 27, 2))
 abs_rate    = np.empty((1, 27, 2))
 evk_rate    = np.empty((1, 27, 2))
 abs_tc      = np.empty((1, 3, 2))
@@ -141,7 +146,7 @@ S_all       = np.empty((1, 3))
 num_driven  = np.empty((1, ))
 driven_inds = np.empty((1, ))
 
-for neuro in experiments:
+for exp_index, neuro in enumerate(experiments):
     # calculate measures that weren't calculated at init
     neuro.get_best_contact()
     neuro.get_sensory_drive(num_sig_pos=True)
@@ -168,6 +173,7 @@ for neuro in experiments:
 
     for unit_index in range(neuro.num_units):
 
+        exp_ind = np.append(exp_ind, exp_index)
         # compute absolute rate (mean and sem)
         temp = np.zeros((1, 27, 2))
         temp[0, :, 0] = np.array([np.mean(k[:, unit_index]) for k in neuro.abs_rate])[:]
@@ -180,6 +186,12 @@ for neuro in experiments:
         temp[0, :, 0] = np.array([np.mean(k[:, unit_index]) for k in neuro.evk_rate])[:]
         temp[0, :, 1] = np.array([sp.stats.sem(k[:, unit_index]) for k in neuro.evk_rate])
         evk_rate = np.append(evk_rate, temp, axis=0)
+
+        # compute baseline rate (mean and sem)
+        temp = np.zeros((1, 27, 2))
+        temp[0, :, 0] = np.array([np.mean(k[:, unit_index]) for k in neuro.baseline_rate])[:]
+        temp[0, :, 1] = np.array([sp.stats.sem(k[:, unit_index]) for k in neuro.baseline_rate])
+        base_rate = np.append(base_rate, temp, axis=0)
 
 #        # compute burst rate for RS cells only (mean and sem)
 #        temp = np.zeros((1, 27, 2))
@@ -199,6 +211,9 @@ cell_type = np.asarray(cell_type)
 region = region[1:,]
 region = region.astype(int)
 
+exp_ind = exp_ind[1:,]
+exp_ind = exp_ind.astype(int)
+
 depths = depths[1:,]
 driven = driven[1:,]
 driven = driven.astype(int)
@@ -213,6 +228,7 @@ preference  = preference[1:, :]
 best_pos    = best_pos[1:,]
 best_pos    = best_pos.astype(int)
 meanr       = meanr[1:, :]
+base_rate    = base_rate[1:, :]
 abs_rate    = abs_rate[1:, :]
 evk_rate    = evk_rate[1:, :]
 abs_tc      = abs_tc[1:, :]
@@ -234,36 +250,42 @@ npand   = np.logical_and
 
 fig, ax = plt.subplots(1,2)
 for k, ctype in enumerate(['RS', 'FS']):
-    m1_driven_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
 
     m1_total_units = sum(npand(region == 0, cell_type == ctype))
-    m1_total_driven_units = len(m1_driven_inds)
-    m1_driven_pos_per_driven_units = num_driven[m1_driven_inds]
+    m1_total_driven_units = len(m1_driven_unit_inds)
+    m1_driven_pos_per_driven_units = num_driven[m1_driven_unit_inds]
 
-    s1_driven_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
+    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
 
     s1_total_units = sum(npand(region == 1, cell_type == ctype))
-    s1_total_driven_units = len(s1_driven_inds)
-    s1_driven_pos_per_driven_units = num_driven[s1_driven_inds]
+    s1_total_driven_units = len(s1_driven_unit_inds)
+    s1_driven_pos_per_driven_units = num_driven[s1_driven_unit_inds]
 
     ## what percentage of units where sensory driven??
-    m1_percent = float(m1_total_driven_units) / m1_total_units * 100
-    s1_percent = float(s1_total_driven_units) / s1_total_units * 100
+    m1_percent = np.round(float(m1_total_driven_units) / m1_total_units * 100, decimals=1)
+    s1_percent = np.round(float(s1_total_driven_units) / s1_total_units * 100, decimals=1)
 
     ## of those driven units how many bar positions elicited a sensory response?
     # "density" produces a probability density, allows one to compare m1 and s1
     # directly even though they have different numbers of units
     bins = np.arange(1, 10)
+    # bar histogram
     ax[k].hist(m1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left')
     ax[k].hist(s1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:red', align='left')
+
+    # line histogram
+    #ax[k].plot(bins[:-1], np.histogram(m1_driven_pos_per_driven_units, bins=bins, density=True)[0], color='tab:blue')
+    #ax[k].plot(bins[:-1], np.histogram(s1_driven_pos_per_driven_units, bins=bins, density=True)[0],color='tab:red')
     ax[k].legend(['M1 {}'.format(ctype), 'S1 {}'.format(ctype)])
     ax[k].set_xlabel('Number of driven positions')
     ax[k].set_ylabel('Prob density')
+    ax[k].set_title('M1 {}%, S1 {} %'.format(m1_percent, s1_percent))
 
 
 ### Driven positions evoked rate ###
 ### Driven positions evoked rate ###
-# m1_driven_inds : which units are driven; driven_inds: indices of positions
+# m1_driven_unit_inds : which units are driven; driven_inds: indices of positions
 # that are driven per unit
 
 # RS units evoked rate the same between M1 and S1
@@ -271,41 +293,69 @@ for k, ctype in enumerate(['RS', 'FS']):
 
 fig, ax = plt.subplots(1,2)
 for k, ctype in enumerate(['RS', 'FS']):
-    m1_driven_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
-    m1_total_driven_pos = int(sum(num_driven[m1_driven_inds]))
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+    m1_total_driven_pos = int(sum(num_driven[m1_driven_unit_inds]))
     m1_evk_rate = np.zeros((m1_total_driven_pos, ))
     count = 0
-    for m1_unit_ind in m1_driven_inds:
+    for m1_unit_ind in m1_driven_unit_inds:
         for pos_ind in driven_inds[m1_unit_ind]:
-            m1_evk_rate[count] = np.abs(evk_rate[m1_unit_ind, pos_ind, 0])
+            m1_evk_rate[count] = evk_rate[m1_unit_ind, pos_ind, 0]
             count += 1
 
-    s1_driven_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
-    s1_total_driven_pos = int(sum(num_driven[s1_driven_inds]))
+    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
+    s1_total_driven_pos = int(sum(num_driven[s1_driven_unit_inds]))
     s1_evk_rate = np.zeros((s1_total_driven_pos, ))
     count = 0
     low_val = list()
-    for s1_unit_ind in s1_driven_inds:
+    for s1_unit_ind in s1_driven_unit_inds:
         for pos_ind in driven_inds[s1_unit_ind]:
-            s1_evk_rate[count] = np.abs(evk_rate[s1_unit_ind, pos_ind, 0])
+            s1_evk_rate[count] = evk_rate[s1_unit_ind, pos_ind, 0]
             if s1_evk_rate[count] < 1:
                 low_val.append((s1_unit_ind, pos_ind))
             count += 1
 
     bins = np.arange(-55, 55, 1)
-    ax[k].hist(m1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left')
-    ax[k].hist(s1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:red', align='left')
+    ax[k].hist(m1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left', cumulative=True)
+    ax[k].hist(s1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=True)
 
 
 
+##### Correlation analysis: abs_rate tuning curves #####
+##### Correlation analysis: abs_rate tuning curves #####
 
+corr_m1 = list()
+corr_s1 = list()
 
+m1_driven_unit_inds = npand(npand(region==0, driven==True), cell_type == ctype)
+for exp_ID, n in enumerate(experiments):
+    # TODO THIS DOESNT WORK, make sure exp_ind doesnt get overwritten
+    exp_ID_inds = npand(exp_ind == exp_ID, m1_driven_unit_inds)
+    tcm1_nolight = abs_rate[exp_ID_inds, 0:8, 0]
+    tcm1_s1light = abs_rate[exp_ID_inds, 9:17, 0]
 
+    corr_m1_nolight = np.corrcoef(tcm1_nolight)
+    corr_m1_nolight = corr_m1_nolight[:, :, None]
+    corr_m1_s1light = np.corrcoef(tcm1_s1light)
+    corr_m1_s1light = corr_m1_s1light[:, :, None]
 
+    corr_m1 = np.append(corr_m1_nolight, corr_m1_s1light, axis=2)
 
+    corr_m1.append(corr_m1)
 
+unit_indices = np.where(np.logical_and(neuro.shank_ids == 0, neuro.cell_type=='RS'))[0]
+frabs0 = neuro.abs_rate[5][:, unit_indices].T
+frabs1 = neuro.abs_rate[5+9+9][:, unit_indices].T
+p1 = np.corrcoef(frabs0)
+p2 = np.corrcoef(frabs1)
 
+# 10, m=10 must be changed to size of p1 array
+num_units = p1.shape[0]
+p1_vals=p1[np.triu_indices(num_units,k=1, m=num_units)]
+p2_vals=p2[np.triu_indices(num_units,k=1, m=num_units)]
 
+hist(p2_vals-p1_vals, bins=bins)
+scatter(p1_vals, p2_vals)
+plot([-1,1],[-1,1])
 
 
 ##### Selectivity analysis #####
@@ -1120,6 +1170,28 @@ s1_diff = burst_rate[s1_inds, 8+9+9, 0] - burst_rate[s1_inds, 8, 0]
 ax[1][1].hist(s1_diff, bins=np.arange(-10, 10, 2), alpha=0.5)
 ax[1][1].set_xlim(-10, 10)
 ax[1][1].set_title('Change in S1 burst rates\nM1 silencing')
+
+
+##### SCRATCH #####
+##### SCRATCH #####
+
+#for unit_index in range(n.num_units):
+#
+#    # compute absolute rate (mean and sem)
+#    temp = np.zeros((1, 27, 2))
+#    temp[0, :, 0] = np.array([np.mean(k[:, unit_index]) for k in n.abs_rate])[:]
+#    temp[0, :, 1] = np.array([sp.stats.sem(k[:, unit_index]) for k in n.abs_rate])
+#    abs_rate = np.append(abs_rate, temp, axis=0)
+
+
+
+
+
+
+
+
+
+
 
 
 
