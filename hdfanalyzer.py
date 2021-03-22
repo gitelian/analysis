@@ -1405,19 +1405,30 @@ class NeuroAnalyzer(object):
 
         return R, sort_inds
 
-    def noise_corr(self, cond=0):
-        """
-        compute noise correlation for all units for a specified condition
-        """
-        # get indices to sort array by region and then by depth
-        # lexsort sorts by last entry to first
-        sort_inds= np.lexsort((np.squeeze(np.asarray(self.depths)), self.shank_ids))
+    #TODO def tuning curve correlations. compute correlation coefficients of
+    # mean tuning curves (i.e. the computed mean for each of the 8 positions)
 
+    def noise_corr(self, unit_indices, cond=0, return_vals=False):
+        """
+        compute noise correlation for specified units for a specified condition
+
+        Aurguments
+        ----------
+        cond: value, specifiy which condition to compute noise correlations
+        unit_indices: array-like, the indices of the units of interest. This
+            can refere to only RS units, or driven units, or anything
+        retun_vals: boolean, default=False. If True takes the upper-triangle
+            of the correlation-coeficient matrix. (i.e. all the pair-wise
+            values)
+
+        Output
+        ------
+        R: array, 2-d array of all pair-wise correlation coeficients with the
+            diaganol set to zero. Or a 1-d array of unique pair-wise
+            correlation coefficients
+        """
         # get absolute spike counts for the specified condition
-        sc = self.abs_count[cond].T
-
-        # reorder array so it is by region and then by depth
-        sc = sc[sort_inds, :]
+        sc = self.abs_count[cond][:, unit_indices].T
 
         # compute correlation coefficient (each row is a variable, each column
         # is an observation)
@@ -1426,7 +1437,11 @@ class NeuroAnalyzer(object):
         # fill diagonal with zeros
         np.fill_diagonal(R, 0)
 
-        return R, sort_inds
+        if return_vals:
+            num_units = R.shape[0]
+            R = R[np.triu_indices(num_units, k=1, m=num_units)]
+
+        return R
 
     def spike_vs_runspeed(self, cond=0, binsize=0.010, analysis_window=[0, 1.5]):
         # use all trials
@@ -3555,15 +3570,15 @@ class NeuroAnalyzer(object):
 
         return ax
 
-        def plot_population_raster(self, unit_indices, cond_ind=0, num_trials=10, offset=1, axis=None):
-            """
-            Plots spike rasters for multiple units per trial
+    def plot_population_raster(self, unit_indices, cond_ind=0, num_trials=10, offset=1, axis=None):
+        """
+        Plots spike rasters for multiple units per trial
 
-            Parameters
-            ----------
-            unit_indices: array_like
-                1-d array or list that contains unit indices to be plotted
-            """
+        Parameters
+        ----------
+        unit_indices: array_like
+            1-d array or list that contains unit indices to be plotted
+        """
         num_units = len(unit_indices)
 
         if axis == None:
@@ -3571,7 +3586,7 @@ class NeuroAnalyzer(object):
         else:
             ax = axis
 
-        cm_subsection = linspace(0, 1, num_units)
+        cm_subsection = np.linspace(0, 1, num_units)
         colors = [cm.jet(x) for x in cm_subsection]
 
         min_trials = np.min(self.num_good_trials[cond_ind])
@@ -3585,14 +3600,14 @@ class NeuroAnalyzer(object):
                 spike_indices = np.where(self.binned_spikes[cond_ind][:, trial, unit] > 0)[0]
                 spike_times = self._bins[spike_indices]
 
-                ax.vlines(spike_times, unit_count+shift, unit_count+1+shift, color=colors[unit_count], linewidth=1.0)
+                ax.vlines(spike_times, unit_count+shift, unit_count+1+shift, color=colors[unit_count], linewidth=1.2)
 
         ax.set_xlim(self._bins[0], self._bins[-1])
         ax.set_ylim(0, shift+offset)
 
+        return ax
 #### #### END POPULATION RASTER
 
-        return ax
     def plot_psth(self, axis=None, unit_ind=0, trial_type=0, error='ci', color='k'):
         """
         Makes a PSTH plot for the given unit index and trial type.
