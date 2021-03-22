@@ -1405,8 +1405,43 @@ class NeuroAnalyzer(object):
 
         return R, sort_inds
 
-    #TODO def tuning curve correlations. compute correlation coefficients of
-    # mean tuning curves (i.e. the computed mean for each of the 8 positions)
+    def tc_corr(self, unit_indices, light_condition=0, return_vals=False):
+        """
+        takes the average tuning curve for each unit and computes a simple
+            pearson's correlations between all pairs.
+
+        Must specify which units you want to correlate.
+
+        Must specify which light_condition to analyze. E.g. light_condition 1
+            is S1 silencing.
+
+        Return values will take the upper right triangle of the correlation
+            matrix and convert it to a 1-d array
+
+        Returns
+        -------
+        R: array, 2-d array of all pair-wise correlation coeficients with the
+            diaganol set to zero. Or a 1-d array of unique pair-wise
+            correlation coefficients
+        """
+        lc = light_condition
+        num_units = len(unit_indices)
+        abs_rate = np.zeros((num_units, 8))
+        # compute absolute rate (mean)
+        for count, unit_ID in enumerate(unit_indices):
+            temp = np.zeros((1, 8))
+            temp = [np.mean(neuro.abs_rate[k][:, unit_ID]) for k in range(0+9*lc, 8+9*lc)]
+            abs_rate[count, :] = temp
+
+        R = np.corrcoef(abs_rate)
+
+        if return_vals:
+            R = R[np.triu_indices(num_units, k=1, m=num_units)]
+
+        return R
+
+
+    ### End tc_corr
 
     def noise_corr(self, unit_indices, cond=0, return_vals=False):
         """
