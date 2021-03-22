@@ -319,7 +319,6 @@ for k, ctype in enumerate(['RS', 'FS']):
     ax[k].hist(s1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=True)
 
 
-
 ##### Correlation analysis: abs_rate tuning curves #####
 ##### Correlation analysis: abs_rate tuning curves #####
 
@@ -342,21 +341,25 @@ for exp_ID, n in enumerate(experiments):
 
     corr_m1.append(corr_m1)
 
+
+##### Noise correlation analysis #####
+##### Noise correlation analysis #####
+
 unit_indices = np.where(np.logical_and(neuro.shank_ids == 0, neuro.cell_type=='RS'))[0]
-frabs0 = neuro.abs_rate[5][:, unit_indices].T
-frabs1 = neuro.abs_rate[5+9+9][:, unit_indices].T
-p1 = np.corrcoef(frabs0)
-p2 = np.corrcoef(frabs1)
+R0 = neuro.noise_corr(unit_indices, cond=0)
+R1 = neuro.noise_corr(unit_indices, cond=0+9)
 
-# 10, m=10 must be changed to size of p1 array
-num_units = p1.shape[0]
-p1_vals=p1[np.triu_indices(num_units,k=1, m=num_units)]
-p2_vals=p2[np.triu_indices(num_units,k=1, m=num_units)]
+sns.heatmap(R0, vmin=-0.4, vmax=.4, cmap='coolwarm', annot=True, xticklabels=unit_indices, yticklabels=unit_indices)
 
-hist(p2_vals-p1_vals, bins=bins)
-scatter(p1_vals, p2_vals)
-plot([-1,1],[-1,1])
+bins = np.arange(-1,1,0.05)
+hist(R0, bins=bins, color='tab:blue', alpha=0.4)
+hist(R1, bins=bins, color='tab:red', alpha=0.4)
 
+R0 = list()
+R1 = list()
+for k in range(8):
+    R0.extend(neuro.noise_corr(unit_indices, cond=k, return_vals=True))
+    R1.extend(neuro.noise_corr(unit_indices, cond=k+9, return_vals=True))
 
 ##### Selectivity analysis #####
 ##### Selectivity analysis #####
