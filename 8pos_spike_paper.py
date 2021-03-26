@@ -345,29 +345,62 @@ fig.suptitle('Proportion of driven positions')
 
 ###  BASELINE OR CONTROL POS        | BEST POSITION FR | POSTION 2/3 FR   |
 ###  RS driven M1 vs RS no_drive M1 |           ______ |           ______ |
-###  RS no_drive S1xM1       ______ |           ______ |           ______ |
-###  RS driven S1xM1         ______ |           ______ |           ______ |
+###  RS no_drive M1xS1       ______ |           ______ |           ______ |
+###  RS driven M1xS1         ______ |           ______ |           ______ |
 
-cumulative=True
+bins=np.arange(-10, 40, 5) # TODO change this to something resonable
+cumulative=False
 align='mid' # 'left' or 'mid' or 'right'
-fig, ax = plt.subplots(3,3)
+
+##TODO: verify this is working properly!
+
 for k, ctype in enumerate(['RS', 'FS']):
-    low_val = list()
-    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
-    m1_total_driven_pos = int(sum(num_driven[m1_driven_unit_inds]))
+    fig, ax = plt.subplots(3,3)
+    for row in range(3):
 
-###   TODO: try plotting histograms, figure 1x3, overlay M1 and S1 distributions
-m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
-m1_best_pos = best_pos[m1_inds].astype(int)
-s1_best_pos = best_pos[s1_inds].astype(int)
+        if row == 0:
+            # non_driven M1 and M1
+            ind0_region = 0 # M1
+            ind1_region = 0 # M1
+            ind0_driven = 1
+            ind1_driven = 0
+        elif row == 1:
+            # non_driven M1 and S1
+            ind0_region = 0 # M1
+            ind1_region = 1 # S1
+            ind0_driven = 0
+            ind1_driven = 0
+        elif row == 2:
+            # driven M1 and S1
+            ind0_region = 0 # M1
+            ind1_region = 1 # S1
+            ind0_driven = 1
+            ind1_driven = 1
 
-fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
-fig.suptitle('Mean Absolute Firing Rates (best pos)', fontsize=20)
-ax[0][0].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9, 0], \
-        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][0].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9, 0], \
-        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
+        ## Column 0
+        ind0_inds    = np.where(npand(npand(region==ind0_region, driven==ind0_driven), cell_type == ctype))[0]
+        ind0_FR      = abs_rate[ind0_inds, 8, 0]
+        ax[row, 0].hist(ind0_FR, bins=bins, align=align, cumulative=cumulative, alpha=0.4)
+
+        ind1_inds = np.where(npand(npand(region==ind1_region, driven==ind1_driven), cell_type == ctype))[0]
+        ind1_FR   = abs_rate[ind1_inds, 8, 0]
+        ax[row, 0].hist(ind1_FR, bins=bins, align=align, cumulative=cumulative, alpha=0.4)
+
+        ## Column 1
+        ind0_best_pos_inds = best_pos[ind0_inds]
+        ind0_FR            = abs_rate[ind0_inds, ind0_best_pos_inds, 0]
+        ax[row, 1].hist(ind0_FR, bins=bins, align=align, cumulative=cumulative, alpha=0.4)
+
+        ind1_best_pos_inds = best_pos[ind1_inds]
+        ind1_FR            = abs_rate[ind1_inds, ind1_best_pos_inds, 0]
+        ax[row, 1].hist(ind1_FR, bins=bins, align=align, cumulative=cumulative, alpha=0.4)
+
+        ## Column 2
+        ind0_FR = abs_rate[ind0_inds, 3, 0]
+        ax[row, 2].hist(ind0_FR, bins=bins, align=align, cumulative=cumulative, alpha=0.4)
+
+        ind1_FR = abs_rate[ind1_inds, 3, 0]
+        ax[row, 2].hist(ind1_FR, bins=bins, align=align, cumulative=cumulative, alpha=0.4)
 
 ##### Tuning curve correlation analysis: abs_rate tuning curves #####
 ##### Tuning curve correlation analysis: abs_rate tuning curves #####
