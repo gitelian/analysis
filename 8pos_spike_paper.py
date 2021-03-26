@@ -112,6 +112,8 @@ fig4.savefig(fpsthRaster, format='pdf')
 fids = ['1295', '1302', '1318', '1328', '1329', '1330', '1336', '1338', '1340', '1343', '1345']
 # FID1330 and beyond has episodic HSV
 fids = ['1336', '1338', '1339', '1340', '1343', '1345']
+#fids = ['1336', '1338'] # for faster testing and debugging
+fids = ['1336', '1340'] # for faster testing and debugging
 # fid with good whisker tracking
 #fids = ['1330', '1336', '1338', '1339', '1340']
 
@@ -124,7 +126,7 @@ for fid_name in fids:
 ##### create arrays and lists for concatenating specified data from all experiments #####
 ##### create arrays and lists for concatenating specified data from all experiments #####
 region      = np.empty((1, ))
-exp_ind     = np.empty((1, ))
+exp_ind     = np.empty((1, 2))
 depths      = np.empty((1, ))
 cell_type   = list()
 driven      = np.empty((1, ))
@@ -173,7 +175,8 @@ for exp_index, neuro in enumerate(experiments):
 
     for unit_index in range(neuro.num_units):
 
-        exp_ind = np.append(exp_ind, exp_index)
+        exp_temp = np.asarray([[exp_index, unit_index]])
+        exp_ind = np.append(exp_ind, exp_temp, axis=0)
         # compute absolute rate (mean and sem)
         temp = np.zeros((1, 27, 2))
         temp[0, :, 0] = np.array([np.mean(k[:, unit_index]) for k in neuro.abs_rate])[:]
@@ -211,7 +214,7 @@ cell_type = np.asarray(cell_type)
 region = region[1:,]
 region = region.astype(int)
 
-exp_ind = exp_ind[1:,]
+exp_ind = exp_ind[1:, :]
 exp_ind = exp_ind.astype(int)
 
 depths = depths[1:,]
@@ -243,7 +246,7 @@ npand   = np.logical_and
 ##### Num driven units per region / num driven positions per driven unit #####
 ##### Num driven units per region / num driven positions per driven unit #####
 
-### can use chi test to see if ration of driven units / total units is different
+### can use chi test to see if ratio of driven units / total units is different
 
 ### !!! statistically significant difference in the mean number of driven pos / unit
 #   sp.stats.ranksums
@@ -283,16 +286,24 @@ for k, ctype in enumerate(['RS', 'FS']):
     ax[k].set_title('M1 {}%, S1 {} %'.format(m1_percent, s1_percent))
 
 
-### Driven positions evoked rate ###
-### Driven positions evoked rate ###
+### Driven evoked rate for all positions ###
+### Driven evoked rate for all positions ###
+### Plots histogram (counts of binned evoked rates, e.g. 5 counts of evoked
+### rates between 5-10 spikes/sec)
+
 # m1_driven_unit_inds : which units are driven; driven_inds: indices of positions
 # that are driven per unit
-
+#NOTE: M1 RS driven units have ZERO positions with abs(evoked rates) < 1
+#NOTE: S1 RS driven units have 11 positions with abs(evoked rates) < 1
 # RS units evoked rate the same between M1 and S1
 # FS units evoked rate higher in S1
+# sp.stats.ks_2samp(sample1, sample2) tests whether these samples come from the same distribution
 
+cumulative=True
+align='mid' # 'left' or 'mid' or 'right'
 fig, ax = plt.subplots(1,2)
 for k, ctype in enumerate(['RS', 'FS']):
+    low_val = list()
     m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
     m1_total_driven_pos = int(sum(num_driven[m1_driven_unit_inds]))
     m1_evk_rate = np.zeros((m1_total_driven_pos, ))
@@ -300,6 +311,8 @@ for k, ctype in enumerate(['RS', 'FS']):
     for m1_unit_ind in m1_driven_unit_inds:
         for pos_ind in driven_inds[m1_unit_ind]:
             m1_evk_rate[count] = evk_rate[m1_unit_ind, pos_ind, 0]
+            if np.abs(m1_evk_rate[count]) < 1:
+                low_val.append((m1_unit_ind, pos_ind))
             count += 1
 
     s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
@@ -310,35 +323,72 @@ for k, ctype in enumerate(['RS', 'FS']):
     for s1_unit_ind in s1_driven_unit_inds:
         for pos_ind in driven_inds[s1_unit_ind]:
             s1_evk_rate[count] = evk_rate[s1_unit_ind, pos_ind, 0]
-            if s1_evk_rate[count] < 1:
+            if np.abs(s1_evk_rate[count]) < 1:
                 low_val.append((s1_unit_ind, pos_ind))
             count += 1
 
-    bins = np.arange(-55, 55, 1)
-    ax[k].hist(m1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left', cumulative=True)
-    ax[k].hist(s1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=True)
+    bins = np.arange(-15, 55, 1)
+    ax[k].hist(m1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:blue', align=align, cumulative=cumulative)
+    ax[k].hist(s1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:red', align=align, cumulative=cumulative)
+    ax[k].set_xlabel('Evoked rate')
+    ax[k].set_title('{} units'.format(ctype))
+fig.suptitle('Proportion of driven positions')
 
+##### Basic properties of spiking units #####
+##### Basic properties of spiking units #####
 
-##### Correlation analysis: abs_rate tuning curves #####
-##### Correlation analysis: abs_rate tuning curves #####
+###   Compare the baseline firing rates (baseline or control position) between
+###   S1 and M1
+###   Compare absolute firing rates at the best_position
+###   Compare absolute firing rates at a forward position (pos 2 or 3)
+###     positions 2 and 3 should have nice whisker contacts compared to more rear positions
+
+###  BASELINE OR CONTROL POS        | BEST POSITION FR | POSTION 2/3 FR   |
+###  RS driven M1 vs RS no_drive M1 |           ______ |           ______ |
+###  RS no_drive S1xM1       ______ |           ______ |           ______ |
+###  RS driven S1xM1         ______ |           ______ |           ______ |
+
+cumulative=True
+align='mid' # 'left' or 'mid' or 'right'
+fig, ax = plt.subplots(3,3)
+for k, ctype in enumerate(['RS', 'FS']):
+    low_val = list()
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+    m1_total_driven_pos = int(sum(num_driven[m1_driven_unit_inds]))
+
+###   TODO: try plotting histograms, figure 1x3, overlay M1 and S1 distributions
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+m1_best_pos = best_pos[m1_inds].astype(int)
+s1_best_pos = best_pos[s1_inds].astype(int)
+
+fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
+fig.suptitle('Mean Absolute Firing Rates (best pos)', fontsize=20)
+ax[0][0].errorbar(abs_rate[m1_inds, m1_best_pos, 0], abs_rate[m1_inds, m1_best_pos+9, 0], \
+        xerr=abs_rate[m1_inds, m1_best_pos, 1], yerr=abs_rate[m1_inds, m1_best_pos+9, 1], c='k', fmt='o', ecolor='k')
+ax[0][0].errorbar(abs_rate[s1_inds, s1_best_pos, 0], abs_rate[s1_inds, s1_best_pos+9, 0], \
+        xerr=abs_rate[s1_inds, s1_best_pos, 1], yerr=abs_rate[s1_inds, s1_best_pos+9, 1], c='r', fmt='o', ecolor='r')
+
+##### Tuning curve correlation analysis: abs_rate tuning curves #####
+##### Tuning curve correlation analysis: abs_rate tuning curves #####
+
+##TODO for generic no silencing analysis. Compare the distributions of all M1
+# and all S2 pair-wise correlations. Hypothesis: S1 is more correlated and M1
+# is more uncorrelated, distributed.
 
 corr_m1 = list()
 corr_s1 = list()
-
+ctype='RS'
 m1_driven_unit_inds = npand(npand(region==0, driven==True), cell_type == ctype)
 for exp_ID, n in enumerate(experiments):
     # TODO THIS DOESNT WORK, make sure exp_ind doesnt get overwritten
-    exp_ID_inds = npand(exp_ind == exp_ID, m1_driven_unit_inds)
-    tcm1_nolight = abs_rate[exp_ID_inds, 0:8, 0]
-    tcm1_s1light = abs_rate[exp_ID_inds, 9:17, 0]
+    exp_ID_inds = npand(exp_ind[:, 0] == exp_ID, m1_driven_unit_inds)
+    tcm1_lc0 = abs_rate[exp_ID_inds, 0:8, 0] # unit x observations (mean pos 01, mean pos 02...mean pos 08)
+    tcm1_lc1 = abs_rate[exp_ID_inds, 9:17, 0]
 
-    corr_m1_nolight = np.corrcoef(tcm1_nolight)
-    corr_m1_nolight = corr_m1_nolight[:, :, None]
-    corr_m1_s1light = np.corrcoef(tcm1_s1light)
-    corr_m1_s1light = corr_m1_s1light[:, :, None]
-
-    corr_m1 = np.append(corr_m1_nolight, corr_m1_s1light, axis=2)
-
+    corr_m1_lc0 = np.corrcoef(tcm1_lc0)
+    corr_m1_lc1 = np.corrcoef(tcm1_lc1)
+    corr_m1.append([corr_m1_lc0, corr_m1_lc1])
     corr_m1.append(corr_m1)
 
 
@@ -346,27 +396,55 @@ for exp_ID, n in enumerate(experiments):
 ##### Noise correlation analysis #####
 
 unit_indices = np.where(np.logical_and(neuro.shank_ids == 0, neuro.cell_type=='RS'))[0]
-R0 = neuro.noise_corr(unit_indices, cond=0)
-R1 = neuro.noise_corr(unit_indices, cond=0+9)
+R0 = neuro.noise_corr(unit_indices, cond=3)
+R1 = neuro.noise_corr(unit_indices, cond=3+9)
 
 sns.heatmap(R0, vmin=-0.4, vmax=.4, cmap='coolwarm', annot=True, xticklabels=unit_indices, yticklabels=unit_indices)
 
 bins = np.arange(-1,1,0.05)
 hist(R0, bins=bins, color='tab:blue', alpha=0.4)
 hist(R1, bins=bins, color='tab:red', alpha=0.4)
+dt = np.asarray(R1) - np.asarray(R0)
+hist(dt, bins=bins, color='tab:red', alpha=0.4)
 
 R0 = list()
 R1 = list()
-for k in range(8):
-    R0.extend(neuro.noise_corr(unit_indices, cond=k, return_vals=True))
-    R1.extend(neuro.noise_corr(unit_indices, cond=k+9, return_vals=True))
+for k in range(4):
+    #R0.extend(neuro.noise_corr(unit_indices, cond=k, return_vals=True))
+    R0 = neuro.noise_corr(unit_indices, cond=k, return_vals=True)
+    hist(R0, bins=bins, alpha=0.4, cumulative=False)
+#    plot(np.cumsum(R0)/float(len(R0)))
+#    R1.extend(neuro.noise_corr(unit_indices, cond=k+9, return_vals=True))
+    R1 = neuro.noise_corr(unit_indices, cond=k+9, return_vals=True)
+    hist(R1, bins=bins, alpha=0.4, cumulative=False)
 
 ##### Selectivity analysis #####
 ##### Selectivity analysis #####
 
+### Selectivity of a unit vs its evoked rate at best position ###
+### Selectivity of a unit vs its evoked rate at best position ###
+fig, ax = plt.subplots(1,2)
+for k, ctype in enumerate(['RS', 'FS']):
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+    #m1_best_fr = evk_rate[m1_driven_unit_inds, best_pos[m1_driven_unit_inds], 0]
+    m1_num_driven_pos = num_driven[m1_driven_unit_inds]
+    m1_sel = selectivity[m1_driven_unit_inds, 0]
+
+    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
+    #s1_best_fr = evk_rate[s1_driven_unit_inds, best_pos[s1_driven_unit_inds], 0]
+    s1_num_driven_pos = num_driven[s1_driven_unit_inds]
+    s1_sel = selectivity[s1_driven_unit_inds, 0]
+
+    ax[k].scatter(m1_num_driven_pos, m1_sel, c='tab:blue')
+    ax[k].scatter(s1_num_driven_pos, s1_sel, c='tab:red')
+
 
 ###### Plot selectivity histogram with opto #####
 ###### Plot selectivity histogram with opto #####
+
+## M1 RS selectivity significantly different with S1 silencing
+# sp.stats.wilcoxon(selectivity[m1_inds,0], selectivity[m1_inds,1])
+# WilcoxonResult(statistic=548.0, pvalue=0.0043016056098121504)
 
 ## RS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
@@ -385,12 +463,12 @@ ax[0][0].set_title('RS units M1: {} units, S1: {} units\nno light'.format(sum(m1
 ax[0][0].legend(['M1', 'S1'])
 ax[1][0].hist(selectivity[m1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
 ax[1][0].hist(selectivity[m1_inds, 1], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[1][0].set_title('M1 units, S1 light')
-ax[1][0].legend(['M1', 'S1 silencing'])
+ax[1][0].set_title('M1 units, M1 units + S1 silencing')
+ax[1][0].legend(['M1', 'M1 + S1 silencing'])
 ax[2][0].hist(selectivity[s1_inds, 0], bins=bins, edgecolor='None', alpha=0.5, color='k')
 ax[2][0].hist(selectivity[s1_inds, 2], bins=bins, edgecolor='None', alpha=0.5, color='r')
-ax[2][0].set_title('S1 units, M1 light')
-ax[2][0].legend(['M1 silencing', 'S1'])
+ax[2][0].set_title('S1 units, S1 units + M1 silencing')
+ax[2][0].legend(['S1 units', 'S1 units + M1 silencing'])
 
 ## FS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
@@ -595,6 +673,7 @@ for row in ax:
     for col in row:
         col.set_ylim(0, ylim_max)
         col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
+
 ##### plot driven rates best position #####
 ##### plot driven rates best position #####
 
