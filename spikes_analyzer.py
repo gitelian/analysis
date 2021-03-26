@@ -439,10 +439,12 @@ adapt_ratio = np.empty((1, 27, 2))
 meanr       = np.empty((1, 9, 3))
 S_all       = np.empty((1, 3))
 
+num_driven  = np.empty((1, ))
+
 for neuro in experiments:
     # calculate measures that weren't calculated at init
     neuro.get_best_contact()
-    neuro.get_sensory_drive()
+    neuro.get_sensory_drive(num_sig_pos=True)
 
     # concatenate measures
     cell_type.extend(neuro.cell_type)
@@ -455,6 +457,8 @@ for neuro in experiments:
     best_pos    = np.append(best_pos, neuro.best_contact)
     meanr       = np.append(meanr, neuro.get_rates_vs_strength(normed=True)[0], axis=0)
     S_all       = np.append(S_all, neuro.get_sparseness(kind='lifetime')[1], axis=0)
+
+    num_driven  = np.append(num_driven, neuro.num_driven_pos, axis=0)
 
     # compute mean tuning curve
     abs_tc = np.append(abs_tc, neuro.get_mean_tc(kind='abs_rate'), axis=0)
@@ -497,6 +501,8 @@ region = region.astype(int)
 depths = depths[1:,]
 driven = driven[1:,]
 driven = driven.astype(int)
+
+num_driven = np.asarray(num_driven[1:,])
 
 omi    = omi[1:,]
 omi    = np.nan_to_num(omi)
@@ -720,8 +726,9 @@ for row in ax:
 
 ###### Plot selectivity by depth
 
-m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
+
 fig, ax = plt.subplots(1, 1, figsize=(8,8))
 ax.plot(selectivity[m1_inds, 0], depths[m1_inds], 'ko')
 ax.plot(selectivity[s1_inds, 0], depths[s1_inds], 'ro')
@@ -776,8 +783,8 @@ ax.plot(abs_rate[s1_inds, 8, 0], depths[s1_inds], 'ro')
 ax.set_ylim(0, 1100)
 
 ###### Plot evoked rates by depth
-m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 fig, ax = plt.subplots(1, 1, figsize=(8,8))
 ax.plot(evk_rate[m1_inds, best_pos[m1_inds], 0], depths[m1_inds], 'ko')
 ax.plot(evk_rate[s1_inds, best_pos[s1_inds], 0], depths[s1_inds], 'ro')
@@ -786,7 +793,7 @@ ax.set_ylim(0, 1100)
 
 ##### plot change in firing rate by depth
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
-s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
+s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 
 # M1
 m1_diff = abs_tc[m1_inds, 1, 0] - abs_tc[m1_inds, 0, 0]
