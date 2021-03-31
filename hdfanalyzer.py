@@ -1163,7 +1163,9 @@ class NeuroAnalyzer(object):
         For behavior you can have running AND engaged or running AND not engaged
 
         t_window: dictionary, with keys 'start_time', 'stop_time', 'base_start',
-            'base_stop'. Use to have rates look at a different analysis window
+            'base_stop'. Base start and stop must use numbers relative to object_stop.
+            Therefore they must be negative to happend before object_start.
+            Use to have rates look at a different analysis window
 
         """
 
@@ -2069,35 +2071,83 @@ class NeuroAnalyzer(object):
 
     def get_preferred_position(self):
         """
-        calculated the preferred CHANGE from the MEAN TC position. Returns a
-        unit X number of manipulations
+        Use evoked rates to "vote" or weight sensory driven positions
+        Using these weights the overall "PREFERRED POSITION" for each brain
+        region will be calculated
 
-        UPDATE This to work off of evoked rates instead of absolute rates
+        Input: None
+
+        Output: preferred position array. num units x num manipulations
+
+        All preferred positions will be TRANSLATED by the overall region's
+        preferred position. So if unitX has pref pos 3 and the regions
+        overall pref pos is 7 then unitX will have a pref pos of -4. This
+        should allow all units from all experiments to be combinned and
+        analyzed as a whole
+
+        Selectivity can be used to determine how "important" a unit's
+        preferred position is. If a unit has a selectivity of 0.1 then it's
+        preferred position likely did not contribute much to the overall code
+
+        UPDATE (3/28/2021): will find best position for all manipulations. This
+            will help identify how the best position changes with silencing
         """
-        if hasattr(self, 'abs_rate') is False:
-            self.rates()
-        control_pos = self.control_pos
+
+        ## TODO use evoked normalized evoked rates to 'vote' for the preferred
+        ## position. make a population tuning curve for an overall preferred
+        ## position. If it is wide then there is lots of widely tuned units,
+        ## suggesting the population covers more of the stimulus space.
+        ## If the overall preferred position is narrow then that suggests that
+        ## the population does not tile that space, each unit's peak is similar
+        ## to the others.
+
+        print('### TODO: try not subtracting off overall preferred position ###')
+        control_pos       = self.control_pos
         num_manipulations = int(self.stim_ids.shape[0]/control_pos)
-        pref_mat = np.zeros((self.num_units, num_manipulations))
-        positions = range(control_pos-1)
+        w_pref_pos        = np.zeros((self.num_units, num_manipulations))
+        w_pref_pos_zero_centered = np.zeros((self.num_units, num_manipulations))
+        W                 = np.zeros((self.num_units, control_pos - 1, num_manipulations))
 
         for manip in range(num_manipulations):
             for unit_index in range(self.num_units):
-                meanr_abs = np.array([np.mean(k[:, unit_index]) for k in self.abs_rate])
-                weights = meanr_abs[(manip*control_pos):((manip+1)*control_pos-1)]
-                pref_mat[unit_index, manip] = np.sum(weights*positions)/np.sum(weights)
+                mean_evk = np.array([np.mean(np.abs(k[:, unit_index])) for k in self.evk_rate])
+                weights = mean_evk[(manip*control_pos):((manip+1)*control_pos-1)] # grab rates from pos 0-7, 9-17, 18-26
+                w_pref_pos[unit_index, manip] = np.argmax(weights) # find individual preferred positions
 
-        for region in self.shank_ids:
-            pref_mat[self.shank_ids == region, :] = pref_mat[self.shank_ids == region, :] - pref_mat[self.shank_ids == region, 0].mean()
+                ## "normalize" rates (scale so they are between 0 and 1)
+                weights = np.abs(weights)
+                W[unit_index, :, manip] = weights/(np.sum(weights))
 
-        self.preference = pref_mat
+#        ## subtracts median position from best position
+#        m1_inds = np.where(self.shank_ids == 0)[0]
+#        m1_median_best_pos = np.median(w_pref_pos[m1_inds, 0]) #default median position
+##        w_pref_pos[m1_inds, :] = w_pref_pos[m1_inds, :] - m1_median_best_pos
+#
+#        s1_inds = np.where(self.shank_ids == 1)[0]
+#        s1_median_best_pos = np.median(w_pref_pos[s1_inds, 0]) #default median position
+##        w_pref_pos[s1_inds, :] = w_pref_pos[s1_inds, :] - s1_median_best_pos
+
+        ## subtracts weighted best position for each region
+        # evk_rates are normalized (put between 0 and 1) and the position
+        # with the highest weights in a region is the best position
+
+        ## weighted best position
+        for region in np.unique(self.shank_ids):
+            region_inds = np.where(self.shank_ids == region)[0]
+            region_best_pos = np.argmax(np.sum(W[region_inds, :, 0], axis=0))
+            w_pref_pos_zero_centered[region_inds, :] = w_pref_pos[region_inds] - region_best_pos
+
+            # in case weights need to be returned
+            # w[region_inds, :, :] = w[region_inds, :, :] - region_best_pos
+
+        return w_pref_pos_zero_centered,  w_pref_pos
 
     def get_best_contact(self):
         """calculates best contact for all units from evoked rate tuning curve"""
         best_contact = np.zeros((self.num_units,))
         for unit_index in range(self.num_units):
             meanr = np.array([np.mean(k[:, unit_index]) for k in self.evk_rate])
-            best_contact[unit_index,] = np.argmax(meanr[:self.control_pos])
+            best_contact[unit_index,] = np.argmax(meanr[0:self.control_pos-1])
         self.best_contact = best_contact.astype(int)
 
     def get_sensory_drive(self, num_sig_pos=False):
@@ -3975,6 +4025,77 @@ def run_change_point(neuro):
 # set_engaged_disengaged_trials, manually specify which trials the mouse was
 # engaged/disengaged. get_trials2analyze will look for these if engaged is set
 # to True/False.
+
+
+
+
+
+
+############ best position and selectivity scrath space ############
+############ best position and selectivity scrath space ############
+
+##m1ind = neuro.shank_ids == 0
+##s1ind = neuro.shank_ids == 1
+##
+### NOLIGHT best contact and selectivity
+##bestcontact = neuro.best_contact.astype(float)
+##prefpos = neuro.get_preferred_position().astype(float)
+##
+##m1sNL = neuro.selectivity[m1ind, 0]
+##m1pNL = prefpos[m1ind, 0]
+##
+##
+##s1sNL = neuro.selectivity[s1ind, 0]
+##s1pNL = prefpos[s1ind, 0]
+##
+### LIGHT best contact and selectivity
+##
+##m1sYL = neuro.selectivity[m1ind, 1]
+##m1pYL = prefpos[m1ind, 1]
+##
+##
+##s1sYL = neuro.selectivity[s1ind, 2]
+##s1pYL = prefpos[s1ind, 2]
+##
+##
+##counts = np.zeros((8,))
+##for k, val in enumerate(s1pYL):
+##    counts[int(val)] += s1sYL[k]
+
+
+### How to weigh preferred positions ###
+### iterate through the preferred positions.
+### use the preferred position as an INDEX
+### INDEX into the selectivity values and add that value to COUNTS
+### in a bar graph this should show which positions were preferred based on
+### the strength of the evoked response!!!
+
+
+### maybe a good way of looking at the effects of light is by computing the
+### difference between preferred positions (light - nolight) and computing the
+### difference between selectivity for units of interest.
+### TODO try using a scatter plot of the differences to look for trends
+### hypothesis: s1 silencing moves M1's preferred position forward (negative vals)
+### and makes the units broader (i.e. less selective).
+### hypothesis: m1 silencing move S1's pref position back and increases
+### selectivity making those units more sensitive to anterior whiskers.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
