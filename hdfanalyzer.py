@@ -1432,10 +1432,13 @@ class NeuroAnalyzer(object):
         # compute absolute rate (mean)
         for count, unit_ID in enumerate(unit_indices):
             temp = np.zeros((1, 8))
-            temp = [np.mean(neuro.abs_rate[k][:, unit_ID]) for k in range(0+9*lc, 8+9*lc)]
+            temp = [np.mean(self.abs_rate[k][:, unit_ID]) for k in range(0+9*lc, 8+9*lc)]
             abs_rate[count, :] = temp
 
         R = np.corrcoef(abs_rate)
+
+        # fill diagonal with zeros
+        np.fill_diagonal(R, 0)
 
         if return_vals:
             R = R[np.triu_indices(num_units, k=1, m=num_units)]
@@ -1465,11 +1468,16 @@ class NeuroAnalyzer(object):
             correlation coefficients
         """
         # get absolute spike counts for the specified condition
-        sc = self.abs_count[cond][:, unit_indices].T
+        sc = self.abs_count[cond][:, unit_indices]
+
+        # mean subtract rates so the fluctuations around the mean can be tested
+        # for correlations
+        sc_ms = (sc - sc.mean(axis=0)).T
+        print('\n#### using absolute firing rates, subtracting off mean firing rate #####')
 
         # compute correlation coefficient (each row is a variable, each column
         # is an observation)
-        R = np.corrcoef(sc)
+        R = np.corrcoef(sc_ms)
 
         # fill diagonal with zeros
         np.fill_diagonal(R, 0)
@@ -1703,7 +1711,7 @@ class NeuroAnalyzer(object):
         if trode is not None and cell_type is not None:
             unit_inds = np.where(
                     np.logical_and(\
-                    neuro.shank_ids == trode, neuro.cell_type == cell_type))[0]
+                    self.shank_ids == trode, self.cell_type == cell_type))[0]
             print('Collecting data from {} units and electrode {}'.format(cell_type, trode))
         elif trode is not None:
             unit_inds = np.where(self.shank_ids == trode)[0]
@@ -1805,7 +1813,7 @@ class NeuroAnalyzer(object):
         if trode is not None and cell_type is not None:
             unit_inds = np.where(
                     np.logical_and(\
-                    neuro.shank_ids == trode, neuro.cell_type == cell_type))[0]
+                    self.shank_ids == trode, self.cell_type == cell_type))[0]
             print('Collecting data from {} units and electrode {}'.format(cell_type, trode))
         elif trode is not None:
             unit_inds = np.where(self.shank_ids == trode)[0]
@@ -2021,12 +2029,12 @@ class NeuroAnalyzer(object):
             temp_tc1 = np.zeros((num_pos,))
             for k in range(num_pos):
                 # grab random samples from each position (no light)
-                nsamp = neuro.num_good_trials[k]
+                nsamp = self.num_good_trials[k]
                 meanr_temp = np.mean(np.random.choice(self.abs_rate[k][:, 2], size=nsamp, replace=True))
                 temp_tc[k] = meanr_temp
 
                 # grab random samples from each position (s1 light)
-                nsamp = neuro.num_good_trials[k+9]
+                nsamp = self.num_good_trials[k+9]
                 meanr_temp = np.mean(np.random.choice(self.abs_rate[k+9][:, 2], size=nsamp, replace=True))
                 temp_tc1[k] = np.random.choice(self.abs_rate[k+9][:, 0])
 
