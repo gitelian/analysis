@@ -133,6 +133,7 @@ driven      = np.empty((1, ))
 omi         = np.empty((1, 2))
 selectivity = np.empty((1, 3))
 preference  = np.empty((1, 3))
+preference_zero_mean  = np.empty((1, 3))
 best_pos    = np.empty((1, ))
 base_rate    = np.empty((1, 27, 2))
 abs_rate    = np.empty((1, 27, 2))
@@ -161,10 +162,14 @@ for exp_index, neuro in enumerate(experiments):
     driven      = np.append(driven, neuro.driven_units, axis=0)
     omi         = np.append(omi, neuro.get_omi(), axis=0)
     #preference  = np.append(preference, neuro.get_preference, axis=0)
-    preference= np.append(preference, neuro.get_preferred_position(), axis=0)
+    #preference= np.append(preference, neuro.get_preferred_position(), axis=0)
     best_pos    = np.append(best_pos, neuro.best_contact)
     meanr       = np.append(meanr, neuro.get_rates_vs_strength(normed=True)[0], axis=0)
     S_all       = np.append(S_all, neuro.get_sparseness(kind='lifetime')[1], axis=0)
+
+    pref_temp0, pref_temp1 = neuro.get_preferred_position()
+    preference_zero_mean = np.append(preference_zero_mean, pref_temp0, axis=0)
+    preference = np.append(preference, pref_temp1, axis=0)
 
     num_driven  = np.append(num_driven, neuro.num_driven_pos, axis=0)
     driven_inds = np.append(driven_inds, neuro.driven_indices, axis=0)
@@ -210,6 +215,7 @@ for exp_index, neuro in enumerate(experiments):
         adapt_ratio_temp = neuro.get_adaptation_ratio(unit_ind=unit_index)
         adapt_ratio = np.append(adapt_ratio, adapt_ratio_temp, axis=0)
 
+del neuro
 
 cell_type = np.asarray(cell_type)
 region = region[1:,]
@@ -229,6 +235,7 @@ omi    = omi[1:,]
 omi    = np.nan_to_num(omi)
 selectivity = selectivity[1:, :]
 preference  = preference[1:, :]
+preference_zero_mean  = preference_zero_mean[1:, :]
 best_pos    = best_pos[1:,]
 best_pos    = best_pos.astype(int)
 meanr       = meanr[1:, :]
@@ -246,12 +253,13 @@ npand   = np.logical_and
 
 ##### Num driven units per region / num driven positions per driven unit #####
 ##### Num driven units per region / num driven positions per driven unit #####
+#NOTE 01
 
 ### can use chi test to see if ratio of driven units / total units is different
 
 ### !!! statistically significant difference in the mean number of driven pos / unit
 #   sp.stats.ranksums
-
+cumulative=False # True makes it easier to see the difference, M1 more on left, S1 more on right)
 fig, ax = plt.subplots(1,2)
 for k, ctype in enumerate(['RS', 'FS']):
     m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
@@ -275,8 +283,8 @@ for k, ctype in enumerate(['RS', 'FS']):
     # directly even though they have different numbers of units
     bins = np.arange(1, 10)
     # bar histogram
-    ax[k].hist(m1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left')
-    ax[k].hist(s1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:red', align='left')
+    ax[k].hist(m1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left', cumulative=cumulative)
+    ax[k].hist(s1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=cumulative)
 
     # line histogram
     #ax[k].plot(bins[:-1], np.histogram(m1_driven_pos_per_driven_units, bins=bins, density=True)[0], color='tab:blue')
@@ -300,6 +308,10 @@ for k, ctype in enumerate(['RS', 'FS']):
 # FS units evoked rate higher in S1
 # sp.stats.ks_2samp(sample1, sample2) tests whether these samples come from the same distribution
 
+#NOTE 02
+
+bins = np.arange(-15, 55, 2)
+p = [0, 0]
 cumulative=True
 align='mid' # 'left' or 'mid' or 'right'
 fig, ax = plt.subplots(1,2)
@@ -329,11 +341,14 @@ for k, ctype in enumerate(['RS', 'FS']):
                 low_val.append((s1_unit_ind, pos_ind))
             count += 1
 
-    bins = np.arange(-15, 55, 1)
     ax[k].hist(m1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:blue', align=align, cumulative=cumulative)
     ax[k].hist(s1_evk_rate, bins=bins, density=True, alpha=0.35, color='tab:red', align=align, cumulative=cumulative)
     ax[k].set_xlabel('Evoked rate')
-    ax[k].set_title('{} units'.format(ctype))
+
+    _, pval = sp.stats.ks_2samp(m1_evk_rate, s1_evk_rate)
+    p[k] = pval
+    ax[k].set_title('{} units significant: {}'.format(ctype, pval<0.05))
+
 fig.suptitle('Proportion of driven positions')
 
 ##### Basic properties of spiking units #####
@@ -352,117 +367,122 @@ fig.suptitle('Proportion of driven positions')
 ###  RS no_drive M1xS1       ______ |           ______ |           ______ |
 ###  RS driven M1xS1         ______ |           ______ |           ______ |
 
-bins=np.arange(-10, 40, 2) # TODO change this to something resonable
+#NOTE 03
+
+bins=np.arange(0, 40, 2.5)
 cumulative=False
 normed=True
+col2_pos = 3
 align='mid' # 'left' or 'mid' or 'right'
 
-##TODO: verify this is working properly!
 #k=0; ctype='RS'
 for k, ctype in enumerate(['RS', 'FS']):
-fig, ax = plt.subplots(2,3, sharex=True)
-for row in range(2):
+    fig, ax = plt.subplots(2,3, sharex=True)
+    for row in range(2):
 
-    if row == 0:
-        # non_driven M1 and S1
-        ind0_region = 0 # M1
-        ind1_region = 1 # S1
-        ind0_driven = 0
-        ind1_driven = 0
-        ax[0, 0].set_ylabel('Non-driven units')
-    elif row == 1:
-        # driven M1 and S1
-        ind0_region = 0 # M1
-        ind1_region = 1 # S1
-        ind0_driven = 1
-        ind1_driven = 1
-        ax[1, 0].set_ylabel('Driven units')
+        if row == 0:
+            # non_driven M1 and S1
+            ind0_region = 0 # M1
+            ind1_region = 1 # S1
+            ind0_driven = 0
+            ind1_driven = 0
+            ax[0, 0].set_ylabel('Non-driven units')
+        elif row == 1:
+            # driven M1 and S1
+            ind0_region = 0 # M1
+            ind1_region = 1 # S1
+            ind0_driven = 1
+            ind1_driven = 1
+            ax[1, 0].set_ylabel('Driven units')
 
-    row_temp = list()
-    region_temp = list()
-    cond_temp = list()
+        # label x-axis
+        ax[1][0].set_xlabel('Firing rate')
+        ax[1][1].set_xlabel('Firing rate')
+        ax[1][2].set_xlabel('Firing rate')
 
-    #### Column 0 ####
-    # get region ind0 indices
-    ind0_inds    = np.where(npand(npand(region==ind0_region, driven==ind0_driven), cell_type == ctype))[0]
-    ind0_FR      = abs_rate[ind0_inds, 8, 0] # baseline rate / control position
-    ax[row, 0].hist(ind0_FR, bins=bins, align=align, cumulative=cumulative, \
-            normed=normed, color='tab:blue', alpha=0.5)
+        row_temp = list()
+        region_temp = list()
+        cond_temp = list()
 
-    # get region ind1 indices
-    ind1_inds = np.where(npand(npand(region==ind1_region, driven==ind1_driven), cell_type == ctype))[0]
-    ind1_FR   = abs_rate[ind1_inds, 8, 0]
-    ax[row, 0].hist(ind1_FR, bins=bins, align=align, cumulative=cumulative, \
-            normed=normed, color='tab:red', alpha=0.5)
+        #### Column 0 ####
+        # get region ind0 indices
+        ind0_inds    = np.where(npand(npand(region==ind0_region, driven==ind0_driven), cell_type == ctype))[0]
+        ind0_FR      = abs_rate[ind0_inds, 8, 0] # baseline rate / control position
+        ax[row, 0].hist(ind0_FR, bins=bins, align=align, cumulative=cumulative, \
+                normed=normed, color='tab:blue', alpha=0.5)
 
-    # col 1 stats
-    [val, p] = sp.stats.levene(ind0_FR, ind1_FR)
-    if p < 0.05:
-        win_ind = np.argmax([np.var(ind0_FR), np.var(ind1_FR)])
-        ax[row, 0].set_title('Baseline FR\n{} variance significantly greater'.format(win_ind), size=10)
-        print('P SIG')
-    else:
-        ax[row, 0].set_title('Baseline FR\nvariance not significantly greater', size=10)
-    print('row {} col 0 val={:.2f} p={:.4f}'.format(row, val, p))
+        # get region ind1 indices
+        ind1_inds = np.where(npand(npand(region==ind1_region, driven==ind1_driven), cell_type == ctype))[0]
+        ind1_FR   = abs_rate[ind1_inds, 8, 0]
+        ax[row, 0].hist(ind1_FR, bins=bins, align=align, cumulative=cumulative, \
+                normed=normed, color='tab:red', alpha=0.5)
 
-    row_temp.append(ind0_FR); row_temp.append(ind1_FR)
-    region_temp.append('vM1'); region_temp.append('vS1');
-    cond_temp.append('Position 2 FR'); cond_temp.append('Position 2 FR')
+        # col 0 stats
+        [val, p] = sp.stats.levene(ind0_FR, ind1_FR)
+        if p < 0.05:
+            win_ind = np.argmax([np.var(ind0_FR), np.var(ind1_FR)])
+            ax[row, 0].set_title('Baseline FR\n{} variance significantly greater'.format(win_ind), size=10)
+            print('P SIG')
+        else:
+            ax[row, 0].set_title('Baseline FR\nvariance not significantly greater', size=10)
+        print('row {} col 0 val={:.2f} p={:.4f}'.format(row, val, p))
 
-    #### Column 1 ####
-    ind0_best_pos_inds = best_pos[ind0_inds]
-    ind0_FR            = abs_rate[ind0_inds, ind0_best_pos_inds, 0]
-    ax[row, 1].hist(ind0_FR, bins=bins, align=align, cumulative=cumulative, \
-            normed=normed, color='tab:blue', alpha=0.5)
+        row_temp.append(ind0_FR); row_temp.append(ind1_FR)
+        region_temp.append('vM1'); region_temp.append('vS1');
+        cond_temp.append('Position 2 FR'); cond_temp.append('Position 2 FR')
 
-    ind1_best_pos_inds = best_pos[ind1_inds]
-    ind1_FR            = abs_rate[ind1_inds, ind1_best_pos_inds, 0]
-    ax[row, 1].hist(ind1_FR, bins=bins, align=align, cumulative=cumulative, \
-            normed=normed, color='tab:red', alpha=0.5)
+        #### Column 1 ####
+        ind0_best_pos_inds = best_pos[ind0_inds]
+        ind0_FR            = abs_rate[ind0_inds, ind0_best_pos_inds, 0]
+        ax[row, 1].hist(ind0_FR, bins=bins, align=align, cumulative=cumulative, \
+                normed=normed, color='tab:blue', alpha=0.5)
 
-    [val, p] = sp.stats.levene(ind0_FR, ind1_FR)
-    if p < 0.05:
-        win_ind = np.argmax([np.var(ind0_FR), np.var(ind1_FR)])
-        ax[row, 1].set_title('Best driven FR\n{} variance significantly greater'.format(win_ind), size=10)
-    else:
-        ax[row, 1].set_title('Best driven FR\nvariance not significantly greater', size=10)
-    print('row {} col 1 Wstat={:.2f} p={:.4f}'.format(row, val, p))
+        ind1_best_pos_inds = best_pos[ind1_inds]
+        ind1_FR            = abs_rate[ind1_inds, ind1_best_pos_inds, 0]
+        ax[row, 1].hist(ind1_FR, bins=bins, align=align, cumulative=cumulative, \
+                normed=normed, color='tab:red', alpha=0.5)
 
-    row_temp.append(ind0_FR); row_temp.append(ind1_FR)
-    region_temp.append('vM1'); region_temp.append('vS1');
-    cond_temp.append('Position 2 FR'); cond_temp.append('Position 2 FR')
+        [val, p] = sp.stats.levene(ind0_FR, ind1_FR)
+        if p < 0.05:
+            win_ind = np.argmax([np.var(ind0_FR), np.var(ind1_FR)])
+            ax[row, 1].set_title('Best driven FR\n{} variance significantly greater'.format(win_ind), size=10)
+        else:
+            ax[row, 1].set_title('Best driven FR\nvariance not significantly greater', size=10)
+        print('row {} col 1 Wstat={:.2f} p={:.4f}'.format(row, val, p))
 
-    #### Column 2 ####
-    ind0_FR = abs_rate[ind0_inds, 3, 0]
-    ax[row, 2].hist(ind0_FR, bins=bins, align=align, cumulative=cumulative, \
-            normed=normed, color='tab:blue', alpha=0.5)
+        row_temp.append(ind0_FR); row_temp.append(ind1_FR)
+        region_temp.append('vM1'); region_temp.append('vS1');
+        cond_temp.append('Position {} FR'.format(col2_pos)); cond_temp.append('Position {} FR'.format(col2_pos))
 
-    ind1_FR = abs_rate[ind1_inds, 3, 0]
-    ax[row, 2].hist(ind1_FR, bins=bins, align=align, cumulative=cumulative, \
-            normed=normed, color='tab:red', alpha=0.5)
-    ax[row, 2].set_title('Position 3')
+        #### Column 2 ####
+        ind0_FR = abs_rate[ind0_inds, col2_pos, 0]
+        ax[row, 2].hist(ind0_FR, bins=bins, align=align, cumulative=cumulative, \
+                normed=normed, color='tab:blue', alpha=0.5)
 
-    [val, p] = sp.stats.levene(ind0_FR, ind1_FR)
-    if p < 0.05:
-        win_ind = np.argmax([np.var(ind0_FR), np.var(ind1_FR)])
-        ax[row, 2].set_title('Position 3 FR\n{} variance significantly greater'.format(win_ind), size=10)
-    else:
-        ax[row, 2].set_title('Position 3 FR\nvariance not significantly greater', size=10)
-    print('row {} col 2 Wstat={:.2f} p={:.4f}'.format(row, val, p))
+        ind1_FR = abs_rate[ind1_inds, col2_pos, 0]
+        ax[row, 2].hist(ind1_FR, bins=bins, align=align, cumulative=cumulative, \
+                normed=normed, color='tab:red', alpha=0.5)
+        ax[row, 2].set_title('Position {}'.format(col2_pos))
 
-    row_temp.append(ind0_FR); row_temp.append(ind1_FR)
-    region_temp.append('vM1'); region_temp.append('vS1');
-    cond_temp.append('Position 2 FR'); cond_temp.append('Position 2 FR')
+        [val, p] = sp.stats.levene(ind0_FR, ind1_FR)
+        if p < 0.05:
+            win_ind = np.argmax([np.var(ind0_FR), np.var(ind1_FR)])
+            ax[row, 2].set_title('Position {} FR\n{} variance significantly greater'.format(col2_pos, win_ind), size=10)
+        else:
+            ax[row, 2].set_title('Position {} FR\nvariance not significantly greater'.format(col2_pos), size=10)
+        print('row {} col 2 Wstat={:.2f} p={:.4f}'.format(row, val, p))
+
+        row_temp.append(ind0_FR); row_temp.append(ind1_FR)
+        region_temp.append('vM1'); region_temp.append('vS1');
+        cond_temp.append('Position {} FR'.format(col2_pos)); cond_temp.append('Position {} FR'.format(col2_pos))
 
 
-    df = pd.DataFrame({'FR':row_temp, 'region':region, 'condition':cond})
-    #df = pd.DataFrame({'fid': fid_list, 'cell_type': cell_type, 'change': change})
-    #df = df.set_index('fid')
-    sns.set_color_codes()
-    plt.figure()
-    #sns.boxplot(x="fid", y="change", hue="cell_type", data=df, palette=['b', 'r'])
-    #sns.boxplot(x="fid", y="change", hue="cell_type", data=df, palette={"RS":'b', "FS":'r'})
-    sns.boxplot(x="condition", y="change", hue="cell_type", data=df, palette={"RS":'b', "FS":'r'})
+#        df = pd.DataFrame({'FR':row_temp, 'region':region_temp, 'condition':cond_temp})
+##        df = df.set_index('fid')
+#        sns.set_color_codes()
+##        sns.boxplot(x="fid", y="change", hue="cell_type", data=df, palette={"RS":'b', "FS":'r'})
+##        sns.boxplot(x="condition", y="FR", hue="cell_type", data=df, palette={"RS":'b', "FS":'r'})
+#        sns.boxplot(x="condition", y="FR", data=df, palette={"RS":'b', "FS":'r'})
 
 
 
@@ -479,30 +499,140 @@ for row in range(2):
 corr_m1 = list()
 corr_m1_vals = list()
 corr_s1 = list()
+corr_s1_vals = list()
+##TODO be able to set all units
 ctype='RS'
-m1_driven_unit_inds = npand(npand(region==0, driven==True), cell_type == ctype)
-temp_vals = np.zeros((np.sum(m1_driven_unit_inds), 2))
+#m1_driven_unit_inds = npand(npand(region==0, driven==True), cell_type == ctype)
+m1_driven_unit_inds = np.where(npand(region==0, driven==True))[0]
+m1_vals = np.zeros((m1_driven_unit_inds.shape[0], 2)) # no light, s1 light , correlation values (upper triangle)
+
+s1_driven_unit_inds = npand(npand(region==1, driven==True), cell_type == ctype)
+s1_vals = np.zeros((np.sum(s1_driven_unit_inds), 2)) # no light, s1 light , correlation values (upper triangle)
+
+m1_vals = np.zeros((1, 2)) # col 1: no light, col 2: light
+s1_vals = np.zeros((1, 2)) # col 1: no light, col 2: light
+
+m1s1 = list()
+m1s1_light = list()
 
 for exp_ID, n in enumerate(experiments):
-    # TODO clean this up a bit
-    exp_ID_inds = npand(exp_ind[:, 0] == exp_ID, m1_driven_unit_inds)
-    tcm1_lc0 = abs_rate[exp_ID_inds, 0:8, 0] # unit x observations (mean pos 01, mean pos 02...mean pos 08)
-    tcm1_lc1 = abs_rate[exp_ID_inds, 9:17, 0]
-    array_size = tcm1_lc0.shape[0]
 
-    corr_m1_lc0 = np.corrcoef(tcm1_lc0)
-    corr_m1_lc1 = np.corrcoef(tcm1_lc1)
-    corr_m1.append([corr_m1_lc0, corr_m1_lc1])
-    lc0_vals = corr_m1_lc0[np.triu_indices(array_size, k=1)]
-    lc1_vals = corr_m1_lc1[np.triu_indices(array_size, k=1)]
-    corr_m1_vals.append([lc0_vals, lc1_vals])
-    temp_vals = np.concatenate((temp_vals, np.asarray([lc0_vals, lc1_vals]).T), axis=0)
+    ## Get all pair-wise correlations for M1 and S1 with and without Light
+
+    ## Simple analysis: Image of M1 and S1 correlations
+    m1inds = np.where(npand(n.shank_ids == 0, n.driven_units==True))[0]
+    m1temp = n.tc_corr(m1inds, light_condition=0)
+    m1temp_light = n.tc_corr(m1inds, light_condition=1)
+
+    s1inds = np.where(npand(n.shank_ids == 1, n.driven_units==True))[0]
+    s1temp = n.tc_corr(s1inds, light_condition=0)
+    s1temp_light = n.tc_corr(s1inds, light_condition=2)
+
+    m1s1.append((m1temp,s1temp))
+    m1s1_light.append((m1temp_light,s1temp_light))
+
+    ## take all the pair-wise values and append to a nx2 array
+
+    #  M1 and M1 Light
+    m1_size= m1inds.shape[0]
+    m1_triu_inds = np.triu_indices(m1_size, k=1)
+    # The True adds the second axis so they can be concatenated along axis=1
+    m1_combo = np.concatenate( (m1temp[m1_triu_inds][:, True], \
+            m1temp_light[m1_triu_inds][:, True]), axis=1)
+    m1_vals = np.concatenate( (m1_vals, m1_combo), axis=0)
+
+
+    s1_size= s1inds.shape[0]
+    s1_triu_inds = np.triu_indices(s1_size, k=1)
+    # The True adds the second axis so they can be concatenated along axis=1
+    s1_combo = np.concatenate( (s1temp[s1_triu_inds][:, True], \
+            s1temp_light[s1_triu_inds][:, True]), axis=1)
+    s1_vals = np.concatenate( (s1_vals, s1_combo), axis=0)
+
+m1_vals = m1_vals[1:, :]
+s1_vals = s1_vals[1:, :]
+
+#    # TODO clean this up a bit
+#    # M1
+#    exp_ID_inds = npand(exp_ind[:, 0] == exp_ID, m1_driven_unit_inds)
+#    tcm1_lc0 = abs_rate[exp_ID_inds, 0:8, 0] # unit x observations (mean pos 01, mean pos 02...mean pos 08)
+#    tcm1_lc1 = abs_rate[exp_ID_inds, 9:17, 0]
+#    array_size = tcm1_lc0.shape[0]
+#
+#    corr_m1_lc0 = np.corrcoef(tcm1_lc0)
+#    corr_m1_lc1 = np.corrcoef(tcm1_lc1)
+#    corr_m1.append([corr_m1_lc0, corr_m1_lc1])
+#    lc0_vals = corr_m1_lc0[np.triu_indices(array_size, k=1)]
+#    lc1_vals = corr_m1_lc1[np.triu_indices(array_size, k=1)]
+#    corr_m1_vals.append([lc0_vals, lc1_vals])
+#    m1_vals= np.concatenate((m1_vals, np.asarray([lc0_vals, lc1_vals]).T), axis=0)
+#
+#    # S1
+#    exp_ID_inds = npand(exp_ind[:, 0] == exp_ID, s1_driven_unit_inds)
+#    tcs1_lc0 = abs_rate[exp_ID_inds, 0:8, 0] # unit x observations (mean pos 01, mean pos 02...mean pos 08)
+#    tcs1_lc1 = abs_rate[exp_ID_inds, 18:26, 0]
+#    array_size = tcs1_lc0.shape[0]
+#
+#    corr_s1_lc0 = np.corrcoef(tcs1_lc0)
+#    corr_s1_lc1 = np.corrcoef(tcs1_lc1)
+#    corr_s1.append([corr_s1_lc0, corr_s1_lc1])
+#    lc0_vals = corr_s1_lc0[np.triu_indices(array_size, k=1)]
+#    lc1_vals = corr_s1_lc1[np.triu_indices(array_size, k=1)]
+#    corr_s1_vals.append([lc0_vals, lc1_vals])
+#    s1_vals = np.concatenate((s1_vals, np.asarray([lc0_vals, lc1_vals]).T), axis=0)
+
+
+## some plots
+fig, ax = plt.subplots(2,2)
+bins=np.arange(-1,1,0.05)
+hist(m1_vals[:,0], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:grey')
+
+hist(m1_vals[:,1], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:blue')
+hist(s1_vals[:,0], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:red')
+hist(s1_vals[:,1], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:purple')
+
+violinplot([m1_vals[:, 1], m1_vals[:, 0], s1_vals[:,0], s1_vals[:, 1]])
+
+## TODO figure out a way to actually learn something from this analysis
+fig, ax = plt.subplots(1,2)
+ax[0].scatter(m1_vals[:,0], m1_vals[:,1])
+ax[0].plot([-1,1],[-1,1])
+ax[1].scatter(s1_vals[:,0], s1_vals[:,1])
+ax[1].plot([-1,1],[-1,1])
+
+## heatmap
+fig, ax = plt.subplots(6,2)
+for x in range(6):
+    # No Light M1 vs S1
+    im0 = ax[x][0].imshow(m1s1[x][0], vmin=-1, vmax=1, cmap='coolwarm', aspect='auto')
+    im1 = ax[x][1].imshow(m1s1_light[x][1], vmin=-1, vmax=1, cmap='coolwarm', aspect='auto')
+
+#    # Differences between light and no light conditions (M1+S1 silencing) - M1NoLight, and vice versa)
+#    im0 = ax[x][0].imshow(m1s1_light[x][0] - m1s1[x][0], vmin=-1, vmax=1, cmap='coolwarm', aspect='auto')
+#    im1 = ax[x][1].imshow(m1s1_light[x][1] - m1s1[x][1], vmin=-1, vmax=1, cmap='coolwarm', aspect='auto')
+
+
+#fig.colorbar(im0, ax=ax[0])
+#fig.colorbar(im1, ax=ax[1])
+
+##### Test Space Signal correlation plots
+#m1 = where(npand(n.shank_ids==0, n.driven_units))[0]
+#s1 = where(npand(n.shank_ids==1, n.driven_units))[0]
+#
+#a =  n.tc_corr(m1)
+#b =  n.tc_corr(s1,light_condition=0)
+#
+#fig, ax = plt.subplots(1,2)
+#blah = ax[0].imshow(a, vmin=-1,vmax=1, cmap='coolwarm')
+#blah = ax[1].imshow(b, vmin=-1,vmax=1, cmap='coolwarm')
 
 
 ##### Noise correlation analysis #####
 ##### Noise correlation analysis #####
 
-unit_indices = np.where(np.logical_and(neuro.shank_ids == 0, neuro.cell_type=='RS'))[0]
+#unit_indices = np.where(np.logical_and(neuro.shank_ids == 0, neuro.cell_type=='RS'))[0]
+#unit_indices = np.where(region == 0)[0]
+unit_indices = np.where(neuro.shank_ids == 0)[0]
 R0 = neuro.noise_corr(unit_indices, cond=3)
 R1 = neuro.noise_corr(unit_indices, cond=3+9)
 
@@ -517,6 +647,7 @@ hist(dt, bins=bins, color='tab:red', alpha=0.4)
 R0 = list()
 R1 = list()
 for k in range(4):
+    k=8
     #R0.extend(neuro.noise_corr(unit_indices, cond=k, return_vals=True))
     R0 = neuro.noise_corr(unit_indices, cond=k, return_vals=True)
     hist(R0, bins=bins, alpha=0.4, cumulative=False)
@@ -575,36 +706,71 @@ ax. boxplot([preference[m1_inds,0], preference[m1_inds,1], preference[s1_inds,0]
 
 
 
-############ best position and selectivity scrath space ############
-############ best position and selectivity scrath space ############
+############ best position and selectivity scratch space ############
+############ best position and selectivity scratch space ############
 
-m1ind = neuro.shank_ids == 0
-s1ind = neuro.shank_ids == 1
+#[position IDs, selectivity] <-- n x 2 array (vals, weights)
 
-# NOLIGHT best contact and selectivity
-bestcontact = neuro.best_contact.astype(float)
-prefpos = neuro.get_preferred_position().astype(float)
+ctype = 'RS'
+m1ind = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+s1ind = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
 
-m1sNL = neuro.selectivity[m1ind, 0]
-m1pNL = prefpos[m1ind, 0]
+# No light
+m1sel = selectivity[m1ind, 0]
+m1pos = preference_zero_mean[m1ind, 1]
 
+s1sel = selectivity[s1ind, 0]
+s1pos = preference_zero_mean[s1ind, 2]
 
-s1sNL = neuro.selectivity[s1ind, 0]
-s1pNL = prefpos[s1ind, 0]
+# light
+m1sel_L = selectivity[m1ind, 1]
+m1pos_L = preference_zero_mean[m1ind, 1]
 
-# LIGHT best contact and selectivity
-
-m1sYL = neuro.selectivity[m1ind, 1]
-m1pYL = prefpos[m1ind, 1]
-
-
-s1sYL = neuro.selectivity[s1ind, 2]
-s1pYL = prefpos[s1ind, 2]
+s1sel_L = selectivity[s1ind, 2]
+s1pos_L = preference_zero_mean[s1ind, 2]
 
 
-counts = np.zeros((8,))
-for k, val in enumerate(s1pYL):
-    counts[int(val)] += s1sYL[k]
+
+### WEIGHTED preferred position by selectivity
+## it appears that S1 favors the space anterior to region preferred pos
+## while M1 prefers posterior!!
+m1_counts = np.zeros((11,))
+s1_counts = np.zeros((11,))
+x = np.arange(-5,6)
+for k, val in enumerate(m1pos):
+    m1_counts[int(val)+5] = m1sel[k] # 5 in center of array
+    #m1_counts_light[int(val)+5] = selectivity[m1ind, 1][k] # 5 in center of array
+for k, val in enumerate(s1pos):
+    s1_counts[int(val)+5] = s1sel[k] # 5 in center of array
+
+# this normalizes it right? so it sums to 1?
+m1_counts = m1_counts / sum(m1_counts)
+s1_counts = s1_counts / sum(s1_counts)
+
+figure()
+bar(x, m1_counts, alpha=0.5)
+bar(x, s1_counts, alpha=0.5)
+
+figure()
+scatter(m1pos, m1sel)
+scatter(s1pos, s1sel)
+xlim([-7,7])
+ylim([0,1])
+
+scatter(m1_pos
+
+### unweighted preferred position
+hist(preference_zero_mean[m1ind,0],bins=bins, normed=True,alpha=0.5)
+hist(preference_zero_mean[s1ind,0],bins=bins, normed=True,alpha=0.5)
+
+### weighted??? preferred position
+## NO this is garbage
+#figure()
+#m1_w = m1pos * m1sel
+#s1_w = s1pos * s1sel
+#hist(m1_w,bins=bins, normed=True,alpha=0.5)
+#hist(s1_w,bins=bins, normed=True,alpha=0.5)
+
 
         ##### NOTES #####
 ### How to weigh preferred positions ###
