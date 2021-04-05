@@ -1664,7 +1664,8 @@ class NeuroAnalyzer(object):
 
         return im
 
-    def get_design_matrix(self, rate_type='abs_count', cond_inds=None, trode=None, cell_type=None, trim_trials=True):
+    def get_design_matrix(self, rate_type='abs_count', unit_inds=None, cond_inds=None,\
+            min_trials=None, trode=None, cell_type=None, trim_trials=True):
         """
         creates design matrix for classification and regressions
 
@@ -1698,7 +1699,11 @@ class NeuroAnalyzer(object):
         """
 
         print('\n-----make design matrix----')
-        min_trials     = np.min(self.num_good_trials)
+        if min_trials is None:
+            min_trials     = np.min(self.num_good_trials)
+        else:
+            print('using custom minimum trial {}'.format(min_trials))
+
         num_cond       = len(self.stim_ids)
         kind_dict      = {'abs_rate': 0, 'abs_count': 1, 'evk_rate': 2, 'evk_count': 3}
         kind_of_tuning = [self.abs_rate, self.abs_count, self.evk_rate, self.evk_count]
@@ -1708,22 +1713,27 @@ class NeuroAnalyzer(object):
         # electrode/region, cell type (e.g. 'RS', 'FS') or a combinations of
         # both ('RS' cells from 'S1')
 
-        if trode is not None and cell_type is not None:
-            unit_inds = np.where(
-                    np.logical_and(\
-                    self.shank_ids == trode, self.cell_type == cell_type))[0]
-            print('Collecting data from {} units and electrode {}'.format(cell_type, trode))
-        elif trode is not None:
-            unit_inds = np.where(self.shank_ids == trode)[0]
-            print('Collecting data from all units and electrode {}'.format(trode))
+        if unit_inds is None:
 
-        elif cell_type is not None:
-            print('Collecting data from all electrodes and {} units'.format(cell_type))
-            unit_inds = np.where(self.cell_type == cell_type)[0]
+            if trode is not None and cell_type is not None:
+                unit_inds = np.where(
+                        np.logical_and(\
+                        self.shank_ids == trode, self.cell_type == cell_type))[0]
+                print('Collecting data from {} units and electrode {}'.format(cell_type, trode))
+            elif trode is not None:
+                unit_inds = np.where(self.shank_ids == trode)[0]
+                print('Collecting data from all units and electrode {}'.format(trode))
 
+            elif cell_type is not None:
+                print('Collecting data from all electrodes and {} units'.format(cell_type))
+                unit_inds = np.where(self.cell_type == cell_type)[0]
+
+            else:
+                print('Collecting data from all units and all electrodes')
+                unit_inds = np.where(self.shank_ids >= 0)[0]
         else:
-            print('Collecting data from all units and all electrodes')
-            unit_inds = np.where(self.shank_ids >= 0)[0]
+            print('using custom unit indices')
+
 
         num_units = len(unit_inds)
 
@@ -1749,7 +1759,8 @@ class NeuroAnalyzer(object):
                 last_t_ind = min_trials + last_t_ind
 
         # Limit trial types:  only include data if it is apart of the specified
-        # trial types/conditions
+        # trial types/conditions (i.e. remove data that is not in the cond_inds
+        # array
         if cond_inds is not None:
             good_inds = np.empty(())
 
@@ -2101,7 +2112,7 @@ class NeuroAnalyzer(object):
             will help identify how the best position changes with silencing
         """
 
-        ## TODO use evoked normalized evoked rates to 'vote' for the preferred
+        ## TODO use normalized evoked rates to 'vote' for the preferred
         ## position. make a population tuning curve for an overall preferred
         ## position. If it is wide then there is lots of widely tuned units,
         ## suggesting the population covers more of the stimulus space.
@@ -2109,7 +2120,6 @@ class NeuroAnalyzer(object):
         ## the population does not tile that space, each unit's peak is similar
         ## to the others.
 
-        print('### TODO: try not subtracting off overall preferred position ###')
         control_pos       = self.control_pos
         num_manipulations = int(self.stim_ids.shape[0]/control_pos)
         w_pref_pos        = np.zeros((self.num_units, num_manipulations))
