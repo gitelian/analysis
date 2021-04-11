@@ -16,7 +16,9 @@ import statsmodels.stats.proportion
 import pickle
 import statsmodels.stats.multitest as smm
 
+# how to set breakpoints
 import pdb
+
 # how to do multiple comparisons
 #rej_s1, pval_corr = smm.multipletests(raw_p_vals, alpha=0.05, method='sh')[:2]
 
@@ -244,7 +246,7 @@ class NeuroAnalyzer(object):
     def __get_depths(self):
         """Get depths for all units"""
 #        seg_iter = self.f.iterkeys() # python2 only
-        for i, seg in enumerate(f):
+        for i, seg in enumerate(self.f):
             fid, shank, depth = list(), list(), list()
 
             for spike in self.f[seg]['spiketrains']:
@@ -525,7 +527,7 @@ class NeuroAnalyzer(object):
             print('whisker tracking data found! trimming data to be all the same length in time')
 
             #TODO: load in the time when HSV camera starts and stops!!!
-            if int(fid[3::]) < 1729: # or self.jb_behavior == 0:
+            if int(self.fid[3::]) < 1729: # or self.jb_behavior == 0:
                 wt_start_time = float(self.__get_exp_details_info('hsv_start'))
                 wt_stop_time  = float(self.__get_exp_details_info('hsv_stop'))
                 wt_num_frames = int(self.__get_exp_details_info('hsv_num_frames'))
