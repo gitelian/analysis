@@ -1,6 +1,7 @@
 import seaborn as sns
 import numpy as np
 import scipy as sp
+import scipy.io as sio
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
@@ -773,71 +774,224 @@ if __name__ == "__main__":
         f.close()
 
         experiments.append(neuro)
-    ############## LOAD DATA ##########
+    ############## END LOAD DATA ##########
 
 
-    ############## Combine data and create two models: vM1 and vS1 ##########
+    ############## Combine data from M1 and S1 during all conditions ##########
     npand = np.logical_and
     pos_inds = np.arange(8)
     min_trials = 30
+    ctype = 'FS'
 
-    Xm = np.zeros((min_trials*8, 1))
-    Xs = np.zeros((min_trials*8, 1))
+    ## vM1 data, all conditions
+    Xm_nl  = np.zeros((min_trials*8, 1))
+    Xm_sl = np.zeros((min_trials*8, 1))
+    Xm_ml = np.zeros((min_trials*8, 1))
+
+    ## vS1 data, all conditions
+    Xs_nl = np.zeros((min_trials*8, 1))
+    Xs_sl = np.zeros((min_trials*8, 1))
+    Xs_ml = np.zeros((min_trials*8, 1))
 
     for n in experiments:
-        uind_m1 = np.where( npand(n.driven_units == True, n.shank_ids == 0) )[0]
-        Xm1, ym1, _ = n.get_design_matrix(min_trials=min_trials, unit_inds=uind_m1, cond_inds=pos_inds, rate_type='abs_count')
-        Xm = np.concatenate((Xm, Xm1), axis=1)
+        if ctype == 'RS' or ctype =='FS':
+            uind_m1 = np.where( npand( npand(n.driven_units == True, n.shank_ids == 0), n.cell_type == ctype ))[0]
+            uind_s1 = np.where( npand( npand(n.driven_units == True, n.shank_ids == 1), n.cell_type == ctype ))[0]
+        elif ctype == 'all':
+            uind_m1 = np.where( npand(n.driven_units == True, n.shank_ids == 0), )[0]
+            uind_s1 = np.where( npand(n.driven_units == True, n.shank_ids == 1))[0]
 
-        uind_s1 = np.where( npand(n.driven_units == True, n.shank_ids == 1) )[0]
-        Xs1, ys1, _ = n.get_design_matrix(min_trials=min_trials, unit_inds=uind_s1, cond_inds=pos_inds, rate_type='abs_count')
-        Xs = np.concatenate((Xs, Xs1), axis=1)
-    Xm = Xm[:, 1::]
-    Xs = Xs[:, 1::]
+        ## vM1 data collection
 
+        Xm_nl_temp, ym_nl, _ = n.get_design_matrix(min_trials=min_trials,\
+                unit_inds=uind_m1, cond_inds=pos_inds, rate_type='abs_count')
+        Xm_nl = np.concatenate((Xm_nl, Xm_nl_temp), axis=1)
+
+        Xm_sl_temp, ym_sl, _ = n.get_design_matrix(min_trials=min_trials,\
+                unit_inds=uind_m1, cond_inds=pos_inds+9, rate_type='abs_count')
+        Xm_sl = np.concatenate((Xm_sl, Xm_sl_temp), axis=1)
+
+        Xm_ml_temp, ym_ml, _ = n.get_design_matrix(min_trials=min_trials,\
+                unit_inds=uind_m1, cond_inds=pos_inds+9+9, rate_type='abs_count')
+        Xm_ml = np.concatenate((Xm_ml, Xm_ml_temp), axis=1)
+
+
+
+        ## vS1 data collection
+        Xs_nl_temp, ys_nl, _ = n.get_design_matrix(min_trials=min_trials,\
+                unit_inds=uind_s1, cond_inds=pos_inds, rate_type='abs_count')
+        Xs_nl = np.concatenate((Xs_nl, Xs_nl_temp), axis=1)
+
+        Xs_sl_temp, ys_sl, _ = n.get_design_matrix(min_trials=min_trials,\
+                unit_inds=uind_s1, cond_inds=pos_inds+9, rate_type='abs_count')
+        Xs_sl = np.concatenate((Xs_sl, Xs_sl_temp), axis=1)
+
+        Xs_ml_temp, ys_ml, _ = n.get_design_matrix(min_trials=min_trials,\
+                unit_inds=uind_s1, cond_inds=pos_inds+9+9, rate_type='abs_count')
+        Xs_ml = np.concatenate((Xs_ml, Xs_ml_temp), axis=1)
+
+
+    Xm_nl = Xm_nl[:, 1::]
+    Xm_sl = Xm_sl[:, 1::]
+    Xm_ml = Xm_ml[:, 1::]
+
+    Xs_nl = Xs_nl[:, 1::]
+    Xs_sl = Xs_sl[:, 1::]
+    Xs_ml = Xs_ml[:, 1::]
+
+    # SAVE COMBINED DATA
+    ## + time.strftime('%Y%m%d_%Hh%Mm') # how to add timestamps to strings/filenames
     save_dir= '/home/greg/Desktop/desktop2dropbox/decoder/'
-    save_name = 'design_matrices_no1343_'
-    fname = save_dir + save_name + time.strftime('%Y%m%d_%Hh%Mm') + '.mat'
-    sp.io.savemat(fname, {'Xm':Xm, 'Xs':Xs, 'ym1':ym1, 'ys1':ys1, 'fids':fids})
+    save_name = 'design_matrices_FS_units_all_data_all_light_conditions_noFID1343'
+    fname = save_dir + save_name + '.mat'
+    sp.io.savemat(fname, {'Xm_nl':Xm_nl, 'Xm_sl':Xm_sl, 'Xm_ml':Xm_ml,\
+            'ym_nl':ym_nl, 'ym_sl':ym_sl, 'ym_ml':ym_ml,\
+            'Xs_nl':Xs_nl, 'Xs_sl':Xs_sl, 'Xs_ml':Xs_ml,\
+            'ys_nl':ys_nl, 'ys_sl':ys_sl, 'ys_ml':ys_ml,\
+            'fids':fids, 'min_trials':min_trials})
 
+    ############## END COMBINE DATA AND SAVE ##########
+
+    ## LOAD COMBINE DATA
+    save_dir= '/home/greg/Desktop/desktop2dropbox/decoder/'
+    save_name = 'design_matrices_all_units_all_data_all_light_conditions_noFID1343'
+#    save_name = 'design_matrices_RS_units_all_data_all_light_conditions_noFID1343'
+#    save_name = 'design_matrices_RS_FS_all_data_all_light_conditions_noFID1343'
+    data = sp.io.loadmat(save_dir + save_name)
+    Xm_nl = data['Xm_nl']; ym_nl = data['ym_nl'].ravel()
+    Xm_sl = data['Xm_sl']; ym_sl = data['ym_sl'].ravel()
+    Xm_ml = data['Xm_ml']; ym_ml = data['ym_ml'].ravel()
+
+    Xs_nl = data['Xs_nl']; ys_nl = data['ys_nl'].ravel()
+    Xs_sl = data['Xs_sl']; ys_sl = data['ys_sl'].ravel()
+    Xs_ml = data['Xs_ml']; ys_ml = data['ys_ml'].ravel()
 
     ##### Basic Decoding #####
+
+    ##### M1 decoding #####
+
     ### M1 combo decode ###
-    print('----- vM1 basic decoding -----\n')
-    m1c = NeuroDecoder(Xm, ym1)
-    m1c.fit(kind='ole', plot_cmat=False, run=True)
-    m1c.get_pcc_distribution(num_runs=1000)
+    print('\n----- vM1 + NoLight basic decoding -----')
+    m1c_nl = NeuroDecoder(Xm_nl, ym_nl)
+    m1c_nl.fit(kind='ole', plot_cmat=False, run=True)
+    m1c_nl.get_pcc_distribution(num_runs=1000)
+
+    ### S1 combo decode with vM1 silencing ###
+    print('\n----- vM1 + vS1 silencing  basic decoding -----')
+    m1c_sl = NeuroDecoder(Xm_sl, ym_sl)
+    m1c_sl.fit(kind='ole', plot_cmat=False, run=True)
+    m1c_sl.get_pcc_distribution(num_runs=1000)
+
+    ### M1 combo decode with vM1 silencing ###
+    print('\n----- vM1 + vM1 silencing basic decoding -----')
+    m1c_ml = NeuroDecoder(Xm_ml, ym_ml)
+    m1c_ml.fit(kind='ole', plot_cmat=False, run=True)
+    m1c_ml.get_pcc_distribution(num_runs=1000)
+
+    ### M1 combo decode with label shuffle ###
+    print('\n----- vM1 + NoLight label shuffle -----')
+    ym_nl_shuffle = np.random.permutation(ym_nl)
+    m1c_nl_shuff = NeuroDecoder(Xm_nl, ym_nl_shuffle)
+    m1c_nl_shuff.fit(kind='ole', plot_cmat=False, run=True)
+    m1c_nl_shuff.get_pcc_distribution(num_runs=1000)
+
+
+    ### ### M1 + S1 no light combo decode ### ###
+    print('\n----- vM1 + vS1 combo basic decoding -----')
+    Xms_nl = np.concatenate((Xm_nl, Xs_nl), axis=1)
+    m1s1c_nl = NeuroDecoder(Xms_nl, ym_nl)
+    m1s1c_nl.fit(kind='ole', plot_cmat=False, run=True)
+    m1s1c_nl.get_pcc_distribution(num_runs=1000)
+
+
+    ##### S1 decoding #####
 
     ### S1 combo decode ###
-    print('----- vS1 basic decoding -----\n')
-    s1c = NeuroDecoder(Xs, ys1)
-    s1c.fit(kind='ole', plot_cmat=False, run=True)
-    s1c.get_pcc_distribution(num_runs=1000)
+    print('\n----- vS1 + NoLight basic decoding -----')
+    s1c_nl = NeuroDecoder(Xs_nl, ys_nl)
+    s1c_nl.fit(kind='ole', plot_cmat=False, run=True)
+    s1c_nl.get_pcc_distribution(num_runs=1000)
+
+    ### S1 combo decode with vM1 silencing ###
+    print('\n----- vS1 + vM1 silencing  basic decoding -----')
+    s1c_ml = NeuroDecoder(Xs_ml, ys_ml)
+    s1c_ml.fit(kind='ole', plot_cmat=False, run=True)
+    s1c_ml.get_pcc_distribution(num_runs=1000)
+
+    ### S1 combo decode with vS1 silencing ###
+    print('\n----- vS1 + vS1 silencing basic decoding -----')
+    s1c_sl = NeuroDecoder(Xs_sl, ys_sl)
+    s1c_sl.fit(kind='ole', plot_cmat=False, run=True)
+    plt.title('vS1 + vS1 silencing: PCC {:.2f}'.format(s1c_sl.best_pcc))
+    s1c_sl.get_pcc_distribution(num_runs=1000)
+
+    ### S1 combo decode with label shuffle ###
+    print('\n----- vS1 + NoLight label shuffle -----')
+    ys_nl_shuffle = np.random.permutation(ys_nl)
+    s1c_nl_shuff = NeuroDecoder(Xs_nl, ys_nl_shuffle)
+    s1c_nl_shuff.fit(kind='ole', plot_cmat=False, run=True)
+    s1c_nl_shuff.get_pcc_distribution(num_runs=1000)
 
     #### Plot confusion matrix and PCC distributions before calculating subsets
-    fig, ax = plt.subplots(1,3, figsize=(15.0, 3.0))
-    im_m1  = ax[0].imshow(m1c.cmat, vmin=0, vmax=1, interpolation='none', cmap='afmhot')
-    im_s1  = ax[1].imshow(s1c.cmat, vmin=0, vmax=1, interpolation='none', cmap='afmhot')
-    fig.colorbar(im_m1,  ax=ax[0]); ax[0].set_title('vM1 PCC: ' + "{:.1f}".format(m1c.cmat_pcc))
-    fig.colorbar(im_s1,  ax=ax[1]); ax[1].set_title('vS1 PCC: ' + "{:.1f}".format(s1c.cmat_pcc))
-    ax[2].hist(m1c.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
-            color='tab:blue', align='left', cumulative=False)
-    ax[2].hist(s1c.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
-            color='tab:red', align='left', cumulative=False)
-    ax[2].set_xlim(50,100)
-    ax[2].legend(['vM1', 'vS1'], loc='upper left')
+    #### Plot confusion matrix and PCC distributions before calculating subsets
+
+    fig, ax = plt.subplots(2,3, figsize=(15.0, 7.0))
+
+    # top row confusion matrices heatmap
+    im_m1   = ax[0][0].imshow(m1c.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    im_s1   = ax[0][1].imshow(s1c.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    im_m1s1 = ax[0][2].imshow(m1s1.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    fig.colorbar(im_m1,  ax=ax[0][0]); ax[0][0].set_title('vM1 PCC: ' + "{:.1f}".format(m1c.cmat_pcc))
+    fig.colorbar(im_s1,  ax=ax[0][1]); ax[0][1].set_title('vS1 PCC: ' + "{:.1f}".format(s1c.cmat_pcc))
+    fig.colorbar(im_m1s1,  ax=ax[0][2]); ax[0][2].set_title('vM1 + vS1 PCC: ' + "{:.1f}".format(m1s1.cmat_pcc))
+
+    # bottom row confusion matrices heatmap
+    im_m1L   = ax[1][0].imshow(m1cL.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    im_s1L   = ax[1][1].imshow(s1cL.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    fig.colorbar(im_m1L,  ax=ax[1][0]); ax[1][0].set_title('vM1 PCC: ' + "{:.1f}".format(m1cL.cmat_pcc))
+    fig.colorbar(im_s1L,  ax=ax[1][1]); ax[1][1].set_title('vS1 PCC: ' + "{:.1f}".format(s1cL.cmat_pcc))
+
+    # bottom right histogram with all the PCC distributions
+
+
+    ### vM1 histograms
+    fig, ax = plt.subplots()
+    ax.hist(m1c_nl.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
+            color='tab:blue', align='left', cumulative=False, histtype='stepfilled', label='vM1 NoLight' )
+    ax.hist(m1c_sl.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
+            color='tab:blue', align='left', cumulative=False, histtype='step', label='vM1 vS1 silencing' )
+    ax.hist(m1c_ml.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
+            color='tab:purple', align='left', cumulative=False, histtype='stepfilled', label='vM1 vM1 silencing' )
+    ax.hist(m1c_nl_shuff.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
+            color='tab:purple', align='left', cumulative=False, histtype='step', label='vM1 NoLight shuffle' )
+
+    ### vM1 + vS1 combo
+#    ax.hist(m1s1.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
+#            color='tab:purple', align='left', cumulative=False, histtype='stepfilled', label='vM1 + vS1 NoLight')
+
+    ### vS1 histograms
+    ax.hist(s1c_nl.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
+            color='tab:red', align='left', cumulative=False, histtype='stepfilled', label='vS1 NoLight')
+    ax.hist(s1c_ml.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
+            color='tab:red', align='left', cumulative=False, histtype='step', label='vS1 + vM1 silencing')
+    ax.hist(s1c_sl.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
+            color='tab:grey', align='left', cumulative=False, histtype='stepfilled', label='vS1 vS1 silencing')
+    ax.hist(s1c_nl_shuff.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
+            color='tab:grey', align='left', cumulative=False, histtype='step', label='vS1 NoLight shuffle')
+
+    ax.set_ylabel('density')
+    ax.set_xlabel('Percent correct classified (PCC)')
+    #ax.set_title('Decoding performance: RS during all conditions')
+    ax.set_title('Decoding performance: RS during all conditions')
+
+    ax.set_xlim(-20,100)
+    ax.vlines(0, 0, ax.get_ylim()[1])
+    ax.legend(fontsize='x-small', loc='upper left')
 
     save_name = 'm1_s1_figure_simple_decoding_nolight'
     fname = save_dir + save_name + time.strftime('%Y%m%d_%Hh%mm') + '.pdf'
     fig.savefig(fname)
     plt.close(fig)
-
-    ### M1 and S1 combo save ###
-    save_name = 'm1_s1_simple_decoding_values_'
-    fname = save_dir + save_name + time.strftime('%Y%m%d_%Hh%Mm') + '.mat'
-    sp.io.savemat(fname, {'Xm':Xm, 'Xs':Xs, 'ym1':ym1, 'ys1':ys1, 'fids':fids,\
-            'm1c_pccs':m1c.all_pcc, 'm1c_cmat':m1c.cmat, 'm1c_cmat_pcc':m1c.cmat_pcc,\
-            's1c_pccs':s1c.all_pcc, 's1c_cmat':s1c.cmat, 's1c_cmat_pcc':s1c.cmat_pcc})
 
 
     ##### M1 and S1 subset decoding #####
@@ -862,36 +1016,112 @@ if __name__ == "__main__":
 
 ##### Add subsample figure and save it #####
 ##### Add subsample figure and save it #####
-##    s1c_pcc_array = s1c.decode_subset(niter=5, num_runs=20)
-##    s1c_mean_pcc  = s1c_pcc_array.mean(axis=0)
-##    s1c_std_pcc   = s1c_pcc_array.std(axis=0)
-##    plt.figure()
-##    plt.errorbar(np.arange(2, s1c_mean_pcc.shape[0]+2), s1c_mean_pcc, yerr=s1c_std_pcc,\
-##            marker='o', markersize=6.0, linewidth=2, color='k')
+    data_dir = '/home/greg/Desktop/desktop2dropbox/decoder/'
+
+    ## M1 and S1 nolight subsampling
+    file_name = 'm1_s1_subsampling_units_decoding_20210407_13h37m.mat'
+    fname = data_dir + file_name
+    data = sio.loadmat(fname)
+
+    s1_nl = data['s1c_pcc_array']
+    s1_nl_mean = np.mean(s1_nl, axis=0)
+    s1_nl_std  = np.std(s1_nl, axis=0)
+    xs_nl = np.arange(2, s1_nl.shape[1]+2)
+
+    m1_nl = data['m1c_pcc_array']
+    m1_nl_mean = np.mean(m1_nl, axis=0)
+    m1_nl_std  = np.std(m1_nl, axis=0)
+    xm_nl = np.arange(2, m1_nl.shape[1]+2)
+
+    ##### Load in vM1 + vS1 silencing
+    file_name =  'm1_s1_silencing_subsampling_ALL_units_decoding_20210408_14h57m.mat'
+    fname = data_dir + file_name
+    data = sio.loadmat(fname)
+
+    m1_sl = data['ole_pcc_array']
+    m1_sl_mean = np.mean(m1_sl, axis=0)
+    m1_sl_std  = np.std(m1_sl, axis=0)
+    xm_sl = np.arange(2, m1_sl.shape[1]+2)
+
+    file_name = 's1_m1_silencing_subsampling_ALL_units_decoding_20210408_20h14m.mat'
+    fname = data_dir + file_name
+    data = sio.loadmat(fname)
+    s1_ml = data['ole_pcc_array']
+    s1_ml_mean = np.mean(s1_ml, axis=0)
+    s1_ml_std = np.std(s1_ml, axis=0)
+    xs_ml = np.arange(2, s1_ml.shape[1]+2)
+
+
+    ### plot PCC vs Units in decoder
+    plt.figure(figsize=[7,4])
+    plt.errorbar(xm_nl, m1_nl_mean, yerr=m1_nl_std,\
+            marker='o', markersize=3.0, linewidth=1, color='tab:blue', label='vM1 + NoLight')
+
+    plt.errorbar(xs_nl, s1_nl_mean, yerr=s1_nl_std,\
+            marker='o', markersize=3.0, linewidth=1, color='tab:red', label='vS1 + NoLight')
+
+    plt.errorbar(xm_sl, m1_sl_mean, yerr=m1_sl_std,\
+            marker='o', markersize=3.0, linewidth=1, color='tab:cyan', label='vM1 + vS1 silencing')
+
+    plt.errorbar(xs_ml, s1_ml_mean, yerr=s1_ml_std,\
+            marker='o', markersize=3.0, linewidth=1, color='tab:pink', label='vS1 + NoLight')
 
 
 
-##    ###################### MANUAL DECODING SPACE ########################
-##    npand = np.logical_and
-##    pos_inds = np.arange(8)
-##    min_trials = 30
-##
-##    #### M1 ####
-##    uind_m1 = np.where( npand(n1.driven_units == True, n1.shank_ids == 0) )[0]
-##    Xm1, ym1, _ = n1.get_design_matrix(min_trials=min_trials, unit_inds=uind_m1, cond_inds=pos_inds, rate_type='abs_count')
-##
-##    uind_m2 = np.where( npand(n2.driven_units == True, n2.shank_ids == 0) )[0]
-##    Xm2, ym2, _ = n2.get_design_matrix(min_trials=min_trials, unit_inds=uind_m2, cond_inds=pos_inds, rate_type='abs_count')
-##
-##    # check ym1 == ym2 then proceede
-##    Xm= np.concatenate((Xm1, Xm2), axis=1)
-##    ym= ym1
-##
-##    ## M1 decode!
-##    m1c = NeuroDecoder(Xm, ym)
-##    m1c.fit(kind='ole', plot_cmat=True, run=True)
-##    m1c.get_pcc_distribution(num_runs=500)
-##
+#    plt.hlines(100*1.0/8.0, 0, xs[-1]+1, linestyle='--', color='tab:grey', label='chance')
+    plt.hlines(100*1.0/8.0, 0, xm[-1]+1, linestyle='--', color='tab:grey', label='chance')
+    plt.legend(loc='lower right')
+    plt.xlabel('Number of units in decoder')
+    plt.ylabel('% correct')
+    plt.title('All data decoding performance')
+    plt.ylim([10, 100])
+    plt.xlim([-2,102])
+
+
+###### This is the same plot in a different line style
+    fig, ax = plt.subplots(figsize=[6,4])
+    ax.plot(xm, m1_mean, color='tab:blue', linewidth=1.5, linestyle='--')
+    ax.plot(xs, s1_mean, color='tab:red', linewidth=1.5, linestyle='--')
+    ax.hlines(100*1.0/8.0, 0, xs[-1]+2, linestyle='--', color='tab:grey')
+    ax.legend(['vM1', 'vS1', 'chance'])
+    ax.fill_between(xm, m1_mean - m1_std, m1_mean + m1_std, facecolor='tab:blue', alpha=0.3)
+    ax.fill_between(xs, s1_mean - s1_std, s1_mean + s1_std, facecolor='tab:red', alpha=0.3)
+    ax.set_xlabel('Number of units in decoder')
+    ax.set_ylabel('% correct')
+    ax.set_title('vS1 vs vM1 decoding performance')
+    ax.set_ylim([10, 90])
+
+
+    ###################### MANUAL DECODING SPACE ########################
+    npand = np.logical_and
+    pos_inds = np.arange(8)
+    min_trials = 30
+
+    #### M1 ####
+    uind_m1 = np.where( npand(n1.driven_units == True, n1.shank_ids == 0) )[0]
+    Xm1, ym1, _ = n1.get_design_matrix(min_trials=min_trials, unit_inds=uind_m1, cond_inds=pos_inds, rate_type='abs_count')
+
+    uind_m2 = np.where( npand(n2.driven_units == True, n2.shank_ids == 0) )[0]
+    Xm2, ym2, _ = n2.get_design_matrix(min_trials=min_trials, unit_inds=uind_m2, cond_inds=pos_inds, rate_type='abs_count')
+
+    # check ym1 == ym2 then proceede
+    Xm= np.concatenate((Xm1, Xm2), axis=1)
+    ym= ym1
+
+    ##
+    m1 = NeuroDecoder(Xm1, ym1)
+    m1.fit(kind='ole', run=True )
+    m1.get_pcc_distribution(num_runs=200)
+
+    m2 = NeuroDecoder(Xm2, ym2)
+    m2.fit(kind='ole', run=True)
+    m2.get_pcc_distribution(num_runs=200)
+
+    ## M1 decode!
+    m1c = NeuroDecoder(Xm, ym)
+    m1c.fit(kind='ole', plot_cmat=True, run=True)
+    m1c.get_pcc_distribution(num_runs=200)
+
 ##
 ##    #### S1 ####
 ##    npand = np.logical_and
@@ -913,18 +1143,22 @@ if __name__ == "__main__":
 ##    s1c.fit(kind='ole', plot_cmat=True, run=True)
 ##    s1c.get_pcc_distribution(num_runs=500)
 ##
-##    #### Plot confusion matrix and PCC distributions before calculating subsets
-##    fig, ax = plt.subplots(1,3, figsize=(15.0, 3.0))
-##    im_m1  = ax[0].imshow(m1c.cmat, vmin=0, vmax=1, interpolation='none', cmap='afmhot')
-##    im_s1  = ax[1].imshow(s1c.cmat, vmin=0, vmax=1, interpolation='none', cmap='afmhot')
-##    fig.colorbar(im_m1,  ax=ax[0]); ax[0].set_title('vM1 PCC: ' + "{:.1f}".format(m1c.cmat_pcc))
-##    fig.colorbar(im_s1,  ax=ax[1]); ax[1].set_title('vS1 PCC: ' + "{:.1f}".format(s1c.cmat_pcc))
-##    ax[2].hist(m1c.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
-##            color='tab:blue', align='left', cumulative=False)
-##    ax[2].hist(s1c.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
-##            color='tab:red', align='left', cumulative=False)
-##    ax[2].set_xlim(50,100)
-##    ax[2].legend(['vM1', 'vS1'], loc='upper left')
+    #### Plot confusion matrix and PCC distributions before calculating subsets
+    fig, ax = plt.subplots(1,3, figsize=(15.0, 3.0))
+    im_m1  = ax[0].imshow(m1.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    im_s1  = ax[1].imshow(m2.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    im_s1  = ax[2].imshow(m1c.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    fig.colorbar(im_m1,  ax=ax[0]); ax[0].set_title('Mouse #1 vM1 PCC: ' + "{:.1f}".format(m1.cmat_pcc))
+    fig.colorbar(im_s1,  ax=ax[1]); ax[1].set_title('Mouse #2 vM1 PCC: ' + "{:.1f}".format(m2.cmat_pcc))
+    fig.colorbar(im_s1,  ax=ax[2]); ax[2].set_title('Combined vM1 units PCC: ' + "{:.1f}".format(m1c.cmat_pcc))
+    ax.hist(m1.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
+         color='tab:blue', align='left', cumulative=False)
+    ax.hist(m2.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
+         color='tab:red', align='left', cumulative=False)
+    ax.hist(m1c.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
+         color='tab:purple', align='left', cumulative=False)
+    ax.set_xlim(50,100)
+    ax.legend(['vM1', 'vS1'], loc='upper left')
 ##
 ##
 ##    ## S1 subset: PCC per size of sample
@@ -1122,6 +1356,12 @@ if __name__ == "__main__":
 ##
 ##
 ##
+
+
+
+
+
+
 ################################################################################
 ####### Single-Experiment:Use SAVED DATA to remake PCC vs Num Units figures#####
 ################################################################################
