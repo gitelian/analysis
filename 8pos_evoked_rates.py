@@ -32,12 +32,12 @@ for fid_name in fids:
 
 ## NOTE METHOD 1
 # each entry is the mean evoked rate for one unit at one position for light off
-# and S1 light on [evoked rate, evoked rate + S1 silencing]
+# and S1/M1 light on [evoked rate, evoked rate + S1/M1 silencing]
 
 m1 = np.zeros((1, 2))
 s1 = np.zeros((1, 2))
 #to_compare = [ (k, neuro.control_pos-1) for k in range(neuro.control_pos-1)]
-to_compare = [ (k, n.control_pos-1) for k in range(n.control_pos-1)]
+to_compare = [ (k, experiments[0].control_pos-1) for k in range(experiments[0].control_pos-1)]
 
 for neuro in experiments:
     # dedent for single experiment analysis
@@ -98,11 +98,19 @@ plt.vlines(0, -15, 80, color='tab:grey', linewidth=1.0)
 
 ## NOTE METHOD 2
 
+# contains 2 tuple, first tuple has RS units, second has FS units
+# Each tuples first entry is no light evk_rate, second is evk_rate with
+# silencing
+m1_evk = list()
+s1_evk = list()
+
+fig, ax = plt.subplots(2,2)
 for k, ctype in enumerate(['RS', 'FS']):
 
+    ### vM1 evoked rates
     low_val = list()
-    m1_driven_unit_inds = np.where(npand(region==0, driven==True))[0]
-    #m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+    #m1_driven_unit_inds = np.where(npand(region==0, driven==True))[0]
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
     m1_total_driven_pos = int(sum(num_driven[m1_driven_unit_inds]))
     m1_evk_rate = np.zeros((m1_total_driven_pos, ))
     m1_evk_rate_Light = np.zeros((m1_total_driven_pos, ))
@@ -114,18 +122,20 @@ for k, ctype in enumerate(['RS', 'FS']):
             if np.abs(m1_evk_rate[count]) < 1:
                 low_val.append((m1_unit_ind, pos_ind))
             count+=1
+    m1_evk.append( (m1_evk_rate, m1_evk_rate_Light))
 
-    scatter(m1_evk_rate, m1_evk_rate_Light, s=15, c='tab:blue')
-    plt.plot([-12, 32], [-12, 32], 'k')
-    xlim([-12, 30]); ylim([-12, 30])
-    xlabel('Evoked firing rate (Hz)')
-    ylabel('Evoked firing rate (Hz)\n+ vS1 silencing')
-    title('vM1 changes in evoked firing rate')
-    plt.hlines(0, -12, 32, color='tab:grey', linewidth=1.0)
-    plt.vlines(0, -12, 32, color='tab:grey', linewidth=1.0)
+    ax[0 ,k].scatter(m1_evk_rate, m1_evk_rate_Light, s=15, c='tab:blue')
+    ax[0 ,k].plot([-12, 32], [-12, 32], 'k')
+    ax[0 ,k].set_xlim([-12, 30])
+    ax[k, 0].set_ylim([-12, 30])
+    ax[0 ,k].set_xlabel('Evoked firing rate (Hz)')
+    ax[0 ,k].set_ylabel('Evoked firing rate (Hz)\n+ vS1 silencing')
+    ax[0 ,k].set_title('vM1 {} changes in evoked firing rate'.format(ctype))
+    ax[0 ,k].hlines(0, -12, 32, color='tab:grey', linewidth=1.0)
+    ax[0 ,k].vlines(0, -12, 32, color='tab:grey', linewidth=1.0)
 
 
-
+    ### vS1 evoked rates
     low_val = list()
     s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
     s1_total_driven_pos = int(sum(num_driven[s1_driven_unit_inds]))
@@ -139,15 +149,65 @@ for k, ctype in enumerate(['RS', 'FS']):
             if np.abs(s1_evk_rate[count]) < 1:
                 low_val.append((s1_unit_ind, pos_ind))
             count+=1
+    s1_evk.append( (s1_evk_rate, s1_evk_rate_Light))
 
-    scatter(s1_evk_rate, s1_evk_rate_Light, s=15, c='tab:red')
-    plt.plot([-12, 60], [-12, 60], 'k')
-    xlim([-12, 60]); ylim([-12, 60])
-    xlabel('Evoked firing rate (Hz)')
-    ylabel('Evoked firing rate (Hz)\n+ vM1 silencing')
-    title('vM1 changes in evoked firing rate')
-    plt.hlines(0, -12, 60, color='tab:grey', linewidth=1.0)
-    plt.vlines(0, -12, 60, color='tab:grey', linewidth=1.0)
+    ax[1 ,k].scatter(s1_evk_rate, s1_evk_rate_Light, s=15, c='tab:red')
+    ax[1 ,k].plot([-12, 60], [-12, 60], 'k')
+    ax[1 ,k].set_xlim([-12, 60])
+    ax[1, k].set_ylim([-12, 60])
+    ax[1 ,k].set_xlabel('Evoked firing rate (Hz)')
+    ax[1 ,k].set_ylabel('Evoked firing rate (Hz)\n+ vM1 silencing')
+    ax[1 ,k].set_title('vS1 {} changes in evoked firing rate'.format(ctype))
+    ax[1 ,k].hlines(0, -12, 60, color='tab:grey', linewidth=1.0)
+    ax[1 ,k].vlines(0, -12, 60, color='tab:grey', linewidth=1.0)
+
+
+
+
+
+
+
+
+
+## test if silencing significantly changes the other
+## NOTE the suppressed units values negate the evoked values, need to separate
+## compute the abs change then combine
+##
+## Find suppressed and evoked indices
+
+## M1
+## M1 RS
+
+m1_rs = m1_evk[0]
+evk_ind = np.where(m1_rs[0] > 0)[0]
+sup_ind = np.where(m1_rs[0] < 0)[0]
+
+#NOTE I think this is WRONG!!!
+evk_delta = np.abs(m1_rs[1][evk_ind] - m1_rs[0][evk_ind])
+sup_delta = m1_rs[1][sup_ind] - m1_rs[0][sup_ind]
+
+m1_rs_combo = np.append(sup_delta, evk_delta)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
