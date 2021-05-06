@@ -1409,7 +1409,7 @@ class NeuroAnalyzer(object):
 
         return R, sort_inds
 
-    def tc_corr(self, unit_indices, light_condition=0, return_vals=False):
+    def tc_corr(self, unit_indices, light_condition=0, return_vals=False, ):
         """
         takes the average tuning curve for each unit and computes a simple
             pearson's correlations between all pairs.
@@ -1419,22 +1419,45 @@ class NeuroAnalyzer(object):
         Must specify which light_condition to analyze. E.g. light_condition 1
             is S1 silencing.
 
-        Return values will take the upper right triangle of the correlation
+        Return: R0 matrix or array
+            Values will take the upper right triangle of the correlation
             matrix and convert it to a 1-d array
 
-        Returns
+        Return: Rshuff
+            Values will be taken from random halves of data for each unit.
+            For each unit, firing rates within a stimulus condition will be
+            shuffled, next this data is split in half and stored as a mean values
+            in that units tuning curve. Mean tuning curves will be made for all
+            units for both halves. Correlations will be computed from the two
+            halves for comparison...in theory they should be identical.
+
+            This should estimate the noise envelope, if changes in signal
+            correlations are not greater than the envelope it is likely noise
+
+        returns
         -------
         R: array, 2-d array of all pair-wise correlation coeficients with the
-            diaganol set to zero. Or a 1-d array of unique pair-wise
+            diaganol set to zero. or a 1-d array of unique pair-wise
             correlation coefficients
+
+        Rshuff: units x conditions x 2 array, or a units x 1 x 2 array
+            3d array of all pari-wise correlation coeficients with the third
+            dimension containing the values for the same units and stimulus
+            conditions but from the other split and shuffled data
+            If return_vals is True than Rshuff is an array where the
+            third dimension (axis 2) contains data from the second split
         """
+        ##### ##### regular tc calculation (i.e. no shuffle) ##### #####
         lc = light_condition
         num_units = len(unit_indices)
         abs_rate = np.zeros((num_units, 8))
-        # compute absolute rate (mean)
-        for count, unit_ID in enumerate(unit_indices):
+
+
+        # compute absolute rate mean tuning curves
+        for count, unit_id in enumerate(unit_indices):
             temp = np.zeros((1, 8))
-            temp = [np.mean(self.abs_rate[k][:, unit_ID]) for k in range(0+9*lc, 8+9*lc)]
+            # computes mean tuning curve per unit
+            temp = [np.mean(self.abs_rate[k][:, unit_id]) for k in range(0+9*lc, 8+9*lc)]
             abs_rate[count, :] = temp
 
         R = np.corrcoef(abs_rate)
@@ -1445,7 +1468,50 @@ class NeuroAnalyzer(object):
         if return_vals:
             R = R[np.triu_indices(num_units, k=1, m=num_units)]
 
-        return R
+        ##### ##### shuffle tc calculation ##### #####
+        # shuffled tc calculation
+        #axis 2 is tuning curve of the same unit but with half of the data
+        lc = light_condition
+        num_units = len(unit_indices)
+
+        abs_rate_shuffle = np.zeros((num_units, 8, 2))
+        # compute shuffled absolute rate mean tuning curves
+        for count, unit_id in enumerate(unit_indices):
+            # computes two mean tuning curves per unit with shuffled data
+            # randomly shuffle units data, split in two and measure tc correlations
+            temp_shuffle = np.zeros((2, 8))
+            for k, cond_ind in enumerate(range(0+9*lc, 8+9*lc)):
+                temp_vals = self.abs_rate[cond_ind][:, unit_id]
+                #temp_vals_shuffle = temp_vals
+                temp_vals_shuffle = np.random.permutation(temp_vals)
+                mid_index_low  = int(np.math.floor(temp_vals.shape[0]/2.0))
+                mid_index_high = int(np.math.ceil(temp_vals.shape[0]/2.0))
+
+                temp_shuffle[0, k]= np.mean(temp_vals_shuffle[:mid_index_low])
+                temp_shuffle[1, k]= np.mean(temp_vals_shuffle[mid_index_high:])
+            abs_rate_shuffle[count, :, 0] = temp_shuffle[0, :]
+            abs_rate_shuffle[count, :, 1] = temp_shuffle[1, :]
+
+        R0_shuff = np.corrcoef(abs_rate_shuffle[:,:, 0])
+        R1_shuff = np.corrcoef(abs_rate_shuffle[:,:, 1])
+
+        # fill diagonal with zeros
+        np.fill_diagonal(R0_shuff, 0)
+        np.fill_diagonal(R1_shuff, 0)
+
+        if return_vals:
+            R0_shuff = R0_shuff[np.triu_indices(num_units, k=1, m=num_units)]
+            R1_shuff = R1_shuff[np.triu_indices(num_units, k=1, m=num_units)]
+            #plt.scatter(R0_shuff, R1_shuff, s=14)
+
+            # the thid dimension (axis 2) will always store the second half
+            # of the shuffled data...this way rows are always units
+            # NOTE None adds an empty dimension (e.g. turning (n, ) to (n, 1) )
+            Rshuff = np.concatenate( (R0_shuff[:, None, None], R1_shuff[:, None, None]), axis=2)
+        else:
+            Rshuff = np.concatenate( (R0_shuff[:, :, None], R1_shuff[:, :, None]), axis=2)
+
+        return R, Rshuff
 
 
     ### End tc_corr
@@ -1979,25 +2045,58 @@ class NeuroAnalyzer(object):
 ################################################################################
 
     def get_selectivity(self):
-        """compute selectivity for all units and manipulations"""
+        """
+        compute selectivity for all units and manipulations
+
+        compute selectivity for the same unit using two halve of its own shuffled
+            data
+        """
+        def calc_sel(x):
+            sel = 1 - ((np.linalg.norm(x/np.max(x))- 1) / (np.sqrt(x.shape[0]) - 1))
+            return sel
 
         if hasattr(self, 'abs_rate') is False:
             self.rates()
         control_pos = self.control_pos
         num_manipulations = int(self.stim_ids.shape[0]/control_pos)
         sel_mat = np.zeros((self.num_units, num_manipulations))
+        sel_mat_shuff = np.zeros((self.num_units, num_manipulations, 2))
 
         for manip in range(num_manipulations):
             for unit_index in range(self.num_units):
-                meanr = [np.mean(k[:, unit_index]) for k in self.abs_rate]
+                pos_indices = np.arange((manip*control_pos),((manip+1)*control_pos-1))
+                pos_start_ind = (manip*control_pos)
                 # minus 1 to exclude no contact/control position
-                x = np.asarray(meanr[(manip*control_pos):((manip+1)*control_pos-1)])
-                # calculate selectivity for unit_index during manipulation
-                sel_mat[unit_index, manip] = \
-                        1 - ((np.linalg.norm(x/np.max(x))- 1)/\
-                        (np.sqrt(x.shape[0]) - 1))
+                pos_stop_ind = ((manip+1)*control_pos-1)
+
+                meanr = [np.mean(k[:, unit_index]) for k in self.abs_rate]
+                x = np.asarray(meanr[pos_start_ind:pos_stop_ind])
+                sel_mat[unit_index, manip] = calc_sel(x)
+#                # calculate selectivity for unit_index during manipulation
+#                sel_mat[unit_index, manip] = \
+#                        1 - ((np.linalg.norm(x/np.max(x))- 1)/\
+#                        (np.sqrt(x.shape[0]) - 1))
+
+                ##### ##### Shuffle Zone ##### #####
+                temp_shuffle = np.zeros((2, 8))
+                for k, pos_index in enumerate(range(pos_start_ind, pos_stop_ind)):
+                    temp_vals = self.abs_rate[pos_index][:, unit_index]
+                    temp_vals_shuffle = np.random.permutation(temp_vals)
+                    mid_index_low  = int(np.math.floor(temp_vals.shape[0]/2))
+                    mid_index_high = int(np.math.ceil(temp_vals.shape[0]/2))
+
+                    temp_shuffle[0, k]= np.mean(temp_vals_shuffle[:mid_index_low])
+                    temp_shuffle[1, k]= np.mean(temp_vals_shuffle[mid_index_high:])
+                meanr0 = temp_shuffle[0, :]
+                meanr1 = temp_shuffle[1, :]
+                sel_mat_shuff[unit_index, manip, 0] = calc_sel(meanr0)
+                sel_mat_shuff[unit_index, manip, 1] = calc_sel(meanr1)
 
         self.selectivity = sel_mat
+        self.selectivity_shuffled = sel_mat_shuff
+
+
+
 
     def get_bootstrap_selectivity(self):
         if hasattr(self, 'abs_rate') is False:
