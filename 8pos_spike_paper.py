@@ -26,6 +26,38 @@ import statsmodels.stats.multitest as smm
 # how to do multiple comparisons
 #rej_s1, pval_corr = smm.multipletests(raw_p_vals, alpha=0.05, method='sh')[:2]
 
+# change default figure type to PDF
+mpl.rcParams['savefig.format'] = 'pdf'
+#plt.rc('font',family='Arial')
+#sns.set_style("whitegrid", {'axes.grid' : False})
+
+with PdfPages('01_all_driven_units_raster_tuningcurves.pdf') as pdf:
+    for exp_num, n in enumerate(experiments):
+        n.get_sensory_drive(num_sig_pos=True)
+        for unit_num in range(n.num_units):
+            if n.driven_units[unit_num]:
+                if n.shank_ids[unit_num]:
+                    region = 'S1'
+                else:
+                    region = 'M1'
+                sel = n.selectivity[unit_num, :]
+
+                fig, ax = plt.subplots(1, 3, figsize=(11,3))
+                fig.subplots_adjust(left=0.125, bottom=0.155, right=0.9, top=0.88, wspace=0.2, hspace=0.2)
+                fig.suptitle('Exp#: {}, unit#: {}, region: {}, selectivity {:.3f}, Num evk pos: {}'.format(\
+                        exp_num, unit_num, region, sel[0], n.num_driven_pos[unit_num]))
+                n.plot_raster_all_conditions(unit_ind=unit_num, axis=ax[0])
+                n.plot_tuning_curve(unit_ind=unit_num, kind='abs_rate', axis=ax[1])
+                n.plot_tuning_curve(unit_ind=unit_num, kind='evk_rate', axis=ax[2])
+                ax[2].set_title('selectivty vals {:.3f}, {:.3f}, {:.3f}'.format(sel[0], sel[1], sel[2]))
+
+
+                pdf.savefig()
+                fig.clear()
+                plt.close()
+
+
+
 ##### ##### ##### NOTE single unit analysis NOTE ##### ##### #####
 ##### ##### ##### NOTE single unit analysis NOTE ##### ##### #####
 
@@ -132,6 +164,7 @@ cell_type   = list()
 driven      = np.empty((1, ))
 omi         = np.empty((1, 2))
 selectivity = np.empty((1, 3))
+selectivity_shuff = np.empty((1, 3, 2))
 preference  = np.empty((1, 3))
 preference_zero_mean  = np.empty((1, 3))
 best_pos    = np.empty((1, ))
@@ -159,6 +192,7 @@ for exp_index, neuro in enumerate(experiments):
     region      = np.append(region, neuro.shank_ids)
     depths      = np.append(depths, np.asarray(neuro.depths))
     selectivity = np.append(selectivity, neuro.selectivity, axis=0)
+    selectivity_shuff = np.append(selectivity_shuff, neuro.selectivity_shuffled, axis=0)
     driven      = np.append(driven, neuro.driven_units, axis=0)
     omi         = np.append(omi, neuro.get_omi(), axis=0)
     #preference  = np.append(preference, neuro.get_preference, axis=0)
@@ -234,6 +268,7 @@ driven_inds = np.asarray(driven_inds[1:,])
 omi    = omi[1:,]
 omi    = np.nan_to_num(omi)
 selectivity = selectivity[1:, :]
+selectivity_shuff = selectivity_shuff[1:, :, :]
 preference  = preference[1:, :]
 preference_zero_mean  = preference_zero_mean[1:, :]
 best_pos    = best_pos[1:,]
@@ -514,20 +549,30 @@ corr_m1 = list()
 corr_m1_vals = list()
 corr_s1 = list()
 corr_s1_vals = list()
-##TODO be able to set all units
 ctype='RS'
 #m1_driven_unit_inds = npand(npand(region==0, driven==True), cell_type == ctype)
 m1_driven_unit_inds = np.where(npand(region==0, driven==True))[0]
 m1_vals = np.zeros((m1_driven_unit_inds.shape[0], 2)) # no light, s1 light , correlation values (upper triangle)
 
 s1_driven_unit_inds = npand(npand(region==1, driven==True), cell_type == ctype)
+s1_driven_unit_inds = np.where(npand(region==1, driven==True))[0]
 s1_vals = np.zeros((np.sum(s1_driven_unit_inds), 2)) # no light, s1 light , correlation values (upper triangle)
 
+
+
+##### start here or switch for above #####
 m1_vals = np.zeros((1, 2)) # col 1: no light, col 2: light
 s1_vals = np.zeros((1, 2)) # col 1: no light, col 2: light
 
+m1_vals_shuff = np.zeros((1, 2)) # col 1: no light, col 2: light
+s1_vals_shuff = np.zeros((1, 2)) # col 1: no light, col 2: light
+
+
 m1s1 = list()
 m1s1_light = list()
+
+m1s1_shuff = list()
+m1s1_light_shuff = list()
 
 for exp_ID, n in enumerate(experiments):
 
@@ -535,15 +580,19 @@ for exp_ID, n in enumerate(experiments):
 
     ## Simple analysis: Image of M1 and S1 correlations
     m1inds = np.where(npand(n.shank_ids == 0, n.driven_units==True))[0]
-    m1temp = n.tc_corr(m1inds, light_condition=0)
-    m1temp_light = n.tc_corr(m1inds, light_condition=1)
+    m1temp, m1temp_shuff = n.tc_corr(m1inds, light_condition=0)
+#    m1temp_light, m1temp_light_shuff = n.tc_corr(m1inds, light_condition=1)
 
     s1inds = np.where(npand(n.shank_ids == 1, n.driven_units==True))[0]
-    s1temp = n.tc_corr(s1inds, light_condition=0)
-    s1temp_light = n.tc_corr(s1inds, light_condition=2)
+##    s1temp, s1temp_shuff = n.tc_corr(s1inds, light_condition=0)
+##    s1temp_light, s1temp_light_shuff = n.tc_corr(s1inds, light_condition=2)
 
     m1s1.append((m1temp,s1temp))
     m1s1_light.append((m1temp_light,s1temp_light))
+
+##    m1s1_shuff.append((m1temp_shuff,s1temp_shuff))
+##    m1s1_light_shuff.append((m1temp_light_shuff, s1temp_light_shuff))
+
 
     ## take all the pair-wise values and append to a nx2 array
 
@@ -555,6 +604,11 @@ for exp_ID, n in enumerate(experiments):
             m1temp_light[m1_triu_inds][:, True]), axis=1)
     m1_vals = np.concatenate( (m1_vals, m1_combo), axis=0)
 
+##    m1_combo_shuff = np.concatenate( (m1temp_shuff[m1_triu_inds][:, True], \
+            m1temp_light_shuff[m1_triu_inds][:, True]), axis=1)
+##    m1_vals = np.concatenate( (m1_vals, m1_combo), axis=0)
+ ##   m1_vals_shuff = np.concatenate( (m1_vals_shuff, m1_combo_shuff), axis=0)
+
 
     s1_size= s1inds.shape[0]
     s1_triu_inds = np.triu_indices(s1_size, k=1)
@@ -563,8 +617,17 @@ for exp_ID, n in enumerate(experiments):
             s1temp_light[s1_triu_inds][:, True]), axis=1)
     s1_vals = np.concatenate( (s1_vals, s1_combo), axis=0)
 
+##    s1_combo_shuff = np.concatenate( (s1temp_shuff[s1_triu_inds][:, True], \
+##            s1temp_light_shuff[s1_triu_inds][:, True]), axis=1)
+##    s1_vals_shuff = np.concatenate( (s1_vals_shuff, s1_combo_shuff), axis=0)
+
+
 m1_vals = m1_vals[1:, :]
 s1_vals = s1_vals[1:, :]
+
+m1_vals_shuff = m1_vals_shuff[1:, :]
+s1_vals_shuff = s1_vals_shuff[1:, :]
+
 
 #    # TODO clean this up a bit
 #    # M1
@@ -596,23 +659,38 @@ s1_vals = s1_vals[1:, :]
 #    s1_vals = np.concatenate((s1_vals, np.asarray([lc0_vals, lc1_vals]).T), axis=0)
 
 
-## some plots
-figure()
-bins=np.arange(-1,1,0.05)
-hist(m1_vals[:,0], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:blue', histtype='stepfilled')
-hist(s1_vals[:,0], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:red', histtype='stepfilled')
-xlabel('Signal correlation')
-ylabel('density')
-title('vS1 has more positively correlated units than vM1')
 
-figure()
-hist(m1_vals[:,1], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:grey', histtype='stepfilled')
-hist(s1_vals[:,1], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:purple', histtype='stepfilled')
-xlabel('Signal correlation')
-ylabel('density')
-title('vS1 has more positively correlated units than vM1')
+#####  THIS IS THE MAIN HIST PLOT FOR SIGNAL CORRELATIONS #####
+## _, pval = sp.stats.ks_2samp(m1_evk_rate, s1_evk_rate)
+## m1_vals = np.zeros((1, 2)) # col 1: no light, col 2: light
+## s1_vals = np.zeros((1, 2)) # col 1: no light, col 2: light
+
+fig, ax = plt.subplots(1,2)
+bins=np.arange(-1,1,0.05)
+ax[0].hist(m1_vals[:,0], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:blue', histtype='stepfilled', label='vM1 + NoLight')
+ax[0].hist(s1_vals[:,0], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:red', histtype='stepfilled', label='vS1 + NoLight')
+ax[0].set_xlabel('Signal correlation')
+ax[0].set_ylabel('density')
+ax[0].set_title('vS1 has more positively\ncorrelated units than vM1', size=12)
+ax[0].legend(loc='upper left')
+ax[0].vlines(0, 0, ax[0].get_ylim()[1]+2, 'k', linestyles='dashed')
+
+ax[1].hist(m1_vals[:,1], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:blue', histtype='stepfilled', label='vM1 + vS1 silencing')
+ax[1].hist(s1_vals[:,1], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:red', histtype='stepfilled', label='vS1 + vM1 silencing')
+ax[1].set_xlabel('Signal correlation')
+ax[1].set_ylabel('density')
+ax[1].set_title('Both regions correlations change\n but not in a single direction', size=12)
+ax[1].vlines(0, 0, ax[1].get_ylim()[1]+2, 'k', linestyle='dashed')
+ax[1].legend(loc='upper left')
+
 
 violinplot([m1_vals[:, 1], m1_vals[:, 0], s1_vals[:,0], s1_vals[:, 1]])
+
+#### differences between light and no light conditions
+fig, ax = plt.subplots(1,2)
+bins=np.arange(-1,1,0.05)
+ax[0].hist(m1_vals[:,1] - m1_vals[:,0], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:blue', histtype='stepfilled', label='vM1 vS1Light - NoLight')
+ax[0].hist(s1_vals[:,1] - s1_vals[:,0], bins=bins, alpha=0.5, align='mid', normed=True, color='tab:red', histtype='stepfilled', label='vS1 vM1Light - Nolight')
 
 ## TODO figure out a way to actually learn something from this analysis
 fig, ax = plt.subplots(1,2)
@@ -731,6 +809,52 @@ for k, ctype in enumerate(['RS', 'FS']):
 
     ax[k].scatter(m1_num_driven_pos, m1_sel, c='tab:blue')
     ax[k].scatter(s1_num_driven_pos, s1_sel, c='tab:red')
+
+fig, ax = plt.subplots(2,2)
+for k, ctype in enumerate(['RS', 'FS']):
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+    m1_sel = selectivity[m1_driven_unit_inds, 0]
+    m1_sel_l = selectivity[m1_driven_unit_inds, 1]
+    ax[0][k].scatter(m1_sel, m1_sel_l, color='tab:blue', s=12, marker='o')
+    ax[0][k].plot([0,1],[0,1], color='k', linewidth=1.5)
+    ax[0][k].set_xlim(0,1)
+    ax[0][k].set_ylim(0,1)
+    ax[0][k].set_title('vM1 {} units'.format(ctype))
+    ax[0][k].set_ylabel('Selectivity\n+ vS1 silencing')
+
+    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
+    s1_sel = selectivity[s1_driven_unit_inds, 0]
+    s1_sel_l = selectivity[s1_driven_unit_inds, 2]
+    ax[1][k].scatter(s1_sel, s1_sel_l, color='tab:red', s=12, marker='o')
+    ax[1][k].plot([0,1],[0,1], color='k', linewidth=1.5)
+    ax[1][k].set_xlim(0,1)
+    ax[1][k].set_ylim(0,1)
+    ax[1][k].set_title('vS1 {} units'.format(ctype))
+    ax[1][k].set_xlabel('Selectivity NoLight')
+    ax[1][k].set_ylabel('Selectivity\n+ vM1 silencing')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ##### Change in preferred position with silencing #####
@@ -993,13 +1117,15 @@ s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 m1_diff = selectivity[m1_inds, 1] - selectivity[m1_inds, 0]
 s1_diff = selectivity[s1_inds, 2] - selectivity[s1_inds, 0]
 
-ax[0][0].hist(m1_diff, bins=bins)
+ax[0][0].hist(m1_diff, bins=bins, color='tab:blue', alpha=0.5, histtype='stepfilled')
 ax[0][0].set_title('M1 RS units')
 ax[0][0].set_xlabel('Change in selectivity')
+ax[0][0].set_ylabel('Counts')
 
-ax[0][1].hist(s1_diff, bins=bins)
-ax[0][1].set_title('S1 RS units')
-ax[0][1].set_xlabel('Change in selectivity')
+ax[1][0].hist(s1_diff, bins=bins, color='tab:red', alpha=0.5, histtype='stepfilled')
+ax[1][0].set_title('S1 RS units')
+ax[1][0].set_xlabel('Change in selectivity')
+ax[1][0].set_ylabel('Counts')
 
 # FS units
 m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
@@ -1008,11 +1134,11 @@ s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
 m1_diff = selectivity[m1_inds, 1] - selectivity[m1_inds, 0]
 s1_diff = selectivity[s1_inds, 2] - selectivity[s1_inds, 0]
 
-ax[1][0].hist(m1_diff, bins=bins)
-ax[1][0].set_title('M1 FS units')
-ax[1][0].set_xlabel('Change in selectivity')
+ax[0][1].hist(m1_diff, bins=bins, color='tab:blue', alpha=0.5, histtype='stepfilled')
+ax[0][1].set_title('M1 FS units')
+ax[0][1].set_xlabel('Change in selectivity')
 
-ax[1][1].hist(s1_diff, bins=bins)
+ax[1][1].hist(s1_diff, bins=bins, color='tab:red', alpha=0.5, histtype='stepfilled')
 ax[1][1].set_title('S1 FS units')
 ax[1][1].set_xlabel('Change in selectivity')
 
@@ -1026,6 +1152,7 @@ for row in ax:
 for row in ax:
     for col in row:
         col.set_ylim(0, ylim_max)
+        col.set_xlim(-0.55, 0.55)
         col.vlines(0, 0, ylim_max, 'k', linestyle='dashed', linewidth=1)
 
 
@@ -1356,63 +1483,79 @@ for row in ax:
 ##### plot spontaneous/baseline rates #####
 
 fig, ax = plt.subplots(2, 2, figsize=(10,9), sharex=True, sharey=True)
-fig.suptitle('Spontaneous Rates', fontsize=20)
+#fig, ax = plt.subplots(2, 2, sharex=True, sharey=True)
+fig.suptitle('Baseline firing rates', fontsize=20)
 
 ## RS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 
+# M1 RS and S1 RS + S1 silencing
 ax[0][0].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][0].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9, 1], c='r', fmt='o', ecolor='r')
+        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='tab:blue', fmt='o', ecolor='tab:blue', markersize=4)
+#ax[0][0].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9, 0], \
+        #        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9, 1], c='tab:red', fmt='o', ecolor='tab:red')
 
 max_val = np.max([ax[0][0].get_xlim(), ax[0][0].get_ylim()])
-ax[0][0].set_xlim(0, max_val)
-ax[0][0].set_ylim(0, max_val)
-ax[0][0].plot([0, max_val], [0, max_val], 'b')
-ax[0][0].set_title('RS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
-ax[0][0].set_ylabel('Light On\nfiring rate (Hz)')
+ax[0][0].set_xlim(-1, max_val)
+ax[0][0].set_ylim(-1, max_val)
+ax[0][0].plot([0, max_val], [0, max_val], 'k')
+ax[0][0].hlines(0, -2, max_val, linestyles='dashed')
+ax[0][0].set_title('vM1 RS units + vS1 silencing')
+ax[0][0].set_ylabel('firing rate (Hz)\n+ vS1 silencing')
+ax[0][0].set_xlabel('firing rate (Hz)\n+ NoLight')
 
-ax[1][0].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9+9, 1], c='k', fmt='o', ecolor='k')
+# S1 RS and M1 RS + M1 silencing
+#ax[1][0].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9+9, 0], \
+#        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9+9, 1], c='tab:blue', fmt='o', ecolor='tab:blue', markersize=4)
 ax[1][0].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9+9, 1], c='r', fmt='o', ecolor='r')
+        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9+9, 1], c='tab:red', fmt='o', ecolor='tab:red', markersize=4)
 
 max_val = np.max([ax[1][0].get_xlim(), ax[1][0].get_ylim()])
-ax[1][0].set_xlim(0, max_val)
-ax[1][0].set_ylim(0, max_val)
-ax[1][0].plot([0, max_val], [0, max_val], 'b')
-ax[1][0].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
-ax[1][0].set_xlabel('Light On\nfiring rate (Hz)')
-ax[1][0].set_ylabel('Light Off\nfiring rate (Hz)')
+ax[1][0].set_xlim(-1, max_val)
+ax[1][0].set_ylim(-1, max_val)
+ax[1][0].plot([0, max_val], [0, max_val], 'k')
+ax[1][0].set_title('vS1 RS units + vM1 silencing')
+ax[1][0].hlines(0, -2, max_val, linestyles='dashed')
+ax[1][0].set_title('vS1 RS units + vM1 silencing')
+ax[1][0].set_ylabel('firing rate (Hz)\n+ vM1 silencing')
+ax[1][0].set_xlabel('firing rate (Hz)\n+ NoLight')
 
 ## FS
 m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
 
+# S1 sielncing
 ax[0][1].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='k', fmt='o', ecolor='k')
-ax[0][1].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9, 1], c='r', fmt='o', ecolor='r')
+        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9, 1], c='tab:blue', fmt='o', ecolor='tab:blue', markersize=4)
+#ax[0][1].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9, 0], \
+#        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9, 1], c='tab:red', fmt='o', ecolor='tab:red', markersize=4)
 
 max_val = np.max([ax[0][1].get_xlim(), ax[0][1].get_ylim()])
-ax[0][1].set_xlim(0, max_val)
-ax[0][1].set_ylim(0, max_val)
-ax[0][1].plot([0, max_val], [0, max_val], 'b')
-ax[0][1].set_title('FS units M1: {} units, S1: {} units, \nS1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[0][1].set_xlim(-1, max_val)
+ax[0][1].set_ylim(-1, max_val)
+ax[0][1].plot([0, max_val], [0, max_val], 'k')
+ax[0][1].set_title('vM1 FS units + vS1 silencing')
+ax[0][1].hlines(0, -2, max_val, linestyles='dashed')
+ax[0][1].set_xlabel('Light Off\nfiring rate (Hz)')
+ax[0][1].set_ylabel('firing rate (Hz)\n+ vS1 silencing')
+ax[0][1].set_xlabel('firing rate (Hz)\n+ NoLight')
 
-ax[1][1].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9+9, 0], \
-        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9+9, 1], c='k', fmt='o', ecolor='k')
+#ax[1][1].errorbar(abs_rate[m1_inds, 8, 0], abs_rate[m1_inds, 8+9+9, 0], \
+#        xerr=abs_rate[m1_inds, 8, 1], yerr=abs_rate[m1_inds, 8+9+9, 1], c='tab:blue', fmt='o', ecolor='tab:blue', markersize=4)
 ax[1][1].errorbar(abs_rate[s1_inds, 8, 0], abs_rate[s1_inds, 8+9+9, 0], \
-        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9+9, 1], c='r', fmt='o', ecolor='r')
+        xerr=abs_rate[s1_inds, 8, 1], yerr=abs_rate[s1_inds, 8+9+9, 1], c='tab:red', fmt='o', ecolor='tab:red', markersize=4)
 
 max_val = np.max([ax[1][1].get_xlim(), ax[1][1].get_ylim()])
-ax[1][1].set_xlim(0, max_val)
-ax[1][1].set_ylim(0, max_val)
-ax[1][1].plot([0, max_val], [0, max_val], 'b')
-ax[1][1].set_title('M1 light'.format(sum(m1_inds), sum(s1_inds)))
+ax[1][1].set_xlim(-1, max_val)
+ax[1][1].set_ylim(-1, max_val)
+ax[1][1].plot([0, max_val], [0, max_val], 'k')
+ax[1][1].set_title('vS1 FS units + vM1 silencing')
+ax[1][1].hlines(0, -2, max_val, linestyles='dashed')
 ax[1][1].set_xlabel('Light Off\nfiring rate (Hz)')
+ax[1][1].set_ylabel('firing rate (Hz)\n+ vM1 silencing')
+ax[1][1].set_xlabel('firing rate (Hz)\n+ NoLight')
+
 
 
 ##### THIS ONLY WORKS WITH SHARED X AND Y AXES! #####
@@ -1445,31 +1588,35 @@ bins = np.arange(-20, 20, 1)
 m1_inds = npand(npand(region==0, driven==True), cell_type=='RS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='RS')
 
-m1_diff = abs_rate[m1_inds, neuro.control_pos-1+9, 0] - abs_rate[m1_inds, neuro.control_pos-1, 0]
-s1_diff = abs_rate[s1_inds, neuro.control_pos-1+9+9, 0] - abs_rate[s1_inds, neuro.control_pos-1, 0]
+m1_diff = abs_rate[m1_inds, 9-1+9, 0] - abs_rate[m1_inds, 9-1, 0]
+s1_diff = abs_rate[s1_inds, 9-1+9+9, 0] - abs_rate[s1_inds, 9-1, 0]
 
-ax[0][0].hist(m1_diff, bins=bins)
+ax[0][0].hist(m1_diff, bins=bins, color='tab:blue', alpha=0.5, normed=True)
 ax[0][0].set_title('M1 RS units')
 ax[0][0].set_xlabel('Change in baseline rate')
+ax[0][0].vlines(0, 0, ax[0][0].get_ylim()[1], 'k', linestyle='dashed', linewidth=1)
 
-ax[0][1].hist(s1_diff, bins=bins)
+ax[0][1].hist(s1_diff, bins=bins, color='tab:red', alpha=0.5, normed=True)
 ax[0][1].set_title('S1 RS units')
 ax[0][1].set_xlabel('Change in baseline rate')
+ax[0][1].vlines(0, 0, ax[0][1].get_ylim()[1], 'k', linestyle='dashed', linewidth=1)
 
 # FS units
 m1_inds = npand(npand(region==0, driven==True), cell_type=='FS')
 s1_inds = npand(npand(region==1, driven==True), cell_type=='FS')
 
-m1_diff = abs_rate[m1_inds, neuro.control_pos -1+9, 0] - abs_rate[m1_inds, neuro.control_pos -1, 0]
-s1_diff = abs_rate[s1_inds, neuro.control_pos -1+9+9, 0] - abs_rate[s1_inds, neuro.control_pos -1, 0]
+m1_diff = abs_rate[m1_inds, 9 -1+9, 0] - abs_rate[m1_inds, 9 -1, 0]
+s1_diff = abs_rate[s1_inds, 9 -1+9+9, 0] - abs_rate[s1_inds, 9 -1, 0]
 
-ax[1][0].hist(m1_diff, bins=bins)
+ax[1][0].hist(m1_diff, bins=bins, color='tab:blue', alpha=0.5, normed=True)
 ax[1][0].set_title('M1 FS units')
 ax[1][0].set_xlabel('Change in baseline rate')
+ax[1][0].vlines(0, 0, ax[1][0].get_ylim()[1], 'k', linestyle='dashed', linewidth=1)
 
-ax[1][1].hist(s1_diff, bins=bins)
+ax[1][1].hist(s1_diff, bins=bins, color='tab:red', alpha=0.5, normed=True)
 ax[1][1].set_title('S1 FS units')
 ax[1][1].set_xlabel('Change in baseline rate')
+ax[1][1].vlines(0, 0, ax[1][1].get_ylim()[1], 'k', linestyle='dashed', linewidth=1)
 
 ## set ylim to the max ylim of all subplots
 ylim_max = 0
