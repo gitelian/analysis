@@ -294,6 +294,8 @@ npand   = np.logical_and
 
 ### !!! statistically significant difference in the mean number of driven pos / unit
 #   sp.stats.ranksums
+
+#TODO Compute driven units for silencing conditions!
 cumulative=False # True makes it easier to see the difference, M1 more on left, S1 more on right)
 fig, ax = plt.subplots(1,2)
 for k, ctype in enumerate(['RS', 'FS']):

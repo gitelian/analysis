@@ -2269,8 +2269,11 @@ class NeuroAnalyzer(object):
             best_contact[unit_index,] = np.argmax(meanr[0:self.control_pos-1])
         self.best_contact = best_contact.astype(int)
 
-    def get_sensory_drive(self, num_sig_pos=False):
-        """determine which units are sensory driven"""
+    def get_sensory_drive(self, num_sig_pos=False, light_condition=0):
+        """
+        determine which units are sensory driven
+        ID number of driven positions per unit and each driven position index
+        """
         if hasattr(self, 'abs_count') is False:
             self.rates()
         control_pos = self.control_pos - 1
@@ -2315,6 +2318,56 @@ class NeuroAnalyzer(object):
             self.driven_indices = np.asarray(driven_indices)
 
         self.driven_units = np.asarray(driven)
+
+    def get_light_modulated_units(self):
+        """
+        determine which units and their bar positions are modulated by light
+        """
+        if hasattr(self, 'abs_count') is False:
+            self.rates()
+        control_pos = self.control_pos
+        num_cond = self.stim_ids.shape[0]
+        num_manipulations = int(num_cond/control_pos)
+        driven = list()
+        light_num_driven_pos = list()
+        light_driven_indices = list()
+        # compare only no light positions with control/no contact position
+        # to_compare = [ (k, control_pos) for k in range(control_pos)]
+
+        #compare pos 1-9 (index 0-8) to the same position with light on
+        to_compare = list()
+        for manip in range(1, num_manipulations):
+            to_compare.extend([ (k, k + (control_pos*manip)) for k in range(control_pos)])
+
+        for unit in range(self.num_units):
+            groups = list()
+            # raw_p_vals = list()
+            for k in range(num_cond):
+                # append all rates
+                groups.append(self.abs_count[k][:, unit])
+                # _, pval_temp = sp.stats.wilcoxon(self.baseline_count[k][:, unit], self.abs_count[k][:, unit])
+                # raw_p_vals.append(pval_temp)
+
+            # test for sensory drive (pos 1-8 vs light condition 1-8)
+            H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
+#            reject, p_corrected = smm.multipletests(raw_p_vals, alpha=0.01, method='sh')[:2]
+
+#            pdb.set_trace()
+
+            if reject.any():
+                driven.append(True)
+                light_num_driven_pos.append(sum(reject))
+                inds = np.where(reject == True)[0]
+                if inds.shape[0] == 0:
+                    inds = None
+                light_driven_indices.append(inds)
+            else:
+                driven.append(False)
+
+            self.light_num_driven_pos = np.asarray(num_driven_pos)
+            self.light_driven_indices = np.asarray(light_driven_indices)
+
+        self.light_driven_units = np.asarray(driven)
 
     def get_burst_rate(self, unit_ind=0, trial_type=0, start_time=0.5, stop_time=1.5):
         """
