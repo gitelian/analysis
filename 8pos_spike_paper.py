@@ -388,6 +388,18 @@ for k, ctype in enumerate(['RS', 'FS']):
 
 fig.suptitle('Proportion of driven positions')
 
+## average absolute value of all evoked rates RS UNITS
+#mean(np.abs(m1_evk_rate)) = 6.143286315401589
+#std(np.abs(m1_evk_rate))  = 4.766264569191643
+#mean(np.abs(s1_evk_rate)) = 7.651201939555056
+#std(np.abs(s1_evk_rate))  = 7.791566943481743
+
+## average absolute value of all evoked rates FS UNITS
+#mean(np.abs(m1_evk_rate)) = 6.022781555314741
+#std(np.abs(m1_evk_rate))  = 4.105780055687484
+#mean(np.abs(s1_evk_rate)) = 13.794976632150387
+#std(np.abs(s1_evk_rate))  = 16.682823029236335
+
 ##### Basic properties of spiking units #####
 ##### Basic properties of spiking units #####
 
