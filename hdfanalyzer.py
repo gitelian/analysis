@@ -2322,15 +2322,25 @@ class NeuroAnalyzer(object):
     def get_light_modulated_units(self):
         """
         determine which units and their bar positions are modulated by light
+        returns indices ranging from 0-8 first list or row in represents values
+        from a single unit, within there are 2/num_manipulations more entries
+        for each light manipulation.
+
+        returns bar positions that were significantly different than the
+        no light condition firing rates for the same bar position
+
         """
         if hasattr(self, 'abs_count') is False:
             self.rates()
         control_pos = self.control_pos
         num_cond = self.stim_ids.shape[0]
         num_manipulations = int(num_cond/control_pos)
-        driven = list()
-        light_num_driven_pos = list()
+
+        driven = np.zeros((self.num_units, num_manipulations-1))
+        light_num_driven_pos = np.zeros((self.num_units, num_manipulations-1))
         light_driven_indices = list()
+        for u in range(self.num_units):
+            light_driven_indices.append([list() for x in range(1, num_manipulations)])
         # compare only no light positions with control/no contact position
         # to_compare = [ (k, control_pos) for k in range(control_pos)]
 
@@ -2354,17 +2364,24 @@ class NeuroAnalyzer(object):
 
 #            pdb.set_trace()
 
-            if reject.any():
-                driven.append(True)
-                light_num_driven_pos.append(sum(reject))
-                inds = np.where(reject == True)[0]
-                if inds.shape[0] == 0:
-                    inds = None
-                light_driven_indices.append(inds)
-            else:
-                driven.append(False)
+            for manip in range(0, num_manipulations-1):
+                ind0 = control_pos*manip
+                ind1 = (control_pos + control_pos*manip)
 
-            self.light_num_driven_pos = np.asarray(num_driven_pos)
+                if reject[ind0:ind1].any():
+                    #driven[unit][manip].append(True)
+                    #light_num_driven_pos[unit][manip].append(sum(reject[ind0:ind1]))
+                    driven[unit, manip] = True
+                    light_num_driven_pos[unit, manip] = sum(reject[ind0:ind1])
+                    inds = np.where(reject[ind0:ind1] == True)[0]
+                    if inds.shape[0] == 0:
+                        inds = None
+#                    light_driven_indices[unit][manip].append(inds)
+                    light_driven_indices[unit][manip] = inds
+                else:
+                    driven[unit, manip] = False
+
+            self.light_num_driven_pos = np.asarray(light_num_driven_pos)
             self.light_driven_indices = np.asarray(light_driven_indices)
 
         self.light_driven_units = np.asarray(driven)
