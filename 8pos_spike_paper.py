@@ -182,6 +182,11 @@ S_all       = np.empty((1, 3))
 num_driven  = np.empty((1, ))
 driven_inds = np.empty((1, ))
 
+light_driven_units = np.zeros((1, 2))
+light_num_driven_pos = np.zeros((1, 2))
+light_driven_inds = list()
+
+
 for exp_index, neuro in enumerate(experiments):
     # calculate measures that weren't calculated at init
     neuro.get_best_contact()
@@ -207,6 +212,13 @@ for exp_index, neuro in enumerate(experiments):
 
     num_driven  = np.append(num_driven, neuro.num_driven_pos, axis=0)
     driven_inds = np.append(driven_inds, neuro.driven_indices, axis=0)
+
+    # NEW 5/13/2021 find light modulated units and positions
+    neuro.get_light_modulated_units()
+    light_driven_units = np.append(light_driven_units, neuro.light_driven_units, axis=0)
+    light_num_driven_pos = np.append(light_num_driven_pos, neuro.light_num_driven_pos, axis=0)
+    light_driven_inds.extend(neuro.light_driven_indices)
+
 
     # compute mean tuning curve
     abs_tc = np.append(abs_tc, neuro.get_mean_tc(kind='abs_rate'), axis=0)
@@ -284,6 +296,9 @@ burst_rate  = burst_rate[1:, :]
 adapt_ratio = adapt_ratio[1:, :]
 S_all       = S_all[1:, :]
 
+light_driven_units = light_driven_units[1:, :]
+light_driven_pos = light_num_driven_pos[1:, :]
+#light_driven_inds
 npand   = np.logical_and
 
 ##### Num driven units per region / num driven positions per driven unit #####
@@ -297,13 +312,14 @@ npand   = np.logical_and
 
 #TODO Compute driven units for silencing conditions!
 cumulative=False # True makes it easier to see the difference, M1 more on left, S1 more on right)
+bins = np.arange(1, 10)
 fig, ax = plt.subplots(1,2)
 for k, ctype in enumerate(['RS', 'FS']):
     m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
 
     m1_total_units = sum(npand(region == 0, cell_type == ctype))
-    m1_total_driven_units = len(m1_driven_unit_inds)
-    m1_driven_pos_per_driven_units = num_driven[m1_driven_unit_inds]
+    m1_total_driven_units = len(m1_driven_unit_inds)                 # replace with Light modulated version
+    m1_driven_pos_per_driven_units = num_driven[m1_driven_unit_inds] # replace with Light modulated version
 
     s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
 
@@ -318,7 +334,6 @@ for k, ctype in enumerate(['RS', 'FS']):
     ## of those driven units how many bar positions elicited a sensory response?
     # "density" produces a probability density, allows one to compare m1 and s1
     # directly even though they have different numbers of units
-    bins = np.arange(1, 10)
     # bar histogram
     ax[k].hist(m1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left', cumulative=cumulative)
     ax[k].hist(s1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=cumulative)
@@ -330,6 +345,48 @@ for k, ctype in enumerate(['RS', 'FS']):
     ax[k].set_xlabel('Number of driven positions')
     ax[k].set_ylabel('Prob density')
     ax[k].set_title('M1 {}%, S1 {} %'.format(m1_percent, s1_percent))
+
+##NOTE scratch space for light modulated analysis
+cumulative=False # True makes it easier to see the difference, M1 more on left, S1 more on right)
+bins = np.arange(1, 10)
+fig, ax = plt.subplots(1,2)
+for k, ctype in enumerate(['RS', 'FS']):
+    # get m1 indices for all light modulated units (both sensory driven and
+    # not-driven)
+    m1_unit_inds = np.where(npand(region==0, cell_type == ctype))[0]
+    m1_driven_unit_inds = np.where(npand(npand(region==0, cell_type == ctype), light_driven_units[:, 0]==1))[0]
+
+
+    m1_total_units = sum(npand(region == 0, cell_type == ctype))
+    m1_total_driven_units = len(m1_driven_unit_inds)                 # replace with Light modulated version
+    m1_driven_pos_per_driven_units = light_num_driven_pos[m1_driven_unit_inds, 0] # replace with Light modulated version
+
+    s1_unit_inds = np.where(npand(region==1, cell_type == ctype))[0]
+    s1_driven_unit_inds = np.where(npand(npand(region==1, cell_type == ctype), light_driven_units[:, 1]==1))[0]
+
+    s1_total_units = sum(npand(region == 1, cell_type == ctype))
+    s1_total_driven_units = len(s1_driven_unit_inds)
+    s1_driven_pos_per_driven_units = light_num_driven_pos[s1_driven_unit_inds, 1]
+
+    ## what percentage of units where sensory driven??
+    m1_percent = np.round(float(m1_total_driven_units) / m1_total_units * 100, decimals=1)
+    s1_percent = np.round(float(s1_total_driven_units) / s1_total_units * 100, decimals=1)
+
+    ## of those driven units how many bar positions elicited a sensory response?
+    # "density" produces a probability density, allows one to compare m1 and s1
+    # directly even though they have different numbers of units
+    # bar histogram
+    ax[k].hist(m1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left', cumulative=cumulative)
+    ax[k].hist(s1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=cumulative)
+# line histogram
+    #ax[k].plot(bins[:-1], np.histogram(m1_driven_pos_per_driven_units, bins=bins, density=True)[0], color='tab:blue')
+    #ax[k].plot(bins[:-1], np.histogram(s1_driven_pos_per_driven_units, bins=bins, density=True)[0],color='tab:red')
+    ax[k].legend(['M1 {}'.format(ctype), 'S1 {}'.format(ctype)])
+    ax[k].set_xlabel('Number of driven positions')
+    ax[k].set_ylabel('Prob density')
+    ax[k].set_title('M1 {}%, S1 {} %'.format(m1_percent, s1_percent))
+
+
 
 
 ### Driven evoked rate for all positions ###
@@ -399,6 +456,16 @@ fig.suptitle('Proportion of driven positions')
 #std(np.abs(m1_evk_rate))  = 4.105780055687484
 #mean(np.abs(s1_evk_rate)) = 13.794976632150387
 #std(np.abs(s1_evk_rate))  = 16.682823029236335
+
+
+## TODO make same figure as above but with light modualted units and positions
+#  combine sensory driven and light "driven"/modulated into one array for easy
+#  comparisons
+
+ all_driven = np.concatenate((driven[:, None], light_driven_units), axis=1)
+
+# 23 / 61 vM1 RS sensory driven units were modulated by vS1 silencing!
+# 3 / 41 vS1 RS driven units were modulated by vM1 silencing!
 
 ##### Basic properties of spiking units #####
 ##### Basic properties of spiking units #####
