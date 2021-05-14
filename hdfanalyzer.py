@@ -2338,11 +2338,9 @@ class NeuroAnalyzer(object):
 
         driven = np.zeros((self.num_units, num_manipulations-1))
         light_num_driven_pos = np.zeros((self.num_units, num_manipulations-1))
-        light_driven_indices = list()
+        light_driven_pos_indices = list()
         for u in range(self.num_units):
-            light_driven_indices.append([list() for x in range(1, num_manipulations)])
-        # compare only no light positions with control/no contact position
-        # to_compare = [ (k, control_pos) for k in range(control_pos)]
+            light_driven_pos_indices.append([list() for x in range(1, num_manipulations)])
 
         #compare pos 1-9 (index 0-8) to the same position with light on
         to_compare = list()
@@ -2355,14 +2353,11 @@ class NeuroAnalyzer(object):
             for k in range(num_cond):
                 # append all rates
                 groups.append(self.abs_count[k][:, unit])
-                # _, pval_temp = sp.stats.wilcoxon(self.baseline_count[k][:, unit], self.abs_count[k][:, unit])
-                # raw_p_vals.append(pval_temp)
 
+## NOTE THIS DOESN'T WORK, stats seem to strict, missing positions where vS1 is
+## CLEARLY modulated by vM1 silencing. GO BACK to RANK-SUMS for stats.
             # test for sensory drive (pos 1-8 vs light condition 1-8)
             H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
-#            reject, p_corrected = smm.multipletests(raw_p_vals, alpha=0.01, method='sh')[:2]
-
-#            pdb.set_trace()
 
             for manip in range(0, num_manipulations-1):
                 ind0 = control_pos*manip
@@ -2376,13 +2371,13 @@ class NeuroAnalyzer(object):
                     inds = np.where(reject[ind0:ind1] == True)[0]
                     if inds.shape[0] == 0:
                         inds = None
-#                    light_driven_indices[unit][manip].append(inds)
-                    light_driven_indices[unit][manip] = inds
+                        light_driven_pos_indices[unit][manip] = inds
+                    light_driven_pos_indices[unit][manip] = inds
                 else:
                     driven[unit, manip] = False
 
             self.light_num_driven_pos = np.asarray(light_num_driven_pos)
-            self.light_driven_indices = np.asarray(light_driven_indices)
+            self.light_driven_pos_indices = np.asarray(light_driven_pos_indices)
 
         self.light_driven_units = np.asarray(driven)
 
