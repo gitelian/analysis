@@ -2349,15 +2349,19 @@ class NeuroAnalyzer(object):
 
         for unit in range(self.num_units):
             groups = list()
-            # raw_p_vals = list()
-            for k in range(num_cond):
+            raw_p_vals = list()
+#            for k in range(num_cond):
+            for manip in range(1, num_manipulations):
+                for k in range(9):
                 # append all rates
-                groups.append(self.abs_count[k][:, unit])
+#                groups.append(self.abs_count[k][:, unit])
+                    raw_p_vals.append(sp.stats.ranksums(self.abs_count[k][:, unit], self.abs_count[(k+(9*manip))][:, unit])[1])
+            reject, p_corrected = smm.multipletests(raw_p_vals, alpha=0.05, method='simes-hochberg')[:2]
 
 ## NOTE THIS DOESN'T WORK, stats seem to strict, missing positions where vS1 is
 ## CLEARLY modulated by vM1 silencing. GO BACK to RANK-SUMS for stats.
             # test for sensory drive (pos 1-8 vs light condition 1-8)
-            H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
+            #H, p_omnibus, Z_pairs, p_corrected, reject = dunn.kw_dunn(groups, to_compare=to_compare, alpha=0.05, method='simes-hochberg') # or 'bonf' for bonferoni
 
             for manip in range(0, num_manipulations-1):
                 ind0 = control_pos*manip
