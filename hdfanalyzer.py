@@ -2385,6 +2385,19 @@ class NeuroAnalyzer(object):
 
         self.light_driven_units = np.asarray(driven)
 
+    def get_fano_factor(self):
+        """compute fano factor var / mean for each cond"""
+
+        fano_factor_mat = np.zeros((self.num_units, self.stim_ids.shape[0]))
+
+        for unit in range(self.num_units):
+            for cond in range(self.stim_ids.shape[0]):
+                counts = self.abs_count[cond][:, unit]
+                fano_factor = np.var(counts) / np.mean(counts)
+                fano_factor_mat[unit, cond] = fano_factor
+
+        return fano_factor_mat
+
     def get_burst_rate(self, unit_ind=0, trial_type=0, start_time=0.5, stop_time=1.5):
         """
         """
