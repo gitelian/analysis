@@ -179,13 +179,15 @@ adapt_ratio = np.empty((1, 27, 2))
 meanr       = np.empty((1, 9, 3))
 S_all       = np.empty((1, 3))
 
-num_driven  = np.empty((1, ))
-driven_inds = np.empty((1, ))
+num_driven  = np.empty((1, )) # how many positions were driven
+driven_inds = np.empty((1, )) # the indices of all driven positions
 
-light_driven_units = np.zeros((1, 2))
-light_num_driven_pos = np.zeros((1, 2))
-light_driven_inds = list()
+light_driven_units = np.zeros((1, 2))   # number of units affected by light [unit x light condition]
+light_num_driven_pos = np.zeros((1, 2)) # number of positions affected by light 
+light_driven_inds = list()              # the indices of all positions affected by light
 
+cell_type_rc= list() # reclassify units and see how results change #7/28/2021
+fano_factors = list()
 
 for exp_index, neuro in enumerate(experiments):
     # calculate measures that weren't calculated at init
@@ -217,10 +219,13 @@ for exp_index, neuro in enumerate(experiments):
     neuro.get_light_modulated_units()
     light_driven_units = np.append(light_driven_units, neuro.light_driven_units, axis=0)
     light_num_driven_pos = np.append(light_num_driven_pos, neuro.light_num_driven_pos, axis=0)
-    light_driven_inds.extend(neuro.light_driven_indices)
+    light_driven_inds.extend(neuro.light_driven_pos_indices)
+
+    # NEW Fano Factors for all conditions
+    fano_factors.extend(neuro.get_fano_factor())
 
 
-    # compute mean tuning curve
+    # compute mean tuning curve (this is crap)
     abs_tc = np.append(abs_tc, neuro.get_mean_tc(kind='abs_rate'), axis=0)
     evk_tc = np.append(evk_tc, neuro.get_mean_tc(kind='evk_rate'), axis=0)
 
@@ -261,9 +266,15 @@ for exp_index, neuro in enumerate(experiments):
         adapt_ratio_temp = neuro.get_adaptation_ratio(unit_ind=unit_index)
         adapt_ratio = np.append(adapt_ratio, adapt_ratio_temp, axis=0)
 
+    neuro.reclassify_units()
+    cell_type_rc.extend(neuro.cell_type)
+
 del neuro
 
 cell_type = np.asarray(cell_type)
+cell_type_rc = np.asarray(cell_type_rc)
+#fano_factors = np.asarray(fano_factors) # necessary ???
+
 region = region[1:,]
 region = region.astype(int)
 
@@ -297,35 +308,149 @@ adapt_ratio = adapt_ratio[1:, :]
 S_all       = S_all[1:, :]
 
 light_driven_units = light_driven_units[1:, :]
-light_driven_pos = light_num_driven_pos[1:, :]
+light_num_driven_pos = light_num_driven_pos[1:, :]
 #light_driven_inds
 npand   = np.logical_and
 
+
+
+##### basic stats, driven units out of total units #####
+##### basic stats, light modulated units out of driven units #####
+
+        #NOTE USING reclassified units, cell_type_rc NOTE#
+
+# total units first 2 columns, total driven units last 2 coulmns
+# row 0 = RS, row 1 = FS, columns alternate M1, S1, M1, S1
+#NOTE light_driven_units is TRUE if a unit had ANY pos affected by silencing
+#     it is not just DRIVEN units (this is why driven units indices are used to
+#     index the light_driven... variables
+
+## total units and total driven units #
+table = np.zeros((2, 4)) #
+for k, ctype in enumerate(['RS', 'FS']):
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type_rc == ctype))[0]
+    table[k, 0] = sum(npand(region == 0, cell_type_rc == ctype)) # total units
+    table[k, 2] = len(m1_driven_unit_inds) # total driven units
+
+    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type_rc == ctype))[0]
+    table[k, 1] = sum(npand(region == 1, cell_type_rc == ctype))
+    table[k, 3] = len(s1_driven_unit_inds)
+
+print('rows: RS, FS\ncolumns M1, S1, M1, S1')
+print table
+
+
+## num driven units --> modulated by silencing,
+# row 0 = RS, row 1 = FS, columns M1, S1
+light_mod_table = np.zeros((2, 2)) #
+nodrive = np.zeros((2,2))
+for k, ctype in enumerate(['RS', 'FS']):
+    # driven units
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type_rc == ctype))[0]
+    light_mod_table[k, 0] = sum(light_driven_units[m1_driven_unit_inds, 0])
+
+    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type_rc == ctype))[0]
+    light_mod_table[k, 1] = sum(light_driven_units[s1_driven_unit_inds, 1])
+
+    # non-driven units
+    m1_non_driven_unit_inds = np.where(npand(npand(region==0, driven==False), cell_type_rc == ctype))[0]
+    nodrive[k, 0] = sum(light_driven_units[m1_non_driven_unit_inds, 0])
+
+    s1_non_driven_unit_inds = np.where(npand(npand(region==1, driven==False), cell_type_rc == ctype))[0]
+    nodrive[k, 1] = sum(light_driven_units[s1_non_driven_unit_inds, 1])
+
+print('\ndriven units affected by light [row M1 S1, col RS FS] ')
+print light_mod_table, '\n'
+
+print('NON-driven units affected by light [row M1 S1, col RS FS] ')
+print nodrive
+
+
+## FANO FACTORS ##
+## FANO FACTORS ##
+
+## Fano Factors control_pos vs best_position
+m1_table = np.zeros((1, 2)) #
+s1_table = np.zeros((1, 2)) #
+ctype = 'FS'
+m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type_rc == ctype))[0]
+for row, m1ind in enumerate(m1_driven_unit_inds):
+    mffc = fano_factors[m1ind][8]
+    mffb = fano_factors[m1ind][best_pos[m1ind]]
+    a = np.asarray([mffc, mffb]).reshape(1,2)
+    m1_table = np.concatenate((m1_table, a), axis=0)
+s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type_rc == ctype))[0]
+for row, s1ind in enumerate(s1_driven_unit_inds):
+    sffc = fano_factors[s1ind][8]
+    sffb = fano_factors[s1ind][best_pos[s1ind]]
+    a = np.asarray([sffc, sffb]).reshape(1,2)
+    s1_table = np.concatenate((s1_table, a), axis=0)
+for s1ind in s1_driven_unit_inds:
+    sffc = fano_factors[s1ind][8]
+    sffb = fano_factors[s1ind][best_pos[s1ind]]
+
+m1_table = m1_table[1:, :]
+s1_table = s1_table[1:, :]
+
+fig, ax = plt.subplots(1,2)
+ax[0].hist(m1_table[:,0],bins=arange(0,10,0.5), alpha=0.4, color='tab:blue', density=True, histtype='stepfilled')
+ax[0].hist(s1_table[:,0],bins=arange(0,10,0.5), alpha=0.4, color='tab:red', density=True, histtype='stepfilled')
+ax[1].hist(m1_table[:,1],bins=arange(0,10,0.5), alpha=0.4, color='tab:blue', density=True, histtype='stepfilled')
+ax[1].hist(s1_table[:,1],bins=arange(0,10,0.5), alpha=0.4, color='tab:red', density=True, histtype='stepfilled')
+
+ax[0].set_xlabel('Fano Factor')
+ax[1].set_xlabel('Fano Factor')
+ax[0].set_ylabel('Density')
+ax[0].set_title('Control Position')
+ax[1].set_title('Most Strongly Driven Position')
+ax[0].legend(['vM1', 'vS1'], loc='upper right')
+
+# control pos stats
+_, pvalc = sp.stats.ranksums(m1_table[:,0], s1_table[:,0]) #RS pval = 2.593905138851782e-05
+# driven pos stats
+_, pvalb = sp.stats.ranksums(m1_table[:,1], s1_table[:,1]) #RS pval = 0.0857083147261236
+
+print('p-values')
+print pvalc, pvalb
+print('mean values')
+print mean(m1_table[:,0]), mean(s1_table[:,0])
+print mean(m1_table[:,1]), mean(s1_table[:,1])
+
+print('mean sem')
+print sp.stats.sem(m1_table[:,0]), sp.stats.sem(s1_table[:,0])
+print sp.stats.sem(m1_table[:,1]), sp.stats.sem(s1_table[:,1])
+
+
+
 ##### Num driven units per region / num driven positions per driven unit #####
 ##### Num driven units per region / num driven positions per driven unit #####
-#NOTE 01
 
 ### can use chi test to see if ratio of driven units / total units is different
 
 ### !!! statistically significant difference in the mean number of driven pos / unit
 #   sp.stats.ranksums
 
-#TODO Compute driven units for silencing conditions!
-cumulative=False # True makes it easier to see the difference, M1 more on left, S1 more on right)
+
+cumulative=False# True makes it easier to see the difference, M1 more on left, S1 more on right)
+pvals = list()
+m1_dpos = list()
+s1_dpos = list()
 bins = np.arange(1, 10)
 fig, ax = plt.subplots(1,2)
 for k, ctype in enumerate(['RS', 'FS']):
-    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type_rc == ctype))[0]
 
-    m1_total_units = sum(npand(region == 0, cell_type == ctype))
+    m1_total_units = sum(npand(region == 0, cell_type_rc == ctype))
     m1_total_driven_units = len(m1_driven_unit_inds)                 # replace with Light modulated version
     m1_driven_pos_per_driven_units = num_driven[m1_driven_unit_inds] # replace with Light modulated version
+    m1_dpos.append(m1_driven_pos_per_driven_units)
 
-    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
+    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type_rc == ctype))[0]
 
-    s1_total_units = sum(npand(region == 1, cell_type == ctype))
+    s1_total_units = sum(npand(region == 1, cell_type_rc == ctype))
     s1_total_driven_units = len(s1_driven_unit_inds)
     s1_driven_pos_per_driven_units = num_driven[s1_driven_unit_inds]
+    s1_dpos.append(s1_driven_pos_per_driven_units)
 
     ## what percentage of units where sensory driven??
     m1_percent = np.round(float(m1_total_driven_units) / m1_total_units * 100, decimals=1)
@@ -335,49 +460,76 @@ for k, ctype in enumerate(['RS', 'FS']):
     # "density" produces a probability density, allows one to compare m1 and s1
     # directly even though they have different numbers of units
     # bar histogram
-    ax[k].hist(m1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left', cumulative=cumulative)
-    ax[k].hist(s1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=cumulative)
+    ax[k].hist(m1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left', cumulative=cumulative, histtype='stepfilled')
+    ax[k].hist(s1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=cumulative, histtype='stepfilled')
+
+    ## stats ranksums (chi ratio test?)
+    _ , pval = sp.stats.ranksums(m1_driven_pos_per_driven_units, s1_driven_pos_per_driven_units)
+    pvals.append(pval)
 
     # line histogram
     #ax[k].plot(bins[:-1], np.histogram(m1_driven_pos_per_driven_units, bins=bins, density=True)[0], color='tab:blue')
     #ax[k].plot(bins[:-1], np.histogram(s1_driven_pos_per_driven_units, bins=bins, density=True)[0],color='tab:red')
-    ax[k].legend(['M1 {}'.format(ctype), 'S1 {}'.format(ctype)])
+    ax[k].legend(['M1 {}'.format(ctype), 'S1 {}'.format(ctype)], loc='upper left')
     ax[k].set_xlabel('Number of driven positions')
     ax[k].set_ylabel('Prob density')
     ax[k].set_title('M1 {}%, S1 {} %'.format(m1_percent, s1_percent))
 
-##NOTE scratch space for light modulated analysis
-cumulative=False # True makes it easier to see the difference, M1 more on left, S1 more on right)
+
+
+
+## NOTE Be carefule with interpretation, this is the LIGHT/SILENCING values##
+
+#light_driven_units   # number of units affected by light [unit x light condition]
+#light_num_driven_pos # number of positions affected by light
+#light_driven_inds    # the indices of all positions affected by light
+
+## OF the DRIVEN positions, how many were affected by light
+
+## the interpretation is, given a driven unit how many positions changed with light?
+
+m1_dpos_light = list() ## used to append the number of driven positions per uni
+s1_dpos_light = list()
+pvals_light   = list()
 bins = np.arange(1, 10)
 fig, ax = plt.subplots(1,2)
 for k, ctype in enumerate(['RS', 'FS']):
     # get m1 indices for all light modulated units (both sensory driven and
     # not-driven)
-    m1_unit_inds = np.where(npand(region==0, cell_type == ctype))[0]
-    m1_driven_unit_inds = np.where(npand(npand(region==0, cell_type == ctype), light_driven_units[:, 0]==1))[0]
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type_rc == ctype))[0]
+    m1_inds_to_get_unit_ids = np.where(light_driven_units[m1_driven_unit_inds, 0] == 1)[0]
+    m1_driven_light_mod = m1_driven_unit_inds[m1_inds_to_get_unit_ids]
 
+    m1_total_units = len(m1_driven_unit_inds)
+    m1_total_driven_units = len(m1_driven_light_mod)                 # how many driven units were affected by light
+    # of driven UNITS how many pos were affected by light
+    # if driven unit then count any position changed by light
+    m1_driven_pos_per_driven_units = light_num_driven_pos[m1_driven_light_mod, 0] # how many driven pos were affected by light
+    m1_dpos_light.append(m1_driven_pos_per_driven_units)
 
-    m1_total_units = sum(npand(region == 0, cell_type == ctype))
-    m1_total_driven_units = len(m1_driven_unit_inds)                 # replace with Light modulated version
-    m1_driven_pos_per_driven_units = light_num_driven_pos[m1_driven_unit_inds, 0] # replace with Light modulated version
+    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type_rc == ctype))[0]
+    s1_inds_to_get_unit_ids = np.where(light_driven_units[s1_driven_unit_inds, 1] == 1)[0]
+    s1_driven_light_mod = s1_driven_unit_inds[s1_inds_to_get_unit_ids]
 
-    s1_unit_inds = np.where(npand(region==1, cell_type == ctype))[0]
-    s1_driven_unit_inds = np.where(npand(npand(region==1, cell_type == ctype), light_driven_units[:, 1]==1))[0]
+    s1_total_units = len(s1_driven_unit_inds)
+    s1_total_driven_units = len(s1_driven_light_mod)
+    s1_driven_pos_per_driven_units = light_num_driven_pos[s1_driven_light_mod, 1]
+    s1_dpos_light.append(s1_driven_pos_per_driven_units)
 
-    s1_total_units = sum(npand(region == 1, cell_type == ctype))
-    s1_total_driven_units = len(s1_driven_unit_inds)
-    s1_driven_pos_per_driven_units = light_num_driven_pos[s1_driven_unit_inds, 1]
-
-    ## what percentage of units where sensory driven??
+    ## what percentage of driven units where affected by light??
     m1_percent = np.round(float(m1_total_driven_units) / m1_total_units * 100, decimals=1)
     s1_percent = np.round(float(s1_total_driven_units) / s1_total_units * 100, decimals=1)
 
-    ## of those driven units how many bar positions elicited a sensory response?
+    ## of the driven units how many bar positions where affected by silencing
     # "density" produces a probability density, allows one to compare m1 and s1
     # directly even though they have different numbers of units
     # bar histogram
     ax[k].hist(m1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:blue', align='left', cumulative=cumulative)
     ax[k].hist(s1_driven_pos_per_driven_units, bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=cumulative)
+
+    _ , pval = sp.stats.ranksums(m1_driven_pos_per_driven_units, s1_driven_pos_per_driven_units)
+    pvals_light.append(pval)
+
 # line histogram
     #ax[k].plot(bins[:-1], np.histogram(m1_driven_pos_per_driven_units, bins=bins, density=True)[0], color='tab:blue')
     #ax[k].plot(bins[:-1], np.histogram(s1_driven_pos_per_driven_units, bins=bins, density=True)[0],color='tab:red')
@@ -385,8 +537,38 @@ for k, ctype in enumerate(['RS', 'FS']):
     ax[k].set_xlabel('Number of driven positions')
     ax[k].set_ylabel('Prob density')
     ax[k].set_title('M1 {}%, S1 {} %'.format(m1_percent, s1_percent))
+    fig.suptitle('Number of stimulus positions affected by silencing')
 
 
+
+## Similar plot as above but showing how many driven positions were
+## affected by light
+m1p = list() # compare number of driven pos per unit VS affected pos per unit
+s1p = list()
+fig, ax = plt.subplots(2,2)
+for k, ctype in enumerate(['RS', 'FS']):
+    ax[k, 0].hist(m1_dpos[k], bins=bins, density=True, alpha=0.35, color='tab:blue', align='left', cumulative=cumulative)
+    ax[k, 0].hist(m1_dpos_light[k], bins=bins, density=True, alpha=0.35, color='tab:green', align='left', cumulative=cumulative)
+    ax[k, 1].hist(s1_dpos[k], bins=bins, density=True, alpha=0.35, color='tab:red', align='left', cumulative=cumulative)
+    ax[k, 1].hist(s1_dpos_light[k], bins=bins, density=True, alpha=0.35, color='tab:orange', align='left', cumulative=cumulative)
+
+    ax[k, 0].legend(['M1 sensory driven'.format(ctype), 'M1 silencing driven'.format(ctype)])
+    ax[k, 0].set_xlabel('Number of positions affected by silencing')
+    ax[k, 0].set_ylabel('Prob density')
+    ax[k, 0].set_title('M1 {} units'.format(ctype))
+
+    ax[k, 1].legend(['S1 sensory driven'.format(ctype), 'S1 silencing driven'.format(ctype)])
+    ax[k, 1].set_xlabel('Number of positions affected by silencing')
+    ax[k, 1].set_ylabel('Prob density')
+    ax[k, 1].set_title('S1 {} units'.format(ctype))
+
+    m1p.append(sp.stats.ranksums(m1_dpos[k], m1_dpos_light[k])[1])
+    s1p.append(sp.stats.ranksums(s1_dpos[k], s1_dpos_light[k])[1])
+
+
+# if pos x=driven then what is prob silencing changes it
+# vs
+# if pos x!=driven that is the probb silencing changes it
 
 
 ### Driven evoked rate for all positions ###
@@ -395,7 +577,7 @@ for k, ctype in enumerate(['RS', 'FS']):
 ### rates between 5-10 spikes/sec)
 
 # m1_driven_unit_inds : which units are driven; driven_inds: indices of positions
-# that are driven per unit
+# that are light modulated per unit
 #NOTE: M1 RS driven units have ZERO positions with abs(evoked rates) < 1
 #NOTE: S1 RS driven units have 11 positions with abs(evoked rates) < 1
 # RS units evoked rate the same between M1 and S1
@@ -418,19 +600,19 @@ for k, ctype in enumerate(['RS', 'FS']):
     count = 0
     for m1_unit_ind in m1_driven_unit_inds:
         for pos_ind in driven_inds[m1_unit_ind]:
-            m1_evk_rate[count] = evk_rate[m1_unit_ind, pos_ind, 0]
+            m1_evk_rate[count] = evk_rate[m1_unit_ind, pos_ind, 0] # pos_ind + 9
             if np.abs(m1_evk_rate[count]) < 1:
                 low_val.append((m1_unit_ind, pos_ind))
             count += 1
 
-    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type == ctype))[0]
+    s1_driven_unit_inds = np.where(npand(npand(region==1, driven==True), cell_type_rc == ctype))[0]
     s1_total_driven_pos = int(sum(num_driven[s1_driven_unit_inds]))
     s1_evk_rate = np.zeros((s1_total_driven_pos, ))
     count = 0
     low_val = list()
     for s1_unit_ind in s1_driven_unit_inds:
         for pos_ind in driven_inds[s1_unit_ind]:
-            s1_evk_rate[count] = evk_rate[s1_unit_ind, pos_ind, 0]
+            s1_evk_rate[count] = evk_rate[s1_unit_ind, pos_ind, 0] # pos_ind + 18
             if np.abs(s1_evk_rate[count]) < 1:
                 low_val.append((s1_unit_ind, pos_ind))
             count += 1
@@ -440,10 +622,15 @@ for k, ctype in enumerate(['RS', 'FS']):
     ax[k].set_xlabel('Evoked rate')
 
     _, pval = sp.stats.ks_2samp(m1_evk_rate, s1_evk_rate)
+#    _, pval = sp.stats.levene(m1_evk_rate, s1_evk_rate)
+#    _, pval = sp.stats.ranksums(m1_evk_rate, s1_evk_rate)
     p[k] = pval
     ax[k].set_title('{} units significant: {}'.format(ctype, pval<0.05))
 
 fig.suptitle('Proportion of driven positions')
+
+print('evoked rate per driven position,\nks_2samp p-vals')
+print(p)
 
 ## average absolute value of all evoked rates RS UNITS
 #mean(np.abs(m1_evk_rate)) = 6.143286315401589
@@ -891,6 +1078,8 @@ for k, ctype in enumerate(['RS', 'FS']):
     ax[k].scatter(m1_num_driven_pos, m1_sel, c='tab:blue')
     ax[k].scatter(s1_num_driven_pos, s1_sel, c='tab:red')
 
+### Selectivity of a unit vs its selectivity during silencing ###
+### Selectivity of a unit vs its selectivity during silencing ###
 fig, ax = plt.subplots(2,2)
 for k, ctype in enumerate(['RS', 'FS']):
     m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
