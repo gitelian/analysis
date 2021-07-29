@@ -1660,7 +1660,7 @@ class NeuroAnalyzer(object):
                     else:
                         new_labels.append(label)
 
-            self.cell_type = new_labels
+            self.cell_type = np.asarray(new_labels)
 
     def get_lfps(self, kind='run_boolean', engaged=True):
         lfps = [list() for x in range(len(self.shank_names))]
