@@ -15,6 +15,11 @@ def gaussian(x, amp, cen, wid):
     """1-d gaussian: gaussian(x, amp, cen, wid)"""
     return (amp / (sqrt(2*pi) * wid)) * exp(-(x-cen)**2 / (2*wid**2))
 
+def RMSE(y_true, y_pred):
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    return np.sqrt(np.mean((y_true - y_pred)**2))
+
 def fwhm(result):
     """calculates full width at half max of fitted Gaussian"""
     amp   = result.best_values['amp']
@@ -45,6 +50,60 @@ experiments = list()
 for fid_name in fids:
     get_ipython().magic(u"run hdfanalyzer.py {}".format(fid_name))
     experiments.append(neuro)
+
+
+#### SCRATCH SPACE ####
+#### SCRATCH SPACE ####
+cvals_all = np.zeros((neuro.num_units, 4))
+mvals_all = np.zeros((neuro.num_units, 4))
+sel_all= np.zeros((neuro.num_units, ))
+for unit_index in range(neuro.num_units):
+    sel_all[unit_index] = neuro.selectivity[unit_index][0]
+    #unit_index = 18
+    meanr_abs = np.array([np.mean(k[:, unit_index]) for k in neuro.abs_rate])
+
+    counts = np.zeros((1, ))
+    x      = np.zeros((1, ))
+    xr     = np.arange(0, neuro.control_pos-1)
+    #x_test = np.ones((1, ))
+    for cond in xr:
+        num_trials = neuro.num_good_trials[cond]
+        counts = np.concatenate((counts, neuro.abs_rate[cond][:, unit_index]))
+        x = np.concatenate((x, np.repeat(cond, num_trials)))
+    #    x_test = np.concatenate((x_test, L
+    # "normalize" from 0-1
+    max_val = np.max(counts)
+    meanr_abs = meanr_abs[0:neuro.control_pos-1]
+    meanr_abs = meanr_abs / max_val
+    counts = counts / max_val
+
+    gmodel0 = Model(gaussian)
+    mean_amp = np.mean(counts)
+    count_fit = gmodel0.fit(counts, x=x, amp=np.mean(counts), cen=np.mean(x), wid=np.std(x))
+    cvals = count_fit.best_values #dictionary of estimated parameters
+    cfit  = gaussian(x, cvals['amp'], cvals['cen'], cvals['wid'])
+    #cfit_mean = np.unique(np.round(cfit, decimals=4))
+    cRMSE = RMSE(counts, cfit)
+    print('Counts RMSE: {}'.format(cRMSE))
+    cvals_all[unit_index, :] = cvals['amp'], cvals['cen'], cvals['wid'], cRMSE
+
+    gmodel1 = Model(gaussian)
+    meanr_fit = gmodel1.fit(meanr_abs, x=xr, amp=np.mean(meanr_abs), cen=neuro.best_contact[unit_index], wid=1)
+    mvals = meanr_fit.best_values #dictionary of estimated parameters
+    mfit  = gaussian(xr, mvals['amp'], mvals['cen'], mvals['wid'])
+    #mfit  = gaussian(x, mvals['amp'], mvals['cen'], mvals['wid'])
+    mfit = np.round(mfit, decimals=4)
+    #mRMSE = RMSE(counts, mfit)
+    mRMSE = RMSE(meanr_abs, mfit)
+    print('MeanR RMSE: {}\n'.format(mRMSE))
+    mvals_all[unit_index, :] = mvals['amp'], mvals['cen'], mvals['wid'], mRMSE
+
+plt.figure()
+plt.scatter(x, counts, c='tab:blue')
+plt.plot(x, cfit, 'tab:cyan', xr, meanr_abs, 'tab:red', xr, mfit, 'tab:pink')
+
+
+#### SCRATCH END ####
 
 for neuro in experiments:
     for unit_index in range(neuro.num_units):

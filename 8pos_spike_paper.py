@@ -6,6 +6,7 @@ import matplotlib as mpl
 from matplotlib.backends.backend_pdf import PdfPages
 import scipy.io as sio
 import statsmodels.stats.multitest as smm
+from scipy.stats import sem as se
 
 # This is the main place where I will explore and prepare figures for the
 # 8-pos-ephys experiment. Much of the population code will be copied over from
@@ -420,7 +421,14 @@ print('mean sem')
 print sp.stats.sem(m1_table[:,0]), sp.stats.sem(s1_table[:,0])
 print sp.stats.sem(m1_table[:,1]), sp.stats.sem(s1_table[:,1])
 
+# probably should use an anova or kriskall-wallace???
+# m1_table[:,0] vs s1_table[:,1] m1 control vs s1 driven
+# s1_table[:,0] vs s1_table[:,1] s1 control vs s1 driven
 
+
+
+##### Num driven units per region / num driven positions per driven unit #####
+##### Num driven units per region / num driven positions per driven unit #####
 
 ##### Num driven units per region / num driven positions per driven unit #####
 ##### Num driven units per region / num driven positions per driven unit #####
@@ -474,6 +482,12 @@ for k, ctype in enumerate(['RS', 'FS']):
     ax[k].set_xlabel('Number of driven positions')
     ax[k].set_ylabel('Prob density')
     ax[k].set_title('M1 {}%, S1 {} %'.format(m1_percent, s1_percent))
+
+    ### print stats ###
+    print '\n'*2, ctype, 'p-val', pval
+    print 'mean: ',   mean(m1_driven_pos_per_driven_units), mean(s1_driven_pos_per_driven_units)
+    print 'median: ', np.median(m1_driven_pos_per_driven_units), np.median(s1_driven_pos_per_driven_units)
+    print 'sem: ',    se(m1_driven_pos_per_driven_units), se(s1_driven_pos_per_driven_units)
 
 
 
@@ -539,11 +553,16 @@ for k, ctype in enumerate(['RS', 'FS']):
     ax[k].set_title('M1 {}%, S1 {} %'.format(m1_percent, s1_percent))
     fig.suptitle('Number of stimulus positions affected by silencing')
 
+    ### print stats ###
+    print '\n'*2, ctype, 'p-val', pval
+    print 'mean: ',   mean(m1_driven_pos_per_driven_units), mean(s1_driven_pos_per_driven_units)
+    print 'median: ', np.median(m1_driven_pos_per_driven_units), np.median(s1_driven_pos_per_driven_units)
+    print 'sem: ',    se(m1_driven_pos_per_driven_units), se(s1_driven_pos_per_driven_units)
 
-
-## Similar plot as above but showing how many driven positions were
+## Similar plot as above but showing how many positions from driven units were
 ## affected by light
-m1p = list() # compare number of driven pos per unit VS affected pos per unit
+## compare number of driven pos per unit VS num of pos affected light 
+m1p = list()
 s1p = list()
 fig, ax = plt.subplots(2,2)
 for k, ctype in enumerate(['RS', 'FS']):
@@ -571,8 +590,20 @@ for k, ctype in enumerate(['RS', 'FS']):
 # if pos x!=driven that is the probb silencing changes it
 
 
-### Driven evoked rate for all positions ###
-### Driven evoked rate for all positions ###
+
+
+
+
+                    ### Driven evoked rate for all positions ###
+                    ### Driven evoked rate for all positions ###
+
+
+                    ### Driven evoked rate for all positions ###
+                    ### Driven evoked rate for all positions ###
+
+
+
+
 ### Plots histogram (counts of binned evoked rates, e.g. 5 counts of evoked
 ### rates between 5-10 spikes/sec)
 
@@ -594,7 +625,7 @@ fig, ax = plt.subplots(1,2)
 for k, ctype in enumerate(['RS', 'FS']):
 
     low_val = list()
-    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type == ctype))[0]
+    m1_driven_unit_inds = np.where(npand(npand(region==0, driven==True), cell_type_rc == ctype))[0]
     m1_total_driven_pos = int(sum(num_driven[m1_driven_unit_inds]))
     m1_evk_rate = np.zeros((m1_total_driven_pos, ))
     count = 0
@@ -619,18 +650,42 @@ for k, ctype in enumerate(['RS', 'FS']):
 
     ax[k].hist(m1_evk_rate, bins=bins, density=True, alpha=0.45, color='tab:blue', align=align, cumulative=cumulative, histtype='stepfilled')
     ax[k].hist(s1_evk_rate, bins=bins, density=True, alpha=0.45, color='tab:red', align=align, cumulative=cumulative, histtype='stepfilled')
+# abs    ax[k].hist(np.abs(m1_evk_rate), bins=bins, density=True, alpha=0.45, color='tab:blue', align=align, cumulative=cumulative, histtype='stepfilled')
+# abs    ax[k].hist(np.abs(s1_evk_rate), bins=bins, density=True, alpha=0.45, color='tab:red', align=align, cumulative=cumulative, histtype='stepfilled')
     ax[k].set_xlabel('Evoked rate')
 
-    _, pval = sp.stats.ks_2samp(m1_evk_rate, s1_evk_rate)
+#    _, pval = sp.stats.ks_2samp(m1_evk_rate, s1_evk_rate)
 #    _, pval = sp.stats.levene(m1_evk_rate, s1_evk_rate)
-#    _, pval = sp.stats.ranksums(m1_evk_rate, s1_evk_rate)
+    _, pval = sp.stats.ranksums(m1_evk_rate, s1_evk_rate)
+# abs    _, pval = sp.stats.ranksums(np.abs(m1_evk_rate), np.abs(s1_evk_rate))
+
+    p[k] = pval
+    ax[k].set_title('{} units significant: {}'.format(ctype, pval<0.05), size=14)
+
+    print '\n'*2, ctype, 'p-val', pval
+    print 'mean: ',   mean(m1_evk_rate), mean(s1_evk_rate)
+    print 'median: ', np.median(m1_evk_rate), np.median(s1_evk_rate)
+    print 'sem: ',    se(m1_evk_rate), se(s1_evk_rate)
+
+## abs    print '\n'*2, ctype, 'p-val', pval
+## abs    print 'mean: ',   mean(np.abs(m1_evk_rate)), mean(np.abs(s1_evk_rate))
+## abs    print 'median: ', np.median(np.abs(m1_evk_rate)), np.median(np.abs(s1_evk_rate))
+## abs    print 'sem: ',    se(m1_evk_rate), se(s1_evk_rate)
+
+
     p[k] = pval
     ax[k].set_title('{} units significant: {}'.format(ctype, pval<0.05))
 
-fig.suptitle('Proportion of driven positions')
 
-print('evoked rate per driven position,\nks_2samp p-vals')
+fig.suptitle('Proportion of driven positions', size=16)
+print('evoked rate per driven position\np-vals')
 print(p)
+
+
+
+
+
+
 
 ## average absolute value of all evoked rates RS UNITS
 #mean(np.abs(m1_evk_rate)) = 6.143286315401589
@@ -670,7 +725,7 @@ print(p)
 ###  RS no_drive M1xS1       ______ |           ______ |           ______ |
 ###  RS driven M1xS1         ______ |           ______ |           ______ |
 
-#NOTE 03
+#NOTE as of 7/29/2021, all cell types are combined (probably should just use RS)
 
 bins=np.arange(0, 80, 2.5)
 cumulative=False

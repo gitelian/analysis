@@ -428,6 +428,7 @@ class NeuroDecoder(object):
 
 
 
+
 #def predict(self):
 #    """
 #    ughhh
@@ -598,99 +599,7 @@ class NeuroDecoder(object):
 ##                pcc.append(np.trace(cmat, offset=0)/num_pos)
 ##
 ##                # record confusino matrix for this fold
-##                cmats.append(cmat)
-##
-##                # record the weights and intercept
-##                weights.append(lr.coef_)
-##                intercepts.append(lr.intercept_)
-##
-##        # Compute the mean confusion matrix
-##        # cmats and mean_pcc get overwritten with ever iteration of the C parameter
-##        cmats = np.array(cmats)
-##        Cmean = cmats.mean(axis=0)
-##
-##        # Compute the mean percent correct
-##        mean_pcc = np.mean(pcc)
-##        std_pc  = np.std(pcc,ddof=1)
-##
-##        # Compute the mean weights
-##        weights = np.array(weights)
-##        mean_weights = weights.mean(axis=0)
-##        mean_intercept = np.mean(intercepts)
-##
-##        # Determine if we've found the best model thus far
-##        if mean_pcc > best_pcc:
-##            best_pcc = mean_pcc
-##            best_C = C
-##            best_Cmat = Cmean
-##            best_weights = mean_weights
-##            best_intercept = mean_intercept
-##
-##    # Print best percent correct and plot confusion matrix
-##    print('Mean percent correct: ' + str(mean_pcc*100) + str('%'))
-###    plt.figure()
-###    plt.imshow(best_Cmat,vmin=0,vmax=1,interpolation='none',cmap='hot')
-###    plt.colorbar()
-##    #plt.show()
-##    print('sum: ' + str(best_Cmat.sum(axis=1)))
-##
-##    return best_Cmat, best_C
-##
-##def calc_global_selectivity(cmat):
-##    num_pos = float(cmat.shape[0])
-##    pcc = np.diagonal(cmat)*(1.0/np.trace(cmat))
-###    pcc = np.diagonal(cmat)/num_pos
-##
-##    h_obs = np.sum(np.nan_to_num(-pcc*np.log2(pcc)))
-##    h_max = -np.log2(1.0/num_pos)
-##
-##    gs = 1.0 - (h_obs/h_max)
-##
-##    return gs
-##
-##def calc_max_selectivity(cmat):
-##    num_pos = float(cmat.shape[0])
-##    pcc = np.diagonal(cmat)
-##
-##    pref_pos = np.argmax(pcc)
-##    other_positions = np.delete(np.arange(num_pos), pref_pos).astype(int)
-##    max_selectivity = np.log2( ((num_pos - 1)*pcc[pref_pos])/(np.sum(pcc[other_positions])))
-##
-##    return max_selectivity
-##
-##def calc_invariance(cmat):
-##    num_pos = float(cmat.shape[0])
-##    pcc = np.diagonal(cmat)/num_pos
-##
-##    h_obs = np.sum(np.nan_to_num(-cmat*np.log2(cmat)))
-##    h_max = -np.log2(1/num_pos**2)
-##
-##    h_min = 0;
-##    for row in range(cmat.shape[0]):
-##        for col in range(cmat.shape[1]):
-##            Pj_of_i = np.sum(cmat[row, :])
-##        h_min += np.sum(-Pj_of_i * np.log2(Pj_of_i))
-##
-##    invariance = (h_obs - h_min)/(h_max - h_min)
-##
-##    return invariance
-##
-##def calc_mi(cmat):
-##    I = cmat.shape[0]
-##    J = cmat.shape[1]
-##    mi = 0
-##    for i in range(int(I)):
-##        for j in range(int(J)):
-##            P_ij = cmat[i, j]
-##            P_i  = 1.0/I # Assumes that equal number of trials for each
-##                         # for each category were used in the decoding process
-##            P_j  = cmat[:, j].sum()#/float(J)
-##
-##            mi_temp = np.nan_to_num(P_ij*np.log2(P_ij/(P_i*P_j)))
-##            mi += mi_temp
-##    return mi
-##
-########## MAIN CODE ##########
+MAIN CODE ##########
 ########## MAIN CODE ##########
 
 if __name__ == "__main__":
@@ -712,7 +621,7 @@ if __name__ == "__main__":
 ##### Cross-Experiment decoding: combine data across all experiments     #####
 ##### Regular decoding: plot confusion matrices for combinations of units#####
 ##### Single-Experiment: Computes PCC for random subsamples of units     #####
-##### Single-Experiment:Use SAVED DATA to remake PCC vs Num Units figures#####
+##### Single-Experiment: Use SAVED DATA to remake PCC vs Num Units figures#####
 ##### Single-Multi: decode each experiment independently & combine metrics#####
 #####                    Parallel processing                             #####
 #####    Scratch space: predict whisker angle from neural data??         #####
@@ -781,7 +690,9 @@ if __name__ == "__main__":
     npand = np.logical_and
     pos_inds = np.arange(8)
     min_trials = 30
-    ctype = 'FS'
+    ctype = 'all'
+    driven_bool = False
+    save_file_name = 'design_matrices_ALL_units_ALL_notdriven_units_all_data_all_light_conditions_noFID1343'
 
     ## vM1 data, all conditions
     Xm_nl  = np.zeros((min_trials*8, 1))
@@ -795,11 +706,11 @@ if __name__ == "__main__":
 
     for n in experiments:
         if ctype == 'RS' or ctype =='FS':
-            uind_m1 = np.where( npand( npand(n.driven_units == True, n.shank_ids == 0), n.cell_type == ctype ))[0]
-            uind_s1 = np.where( npand( npand(n.driven_units == True, n.shank_ids == 1), n.cell_type == ctype ))[0]
+            uind_m1 = np.where( npand( npand(n.driven_units == driven_bool, n.shank_ids == 0), n.cell_type == ctype ))[0]
+            uind_s1 = np.where( npand( npand(n.driven_units == driven_bool, n.shank_ids == 1), n.cell_type == ctype ))[0]
         elif ctype == 'all':
-            uind_m1 = np.where( npand(n.driven_units == True, n.shank_ids == 0), )[0]
-            uind_s1 = np.where( npand(n.driven_units == True, n.shank_ids == 1))[0]
+            uind_m1 = np.where( npand(n.driven_units == driven_bool, n.shank_ids == 0), )[0]
+            uind_s1 = np.where( npand(n.driven_units == driven_bool, n.shank_ids == 1))[0]
 
         ## vM1 data collection
 
@@ -839,33 +750,35 @@ if __name__ == "__main__":
     Xs_sl = Xs_sl[:, 1::]
     Xs_ml = Xs_ml[:, 1::]
 
-    # SAVE COMBINED DATA
-    ## + time.strftime('%Y%m%d_%Hh%Mm') # how to add timestamps to strings/filenames
-    save_dir= '/home/greg/Desktop/desktop2dropbox/decoder/'
-    save_name = 'design_matrices_FS_units_all_data_all_light_conditions_noFID1343'
-    fname = save_dir + save_name + '.mat'
-    sp.io.savemat(fname, {'Xm_nl':Xm_nl, 'Xm_sl':Xm_sl, 'Xm_ml':Xm_ml,\
-            'ym_nl':ym_nl, 'ym_sl':ym_sl, 'ym_ml':ym_ml,\
-            'Xs_nl':Xs_nl, 'Xs_sl':Xs_sl, 'Xs_ml':Xs_ml,\
-            'ys_nl':ys_nl, 'ys_sl':ys_sl, 'ys_ml':ys_ml,\
-            'fids':fids, 'min_trials':min_trials})
-
-    ############## END COMBINE DATA AND SAVE ##########
-
-    ## LOAD COMBINE DATA
-    save_dir= '/home/greg/Desktop/desktop2dropbox/decoder/'
-    save_name = 'design_matrices_all_units_all_data_all_light_conditions_noFID1343'
-#    save_name = 'design_matrices_RS_units_all_data_all_light_conditions_noFID1343'
-#    save_name = 'design_matrices_RS_FS_all_data_all_light_conditions_noFID1343'
-    data = sp.io.loadmat(save_dir + save_name)
-    Xm_nl = data['Xm_nl']; ym_nl = data['ym_nl'].ravel()
-    Xm_sl = data['Xm_sl']; ym_sl = data['ym_sl'].ravel()
-    Xm_ml = data['Xm_ml']; ym_ml = data['ym_ml'].ravel()
-
-    Xs_nl = data['Xs_nl']; ys_nl = data['ys_nl'].ravel()
-    Xs_sl = data['Xs_sl']; ys_sl = data['ys_sl'].ravel()
-    Xs_ml = data['Xs_ml']; ys_ml = data['ys_ml'].ravel()
-
+##    #### SAVE COMBINED DATA ####
+##    ## + time.strftime('%Y%m%d_%Hh%Mm') # how to add timestamps to strings/filenames
+##    save_dir= '/home/greg/Desktop/desktop2dropbox/decoder/'
+##    save_name = save_file_name
+##    fname = save_dir + save_name + '.mat'
+##    sp.io.savemat(fname, {'Xm_nl':Xm_nl, 'Xm_sl':Xm_sl, 'Xm_ml':Xm_ml,\
+##            'ym_nl':ym_nl, 'ym_sl':ym_sl, 'ym_ml':ym_ml,\
+##            'Xs_nl':Xs_nl, 'Xs_sl':Xs_sl, 'Xs_ml':Xs_ml,\
+##            'ys_nl':ys_nl, 'ys_sl':ys_sl, 'ys_ml':ys_ml,\
+##            'fids':fids, 'min_trials':min_trials})
+##
+##    ############## END COMBINE DATA AND SAVE ##########
+##
+##    #### LOAD COMBINE DATA ####
+##    save_dir= '/home/greg/Desktop/desktop2dropbox/decoder/'
+##    save_name = 'design_matrices_all_units_all_data_all_light_conditions_noFID1343'
+###    save_name = 'design_matrices_RS_units_all_data_all_light_conditions_noFID1343'
+###    save_name = 'design_matrices_RS_FS_all_data_all_light_conditions_noFID1343'
+##    data = sp.io.loadmat(save_dir + save_name)
+##    Xm_nl = data['Xm_nl']; ym_nl = data['ym_nl'].ravel()
+##    Xm_sl = data['Xm_sl']; ym_sl = data['ym_sl'].ravel()
+##    Xm_ml = data['Xm_ml']; ym_ml = data['ym_ml'].ravel()
+##
+##    Xs_nl = data['Xs_nl']; ys_nl = data['ys_nl'].ravel()
+##    Xs_sl = data['Xs_sl']; ys_sl = data['ys_sl'].ravel()
+##    Xs_ml = data['Xs_ml']; ys_ml = data['ys_ml'].ravel()
+##
+##    ############## END LOAD DATA ##############
+##
     ##### Basic Decoding #####
 
     ##### M1 decoding #####
@@ -874,26 +787,26 @@ if __name__ == "__main__":
     print('\n----- vM1 + NoLight basic decoding -----')
     m1c_nl = NeuroDecoder(Xm_nl, ym_nl)
     m1c_nl.fit(kind='ole', plot_cmat=False, run=True)
-    m1c_nl.get_pcc_distribution(num_runs=1000)
+    m1c_nl.get_pcc_distribution(num_runs=500)
 
     ### S1 combo decode with vM1 silencing ###
     print('\n----- vM1 + vS1 silencing  basic decoding -----')
     m1c_sl = NeuroDecoder(Xm_sl, ym_sl)
     m1c_sl.fit(kind='ole', plot_cmat=False, run=True)
-    m1c_sl.get_pcc_distribution(num_runs=1000)
+    m1c_sl.get_pcc_distribution(num_runs=500)
 
     ### M1 combo decode with vM1 silencing ###
     print('\n----- vM1 + vM1 silencing basic decoding -----')
     m1c_ml = NeuroDecoder(Xm_ml, ym_ml)
     m1c_ml.fit(kind='ole', plot_cmat=False, run=True)
-    m1c_ml.get_pcc_distribution(num_runs=1000)
+    m1c_ml.get_pcc_distribution(num_runs=500)
 
     ### M1 combo decode with label shuffle ###
     print('\n----- vM1 + NoLight label shuffle -----')
     ym_nl_shuffle = np.random.permutation(ym_nl)
     m1c_nl_shuff = NeuroDecoder(Xm_nl, ym_nl_shuffle)
     m1c_nl_shuff.fit(kind='ole', plot_cmat=False, run=True)
-    m1c_nl_shuff.get_pcc_distribution(num_runs=1000)
+    m1c_nl_shuff.get_pcc_distribution(num_runs=500)
 
 
     ### ### M1 + S1 no light combo decode ### ###
@@ -901,7 +814,7 @@ if __name__ == "__main__":
     Xms_nl = np.concatenate((Xm_nl, Xs_nl), axis=1)
     m1s1c_nl = NeuroDecoder(Xms_nl, ym_nl)
     m1s1c_nl.fit(kind='ole', plot_cmat=False, run=True)
-    m1s1c_nl.get_pcc_distribution(num_runs=1000)
+    m1s1c_nl.get_pcc_distribution(num_runs=500)
 
 
     ##### S1 decoding #####
@@ -910,51 +823,55 @@ if __name__ == "__main__":
     print('\n----- vS1 + NoLight basic decoding -----')
     s1c_nl = NeuroDecoder(Xs_nl, ys_nl)
     s1c_nl.fit(kind='ole', plot_cmat=False, run=True)
-    s1c_nl.get_pcc_distribution(num_runs=1000)
+    s1c_nl.get_pcc_distribution(num_runs=100)
 
     ### S1 combo decode with vM1 silencing ###
     print('\n----- vS1 + vM1 silencing  basic decoding -----')
     s1c_ml = NeuroDecoder(Xs_ml, ys_ml)
     s1c_ml.fit(kind='ole', plot_cmat=False, run=True)
-    s1c_ml.get_pcc_distribution(num_runs=1000)
+    s1c_ml.get_pcc_distribution(num_runs=100)
 
     ### S1 combo decode with vS1 silencing ###
     print('\n----- vS1 + vS1 silencing basic decoding -----')
     s1c_sl = NeuroDecoder(Xs_sl, ys_sl)
     s1c_sl.fit(kind='ole', plot_cmat=False, run=True)
     plt.title('vS1 + vS1 silencing: PCC {:.2f}'.format(s1c_sl.best_pcc))
-    s1c_sl.get_pcc_distribution(num_runs=1000)
+    s1c_sl.get_pcc_distribution(num_runs=100)
 
     ### S1 combo decode with label shuffle ###
     print('\n----- vS1 + NoLight label shuffle -----')
     ys_nl_shuffle = np.random.permutation(ys_nl)
     s1c_nl_shuff = NeuroDecoder(Xs_nl, ys_nl_shuffle)
     s1c_nl_shuff.fit(kind='ole', plot_cmat=False, run=True)
-    s1c_nl_shuff.get_pcc_distribution(num_runs=1000)
+    s1c_nl_shuff.get_pcc_distribution(num_runs=100)
+
+##### ##### END RUNNING DECODERS TIME FOR PLOTTING ##### #####
+
+
 
     #### Plot confusion matrix and PCC distributions before calculating subsets
     #### Plot confusion matrix and PCC distributions before calculating subsets
 
-    fig, ax = plt.subplots(2,3, figsize=(15.0, 7.0))
+    #### Top and Bottom confusion matrices ####
+    ## top row confusion matrices heatmap
+    fig, ax = plt.subplots(2,3, figsize=(15.0, 7.0)) # top row confusion matrices heatmap
+    im_m1   = ax[0][0].imshow(m1c_nl.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    im_s1   = ax[0][1].imshow(s1c_nl.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    im_m1s1 = ax[0][2].imshow(m1s1c_nl.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    fig.colorbar(im_m1,  ax=ax[0][0]); ax[0][0].set_title('vM1 PCC: ' + "{:.1f}".format(m1c_nl.cmat_pcc))
+    fig.colorbar(im_s1,  ax=ax[0][1]); ax[0][1].set_title('vS1 PCC: ' + "{:.1f}".format(s1c_nl.cmat_pcc))
+    fig.colorbar(im_m1s1,  ax=ax[0][2]); ax[0][2].set_title('vM1 + vS1 PCC: ' + "{:.1f}".format(m1s1c_nl.cmat_pcc))
 
-    # top row confusion matrices heatmap
-    im_m1   = ax[0][0].imshow(m1c.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
-    im_s1   = ax[0][1].imshow(s1c.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
-    im_m1s1 = ax[0][2].imshow(m1s1.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
-    fig.colorbar(im_m1,  ax=ax[0][0]); ax[0][0].set_title('vM1 PCC: ' + "{:.1f}".format(m1c.cmat_pcc))
-    fig.colorbar(im_s1,  ax=ax[0][1]); ax[0][1].set_title('vS1 PCC: ' + "{:.1f}".format(s1c.cmat_pcc))
-    fig.colorbar(im_m1s1,  ax=ax[0][2]); ax[0][2].set_title('vM1 + vS1 PCC: ' + "{:.1f}".format(m1s1.cmat_pcc))
-
-    # bottom row confusion matrices heatmap
-    im_m1L   = ax[1][0].imshow(m1cL.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
-    im_s1L   = ax[1][1].imshow(s1cL.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
-    fig.colorbar(im_m1L,  ax=ax[1][0]); ax[1][0].set_title('vM1 PCC: ' + "{:.1f}".format(m1cL.cmat_pcc))
-    fig.colorbar(im_s1L,  ax=ax[1][1]); ax[1][1].set_title('vS1 PCC: ' + "{:.1f}".format(s1cL.cmat_pcc))
-
-    # bottom right histogram with all the PCC distributions
+    ## bottom row confusion matrices heatmap
+    im_m1L   = ax[1][0].imshow(m1c_sl.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    im_s1L   = ax[1][1].imshow(s1c_ml.cmat, vmin=0, vmax=1, interpolation='nearest', cmap='afmhot')
+    fig.colorbar(im_m1L,  ax=ax[1][0]); ax[1][0].set_title('vM1 PCC: ' + "{:.1f}".format(m1c_sl.cmat_pcc))
+    fig.colorbar(im_m1s1,  ax=ax[0][2]); ax[0][2].set_title('vM1 + vS1 PCC: ' + "{:.1f}".format(m1s1c_nl.cmat_pcc))
 
 
-    ### vM1 histograms
+
+    #### bottom right histogram with all the PCC distributions
+    ## vM1 histograms
     fig, ax = plt.subplots()
     ax.hist(m1c_nl.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
             color='tab:blue', align='left', cumulative=False, histtype='stepfilled', label='vM1 NoLight' )
@@ -965,11 +882,15 @@ if __name__ == "__main__":
     ax.hist(m1c_nl_shuff.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
             color='tab:purple', align='left', cumulative=False, histtype='step', label='vM1 NoLight shuffle' )
 
-    ### vM1 + vS1 combo
-#    ax.hist(m1s1.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
+
+
+    ## vM1 + vS1 combo
+#    ax.hist(m1s1c_nl.all_pcc, bins=np.arange(0, 100, 1), density=True, alpha=0.5,\
 #            color='tab:purple', align='left', cumulative=False, histtype='stepfilled', label='vM1 + vS1 NoLight')
 
-    ### vS1 histograms
+
+
+    ## vS1 histograms
     ax.hist(s1c_nl.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
             color='tab:red', align='left', cumulative=False, histtype='stepfilled', label='vS1 NoLight')
     ax.hist(s1c_ml.all_pcc, bins=np.arange(0, 100, 0.5), density=True, alpha=0.5,\
@@ -988,30 +909,42 @@ if __name__ == "__main__":
     ax.vlines(0, 0, ax.get_ylim()[1])
     ax.legend(fontsize='x-small', loc='upper left')
 
+
+
+    #### SAVE FIGURES ####
     save_name = 'm1_s1_figure_simple_decoding_nolight'
     fname = save_dir + save_name + time.strftime('%Y%m%d_%Hh%mm') + '.pdf'
     fig.savefig(fname)
     plt.close(fig)
 
 
-    ##### M1 and S1 subset decoding #####
-    print('----- vM1 subset decoding -----\n')
-    m1c_pcc_array = m1c.decode_subset(niter=50, num_runs=500)
 
-    save_name = 'm1_subsampling_units_decoding_'
-    fname = save_dir + save_name + time.strftime('%Y%m%d_%Hh%Mm') + '.mat'
-    sp.io.savemat(fname, {'Xm':Xm, 'ym1':ym1, 'fids':fids,\
-            'm1c_pccs':m1c.all_pcc, 'm1c_cmat':m1c.cmat,\
-            'm1c_cmat_pcc':m1c.cmat_pcc, 'm1c_pcc_array':m1c_pcc_array})
+
+
+
+
+
+
+    ##### ##### M1 and S1 SUBSET decoding ##### #####
+    ##### ##### M1 and S1 SUBSET decoding ##### #####
+
+    print('----- vM1 subset decoding -----\n')
+    m1c_nl_pcc_array = m1c_nl.decode_subset(niter=20, num_runs=200) # default, 50 niter, 500 num_runs
+
+##    save_name = 'm1_subsampling_non_driven_units_decoding_'
+##    fname = save_dir + save_name + time.strftime('%Y%m%d_%Hh%Mm') + '.mat'
+##    sp.io.savemat(fname, {'Xm':Xm, 'ym1':ym1, 'fids':fids,\
+##            'm1c_nl_pccs':m1c_nl.all_pcc, 'm1c_nl_cmat':m1c_nl.cmat,\
+##            'm1c_nl_cmat_pcc':m1c_nl.cmat_pcc, 'm1c_nl_pcc_array':m1c_nl_pcc_array})
 
     print('----- vS1 subset decoding -----\n')
-    s1c_pcc_array = s1c.decode_subset(niter=50, num_runs=500)
+    s1c_nl_pcc_array = s1c_nl.decode_subset(niter=20, num_runs=200)
 
-    save_name = 's1_subsampling_units_decoding_'
+    save_name = 's1_subsampling_non_driven_units_decoding_'
     fname = save_dir + save_name + time.strftime('%Y%m%d_%Hh%Mm') + '.mat'
     sp.io.savemat(fname, {'Xs':Xs, ,'ys1':ys1, 'fids':fids,\
-            's1c_pccs':s1c.all_pcc, 's1c_cmat':s1c.cmat,\
-            's1c_cmat_pcc':s1c.cmat_pcc, 's1c_pcc_array':s1c_pcc_array})
+            's1c_nl_pccs':s1c_nl.all_pcc, 's1c_nl_cmat':s1c_nl.cmat,\
+            's1c_nl_cmat_pcc':s1c_nl.cmat_pcc, 's1c_nl_pcc_array':s1c_nl_pcc_array})
 
 
 ##### Add subsample figure and save it #####
@@ -1023,12 +956,12 @@ if __name__ == "__main__":
     fname = data_dir + file_name
     data = sio.loadmat(fname)
 
-    s1_nl = data['s1c_pcc_array']
+    s1_nl = data['s1c_nl_pcc_array']
     s1_nl_mean = np.mean(s1_nl, axis=0)
     s1_nl_std  = np.std(s1_nl, axis=0)
     xs_nl = np.arange(2, s1_nl.shape[1]+2)
 
-    m1_nl = data['m1c_pcc_array']
+    m1_nl = data['m1c_nl_pcc_array']
     m1_nl_mean = np.mean(m1_nl, axis=0)
     m1_nl_std  = np.std(m1_nl, axis=0)
     xm_nl = np.arange(2, m1_nl.shape[1]+2)
@@ -1181,6 +1114,9 @@ if __name__ == "__main__":
 ##### also plot performance vs kappas
 
 ## NOTE UNCOMMENT ## STARTING FROM HERE TO END OF FILE
+#
+# NOTE where does Xcorr come from?
+#
 ##npand = np.logical_and
 ##pos_inds = np.arange(8)
 ##
